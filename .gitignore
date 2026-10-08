@@ -1,0 +1,26 @@
+# secrets / env
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+backend/staticfiles/
+
+# node
+node_modules/
+.next/
+
+# playwright
+e2e/test-results/
+e2e/playwright-report/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
