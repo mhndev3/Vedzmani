@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-test("frontend loads and reports backend status", async ({ page }) => {
+test("root redirects to the default Persian locale (RTL)", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Vedzmani" })).toBeVisible();
-  await expect(page.getByTestId("backend-status")).toContainText("ok");
+  await expect(page).toHaveURL(/\/fa$/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "fa");
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
 test("backend readiness endpoint is healthy", async ({ request }) => {
