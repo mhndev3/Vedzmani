@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: <html class="dark"> is set before first paint by the
+   inline script in the root layout (stored choice, else system preference). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Restrained neutral foundation (no approved Figma available yet).
-   shadcn/ui-compatible tokens: replace values here when design lands. */
+   shadcn/ui-compatible semantic tokens: components use these, never raw colors.
+   Replace values here when the design lands. */
 :root {
   --radius: 0.5rem;
   --background: #ffffff;
@@ -11,6 +16,31 @@
   --border: #e5e5e5;
   --primary: #171717;
   --primary-foreground: #fafafa;
+  --ring: #171717;
+
+  /* Typography hook: to add a local Persian/Latin font later, put its
+     family first in these stacks (no component changes needed). */
+  --font-latin: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-persian: system-ui, "Segoe UI", Tahoma, "Noto Sans Arabic",
+    "Noto Naskh Arabic", Arial, sans-serif;
+  --font-body: var(--font-latin);
+}
+
+html[lang="fa"] {
+  --font-body: var(--font-persian);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --muted: #1a1a1a;
+  --muted-foreground: #a3a3a3;
+  --border: #2e2e2e;
+  --primary: #fafafa;
+  --primary-foreground: #171717;
+  --ring: #e5e5e5;
 }
 
 @theme inline {
@@ -21,14 +51,19 @@
   --color-border: var(--border);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
   --radius-lg: var(--radius);
-  --font-sans: var(--font-geist-sans);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
