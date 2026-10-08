@@ -3,7 +3,7 @@
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
-from .base import ALLOWED_HOSTS, SECRET_KEY, env, env_bool
+from .base import ALLOWED_HOSTS, OTP_DELIVERY_BACKEND, SECRET_KEY, env, env_bool
 
 DEBUG = False
 
@@ -11,6 +11,12 @@ if not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be set in production.")
 if SECRET_KEY.startswith("dev-only"):
     raise ImproperlyConfigured("A development SECRET_KEY must not be used in production.")
+
+if OTP_DELIVERY_BACKEND in {
+    "apps.accounts.delivery.ConsoleDelivery",
+    "apps.accounts.delivery.InMemoryDelivery",
+}:
+    raise ImproperlyConfigured("A dev/test OTP delivery backend must not be used in production.")
 
 # TLS terminates at the CDN/WAF/Nginx edge; trust its forwarded protocol header.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
