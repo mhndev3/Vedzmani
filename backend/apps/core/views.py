@@ -44,3 +44,11 @@ def ready(request):
         {"status": "ok" if healthy else "unavailable", "checks": checks},
         status=200 if healthy else 503,
     )
+
+def csrf_failure(request, reason=""):
+    """JSON body for CSRF rejections (CSRF_FAILURE_VIEW). The reason is logged
+    by Django; it is deliberately not echoed to the client."""
+    return JsonResponse(
+        {"error": {"code": "csrf_failed", "message": "CSRF verification failed."}},
+        status=403,
+    )

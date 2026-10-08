@@ -8,7 +8,10 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 from .base import *  # noqa: E402,F401,F403
 from .base import ALLOWED_HOSTS as _ALLOWED_HOSTS  # noqa: E402
-from .base import env_bool  # noqa: E402
+from .base import env, env_bool  # noqa: E402
 
 DEBUG = env_bool("DJANGO_DEBUG", True)
 ALLOWED_HOSTS = _ALLOWED_HOSTS or ["localhost", "127.0.0.1"]
+
+# DEV ONLY: log OTP codes to the console instead of sending SMS.
+OTP_DELIVERY_BACKEND = env("OTP_DELIVERY_BACKEND", "apps.accounts.delivery.ConsoleDelivery")

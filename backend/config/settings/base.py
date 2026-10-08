@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "apps.core",
+    "apps.accounts",
 ]
 
 MIDDLEWARE = [
@@ -123,11 +124,40 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = False
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
+CSRF_FAILURE_VIEW = "apps.core.views.csrf_failure"
+
+# --- Authentication (phone + OTP, Django session auth) ---------------------
+AUTH_USER_MODEL = "accounts.User"
+
+# Sessions live in PostgreSQL (Django default DB backend): auth state is never
+# kept only in Redis, and logout really deletes the server-side session row.
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
+SESSION_SAVE_EVERY_REQUEST = False
+# "Remember me" lifetime; without it the session cookie dies with the browser.
+AUTH_REMEMBER_ME_SECONDS = int(env("AUTH_REMEMBER_ME_SECONDS", str(60 * 60 * 24 * 30)))
+
+OTP_TTL_SECONDS = int(env("OTP_TTL_SECONDS", "300"))
+OTP_MAX_ATTEMPTS = int(env("OTP_MAX_ATTEMPTS", "5"))
+OTP_REQUEST_COOLDOWN_SECONDS = int(env("OTP_REQUEST_COOLDOWN_SECONDS", "60"))
+OTP_REQUEST_PHONE_LIMIT = int(env("OTP_REQUEST_PHONE_LIMIT", "5"))  # per hour
+OTP_REQUEST_IP_LIMIT = int(env("OTP_REQUEST_IP_LIMIT", "20"))  # per hour
+OTP_VERIFY_IP_LIMIT = int(env("OTP_VERIFY_IP_LIMIT", "30"))
+OTP_VERIFY_IP_WINDOW_SECONDS = int(env("OTP_VERIFY_IP_WINDOW_SECONDS", "600"))
+# Number of trusted reverse proxies in front of Django (Nginx = 1). 0 means
+# X-Forwarded-For is ignored and REMOTE_ADDR is used for per-IP limits.
+AUTH_TRUSTED_PROXY_COUNT = int(env("AUTH_TRUSTED_PROXY_COUNT", "0"))
+# No SMS provider exists yet: the default REFUSES to send (never fakes success).
+OTP_DELIVERY_BACKEND = env("OTP_DELIVERY_BACKEND", "apps.accounts.delivery.UnconfiguredDelivery")
 
 # Secure by default: endpoints must opt in to being public.
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_AUTHENTICATION_CLASSES": ["apps.accounts.authentication.SessionAuthentication401"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
 }
 
 LOGGING = {

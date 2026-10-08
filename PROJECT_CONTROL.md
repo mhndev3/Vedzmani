@@ -122,3 +122,9 @@ The backend stack is now explicitly **Python + Django + Django REST Framework**.
 
 ## Frontend/Backend Boundary
 Next.js is the frontend/application presentation layer. Django/DRF owns authoritative business logic and API contracts. Do not duplicate business rules between frontend and backend. The frontend communicates with Django through versionable HTTP APIs; the exact API versioning strategy should remain simple for V1 and must not introduce unnecessary gateway/microservice complexity.
+
+## Auth Foundation (Agent 3, Session 1)
+- Custom `accounts.User` (phone = identifier, canonical `+989XXXXXXXXX`; Django-native is_staff/is_superuser/groups/permissions) and `OTPChallenge` (HMAC-hashed codes) live in `backend/apps/accounts`.
+- Authentication is Django session auth (DB-backed sessions, CSRF enforced); no JWT. Contract: `backend/AUTH.md`.
+- OTP delivery is isolated behind `OTP_DELIVERY_BACKEND`; no SMS provider is chosen yet, so the production default refuses to send (503).
+- Behind Nginx set `AUTH_TRUSTED_PROXY_COUNT=1` (compose does) so per-IP rate limits use the real client IP.
