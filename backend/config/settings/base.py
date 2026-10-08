@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "apps.core",
     "apps.accounts",
+    "apps.catalog",
 ]
 
 MIDDLEWARE = [
@@ -127,6 +128,9 @@ CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 CSRF_FAILURE_VIEW = "apps.core.views.csrf_failure"
 
 # --- Authentication (phone + OTP, Django session auth) ---------------------
+# Public CDN base for product images (storage keys are stored, never URLs).
+MEDIA_CDN_BASE_URL = env("MEDIA_CDN_BASE_URL", "")
+
 AUTH_USER_MODEL = "accounts.User"
 
 # Sessions live in PostgreSQL (Django default DB backend): auth state is never
