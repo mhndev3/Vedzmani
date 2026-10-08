@@ -33,6 +33,40 @@ DB stores a **storage key** (relative object path, must end in `.webp`), never a
 `GET /api/catalog/products/<slug>/` — public, read-only; active product/category/variants/images/sizes only;
 stock exposed only as `in_stock` boolean; constant query count (tested).
 
+### Listing: `GET /api/catalog/products/` (Agent 6, Session 1)
+Public, read-only, no auth. Only `Product.is_active` products in an active category are returned. Unknown query
+params are ignored; invalid values return `400` with the standard `{"error": {...}}` envelope.
+
+| Param | Meaning |
+|---|---|
+| `search` | Case-insensitive substring search, DB-side. Whitespace-separated terms (max 5) are ANDed; each term may match product `name`, `slug`, `description`, category `name` or an active collection `name`. Blank = no filter. |
+| `category` | Category slug(s), comma-separated (max 10). Unknown slug -> empty result. |
+| `collection` | Active collection slug(s), comma-separated. |
+| `color` | `ColorVariant.slug`(s), comma-separated. Only active variants count. |
+| `size` | `Size.code`(s), comma-separated. Only active variant sizes count. |
+| `min_price`, `max_price` | Whole-unit integers, inclusive, applied to the **current** price (`sale_price` if set, else `price`). `min_price > max_price` -> 400. |
+| `in_stock` | `true` -> only products with at least one purchasable `VariantSize` (active size, active variant) with `stock_quantity > 0`. `false`/absent -> no filter. |
+| `sort` | `newest` (default), `price_asc`, `price_desc`, `name_asc`, `name_desc`. Anything else -> 400. Blank = default. Price sorts use current price. Every order ends in `id`, so pagination is deterministic. |
+| `page`, `page_size` | DRF page-number pagination. Default 24, max 60. Response: `count`, `next`, `previous`, `results`. Out-of-range page -> 404. |
+
+`color`, `size` and `in_stock` are evaluated against **one** `VariantSize` row: `color=black&size=m&in_stock=true` means
+"a black, size-M unit that is in stock", not "has black somewhere and M somewhere".
+
+Result item (card data only): `id, name, slug, price, sale_price, category{name,slug}, in_stock, image, colors[]`.
+`image` is one representative image (first active variant by position, its primary image first, else lowest
+position; `null` if none) as `{url, alt_text, width, height}` built via the CDN helper. `colors[]` are
+`{name, slug, hex_color}` swatches of active variants. No sizes, SKUs, stock quantities, storage keys or descriptions.
+
+Performance: filtering, search, price and ordering are SQL. Collections/variants/sizes are `Exists` sub-queries (no
+join fan-out, so no duplicates and an exact `count`). In-stock flag and representative image are annotations
+(correlated sub-queries, 1 image per product, not a prefetch of all images). A page costs 3 queries: count, products,
+color swatches (regression-tested). Search is `icontains`; it is simple and index-free, fine at V1 catalog size. If
+the catalog grows large, add `pg_trgm` GIN indexes (or Postgres full-text) without changing the API.
+
+Intentionally unsupported: discounted-only (`on_sale`) filter and discount percentage sorting (discount rules are
+still undecided; only the raw `sale_price` exists), relevance ranking, typo tolerance, facet counts, autocomplete,
+filtering by arbitrary fields, `in_stock=false` meaning "out of stock only".
+
 ## Not implemented (for later agents)
-listing/search/filter/sort API, write APIs, full admin (only bare `admin.site.register`), reviews, favorites,
+write APIs, full admin (only bare `admin.site.register`), reviews, favorites,
 cart, orders, inventory logic, pricing/discount engine, image upload/conversion, caching.
