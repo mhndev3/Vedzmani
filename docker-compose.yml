@@ -1,7 +1,12 @@
-# Local development topology. Only Nginx publishes a host port.
+# Local development topology.
+# PostgreSQL is exposed on host port 5433 for host-side Django tests.
+# Internal Docker services continue using postgres:5432.
+
 services:
   postgres:
     image: postgres:16-alpine
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
