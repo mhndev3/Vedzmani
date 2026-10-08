@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* Restrained neutral foundation (no approved Figma available yet).
+   shadcn/ui-compatible tokens: replace values here when design lands. */
+:root {
+  --radius: 0.5rem;
+  --background: #ffffff;
+  --foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #525252;
+  --border: #e5e5e5;
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --radius-lg: var(--radius);
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
