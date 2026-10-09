@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.catalog",
+    "apps.cart",
 ]
 
 MIDDLEWARE = [
@@ -170,3 +171,7 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": env("DJANGO_LOG_LEVEL", "INFO")},
 }
+
+# Cart limits (not documented by product requirements yet; conservative V1 defaults).
+CART_MAX_ITEM_QUANTITY = int(env("CART_MAX_ITEM_QUANTITY", "10"))  # units of one VariantSize
+CART_MAX_LINES = int(env("CART_MAX_LINES", "50"))  # distinct VariantSizes per cart

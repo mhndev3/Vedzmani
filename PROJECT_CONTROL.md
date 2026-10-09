@@ -128,3 +128,9 @@ Next.js is the frontend/application presentation layer. Django/DRF owns authorit
 - Authentication is Django session auth (DB-backed sessions, CSRF enforced); no JWT. Contract: `backend/AUTH.md`.
 - OTP delivery is isolated behind `OTP_DELIVERY_BACKEND`; no SMS provider is chosen yet, so the production default refuses to send (503).
 - Behind Nginx set `AUTH_TRUSTED_PROXY_COUNT=1` (compose does) so per-IP rate limits use the real client IP.
+
+## Cart Backend (Agent 7, Session 1)
+- `backend/apps/cart` (`Cart` 1:1 user, `CartItem` -> `catalog.VariantSize`); contract and decisions in `backend/CART.md`.
+- Session-authenticated, user-scoped, server-priced (`Product.current_price`), **never touches stock**; checkout must re-validate inventory.
+- Guest cart, orders/checkout, frontend wiring and cart limit confirmation (`CART_MAX_ITEM_QUANTITY`, `CART_MAX_LINES`) are open follow-ups.
+
