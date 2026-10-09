@@ -8,6 +8,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 export function navItems(locale: Locale, t: Dictionary) {
   return [
+    { href: `/${locale}/products`, label: t.nav.products },
     { href: `/${locale}/about`, label: t.nav.about },
     { href: `/${locale}/contact`, label: t.nav.contact },
     { href: `/${locale}/returns`, label: t.nav.returns },

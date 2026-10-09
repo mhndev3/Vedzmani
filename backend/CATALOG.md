@@ -70,3 +70,15 @@ filtering by arbitrary fields, `in_stock=false` meaning "out of stock only".
 ## Not implemented (for later agents)
 write APIs, full admin (only bare `admin.site.register`), reviews, favorites,
 cart, orders, inventory logic, pricing/discount engine, image upload/conversion, caching.
+
+### Filter vocabulary: `GET /api/catalog/filters/` (Agent 6, Session 2)
+Public, read-only. Returns `{categories[{name,slug}], collections[{name,slug}], colors[{name,slug,hex_color}], sizes[{code,label}]}`
+containing **only values that exist on published products** (active product + active category/variant/size/collection).
+Fixed cost of 4 queries. Added so the storefront never offers fake filter values. Colors are de-duplicated by slug.
+
+### Storefront (frontend) notes
+Routes: `/[locale]/products` (listing) and `/[locale]/products/[slug]` (detail, `?color=<slug>` selects a variant).
+All state is in the URL; filters/search are plain GET forms (`next/form`), sort/pagination/color are links. The only client
+component is `FilterDrawer` (native `<dialog>`). Not available because the API does not expose it: stock quantities
+(so no "only N left" warning), collections on the detail response, sale-discount percentages. Add-to-cart is a disabled,
+labelled placeholder until the cart domain exists. E2E fixtures: `e2e/seed_catalog.py` (throwaway DB only).
