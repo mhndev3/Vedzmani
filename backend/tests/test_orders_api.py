@@ -79,8 +79,10 @@ def test_csrf_is_enforced(http, user):
     assert Order.objects.count() == 0 and stock(vs) == 5 and CartItem.objects.count() == 1
 
 
-def test_only_post_is_allowed(http):
-    assert http.get(ORDERS).status_code == 405
+def test_put_patch_delete_are_not_allowed(http):
+    # GET (list) was added in Session 2; see tests/test_orders_read_api.py
+    for method in ("put", "patch", "delete"):
+        assert http.send(method, ORDERS).status_code == 405
 
 
 # --- success ---------------------------------------------------------------------------------
