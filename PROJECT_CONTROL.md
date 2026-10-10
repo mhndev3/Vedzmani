@@ -133,3 +133,8 @@ Next.js is the frontend/application presentation layer. Django/DRF owns authorit
 - `backend/apps/cart` (`Cart` 1:1 user, `CartItem` -> `catalog.VariantSize`); contract and decisions in `backend/CART.md`.
 - Session-authenticated, user-scoped, server-priced (`Product.current_price`), **never touches stock**; checkout must re-validate inventory.
 - Guest cart, orders/checkout, frontend wiring and cart limit confirmation (`CART_MAX_ITEM_QUANTITY`, `CART_MAX_LINES`) are open follow-ups.
+
+## Django Admin (Agent 8, Session 1)
+- Built-in Django admin at `/admin/` (session auth + `is_staff` + stock model permissions; no custom RBAC, no custom dashboard). Details and caveats: `backend/ADMIN.md`.
+- Phone-based user admin; catalog admin (variant page edits sizes/stock + images); cart admin is view-only with masked owners; `OTPChallenge` is deliberately not registered.
+- Open: admin login needs the canonical `+989...` phone; `stock_quantity` is admin-editable until the inventory module exists; admin static-file serving.
