@@ -138,3 +138,8 @@ Next.js is the frontend/application presentation layer. Django/DRF owns authorit
 - Built-in Django admin at `/admin/` (session auth + `is_staff` + stock model permissions; no custom RBAC, no custom dashboard). Details and caveats: `backend/ADMIN.md`.
 - Phone-based user admin; catalog admin (variant page edits sizes/stock + images); cart admin is view-only with masked owners; `OTPChallenge` is deliberately not registered.
 - Open: admin login needs the canonical `+989...` phone; `stock_quantity` is admin-editable until the inventory module exists; admin static-file serving.
+## Order Creation (Agent 9, Session 1)
+- `backend/apps/orders` (`Order` -> `OrderItem` -> `catalog.VariantSize`); contract and decisions in `backend/ORDERS.md`.
+- `POST /api/orders/` (session auth + CSRF, authenticated users only, no request body) turns the caller's cart into an order in one transaction: locks the cart and the purchased `VariantSize` rows (`select_for_update`, pk order), revalidates availability/stock, snapshots name/SKU/price, decrements stock, clears the cart. Any unavailable or short line rejects the whole order with 409.
+- Decided by the project owner: status field with the single value `pending` (no transitions), the database id is the only order identifier, no address/shipping/currency/tax (total = sum of line subtotals), customer phone snapshotted from the user.
+- Open: guest checkout, order list/detail, status workflow/cancel/restock, payment, delivery details, order number, admin registration, frontend checkout.
