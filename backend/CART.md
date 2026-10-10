@@ -68,5 +68,5 @@ product or category is inactive/unpublished). `unavailable` lines are shown, exc
   (future) must **snapshot** name/SKU/price and use `PROTECT`/no FK to live catalog rows.
 
 ## Not implemented (by design)
-Guest carts / merge on login, checkout/orders, stock deduction or reservation, coupons, shipping, tax, currency,
+Guest carts / merge on login, checkout/orders (now in `ORDERS.md`), stock deduction or reservation, coupons, shipping, tax, currency,
 cart expiry/cleanup job, frontend wiring (Add to Cart is still a placeholder on the storefront), caching.
