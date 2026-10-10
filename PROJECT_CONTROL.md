@@ -133,4 +133,3 @@ Next.js is the frontend/application presentation layer. Django/DRF owns authorit
 - `backend/apps/cart` (`Cart` 1:1 user, `CartItem` -> `catalog.VariantSize`); contract and decisions in `backend/CART.md`.
 - Session-authenticated, user-scoped, server-priced (`Product.current_price`), **never touches stock**; checkout must re-validate inventory.
 - Guest cart, orders/checkout, frontend wiring and cart limit confirmation (`CART_MAX_ITEM_QUANTITY`, `CART_MAX_LINES`) are open follow-ups.
-
