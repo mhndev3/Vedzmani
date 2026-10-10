@@ -98,4 +98,3 @@ def create_order(user) -> Order:
     )
     _clear_cart(cart)
     return order
-
