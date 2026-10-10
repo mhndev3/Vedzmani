@@ -3,14 +3,19 @@
 Editing flow: Product (+ color variants inline) -> ColorVariant page (+ sizes/stock and images inlines).
 Django has no nested inlines, so sizes and images live on the ColorVariant page on purpose.
 
-`stock_quantity` is editable here because no inventory module exists yet to set initial stock.
-Once orders exist, stock changes must go through the inventory module (see CATALOG.md / handoff).
+`stock_quantity` is READ-ONLY everywhere in this admin (size inline and VariantSize page): a new size starts
+at 0 and stock only changes through inventory adjustments (`apps.inventory`, see INVENTORY.md), which lock the
+row and write an audit record. Direct edits here could overwrite a concurrent order decrement.
 """
+
+from urllib.parse import urlencode
 
 from django import forms
 from django.contrib import admin
 from django.db.models import Count
 from django.forms.models import BaseInlineFormSet
+from django.urls import reverse
+from django.utils.html import format_html
 
 from .models import Category, Collection, ColorVariant, Product, Size, VariantImage, VariantSize
 
@@ -28,6 +33,7 @@ class VariantSizeInline(admin.TabularInline):
     model = VariantSize
     extra = 0
     fields = ("size", "sku", "stock_quantity", "is_active")
+    readonly_fields = ("stock_quantity",)  # changed only via inventory adjustments
 
 
 class VariantImageInlineFormSet(BaseInlineFormSet):
@@ -186,7 +192,19 @@ class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     search_fields = ("sku", "variant__product__name", "variant__name")
     ordering = ("variant__product__name", "variant__position", "size__position")
     autocomplete_fields = ("variant",)
-    readonly_fields = ("created_at", "updated_at")
+    # stock is changed only through inventory adjustments (apps.inventory), never by editing the column here
+    readonly_fields = ("stock_quantity", "created_at", "updated_at")
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = super().get_readonly_fields(request, obj)
+        if obj is not None and request.user.has_perm("inventory.add_inventoryadjustment"):
+            fields = (*fields, "adjust_stock_link")
+        return fields
+
+    @admin.display(description="Stock actions")
+    def adjust_stock_link(self, obj):
+        url = reverse("admin:inventory_inventoryadjustment_add") + "?" + urlencode({"variant_size": obj.pk})
+        return format_html('<a href="{}">Adjust stock (add or remove units)</a>', url)
 
 
 @admin.register(VariantImage)

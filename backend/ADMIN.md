@@ -13,13 +13,14 @@ unless explicitly given `is_staff` and a password.
 | Area | Notes |
 |---|---|
 | Users | Phone-based add/change forms (phone is normalized with `apps/accounts/phone.py`, duplicates in any spelling are form errors). Search accepts any phone spelling. The password hash is never rendered, only "set / not set" plus a change-password link. Non-superusers cannot edit `is_superuser`, groups or permissions, and cannot edit/delete/reset superusers. |
-| Catalog | Category / Collection (activate + reorder in the list), Size, Product (publication toggle in the list, price + read-only `current_price`, collections, color variants inline, search by SKU), ColorVariant (**sizes/stock and images are edited here**, Django has no nested inlines), VariantSize, VariantImage. |
+| Catalog | Category / Collection (activate + reorder in the list), Size, Product (publication toggle in the list, price + read-only `current_price`, collections, color variants inline, search by SKU), ColorVariant (**sizes and images are edited here**, stock is read-only; Django has no nested inlines), VariantSize, VariantImage. |
 | Cart | `Cart` / `CartItem` are **view-only** (no add/change), owners are masked in lists (`+9891****789`). Delete permission is intentionally left to Django: overriding it would block deleting a user who has a cart. |
 | Not registered | `OTPChallenge` (authentication state: code hash + salt). |
 
 ## Caveats
-- `VariantSize.stock_quantity` is editable in admin because no inventory module exists yet. After orders exist,
-  an admin edit can overwrite a concurrent decrement; stock changes must then go through the inventory module.
+- `VariantSize.stock_quantity` is **read-only** in admin (VariantSize page, changelist and the size inline). A new
+  size starts at 0 and staff change stock through **Inventory adjustments** (locked, audited, append-only; needs
+  `inventory.add_inventoryadjustment`, see `INVENTORY.md`). A direct edit could overwrite a concurrent order decrement.
 - Image rules (one primary per variant, unique position) are DB constraints. The admin turns violations into form
   errors, and moving the primary flag between images works in a single save.
 - Tests: `tests/test_admin_*.py` (access control, user forms, validation, N+1 guard on every changelist).

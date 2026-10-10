@@ -10,7 +10,7 @@ Category ─< Product >─< Collection        (Product.collections, M2M)
 
 - `VariantSize` is the **exact purchasable unit** (product + color + size). Cart/order items should FK to it.
   It has a unique `sku` and `stock_quantity` (>= 0).
-- **Inventory boundary:** this session only persists the column. Decrement, reservation, checkout validation and
+- **Inventory boundary:** (stock adjustments, their audit trail and the read-only admin now live in `apps/inventory`, see `INVENTORY.md`.) This session only persisted the column. Decrement, reservation, checkout validation and
   concurrency control belong to the inventory agent (use `select_for_update` / atomic updates on `VariantSize`).
   Redis must never hold stock.
 - Money: `Decimal(14, 0)`; currency/discount rules are undecided (see PROJECT_CONTROL.md). `sale_price`, if set, must be `0 < sale_price < price` (DB check).
