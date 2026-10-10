@@ -69,7 +69,7 @@ filtering by arbitrary fields, `in_stock=false` meaning "out of stock only".
 
 ## Not implemented (for later agents)
 write APIs, full admin (only bare `admin.site.register`), reviews, favorites,
-cart, orders, inventory logic, pricing/discount engine, image upload/conversion, caching.
+orders, inventory logic, pricing/discount engine, image upload/conversion, caching.
 
 ### Filter vocabulary: `GET /api/catalog/filters/` (Agent 6, Session 2)
 Public, read-only. Returns `{categories[{name,slug}], collections[{name,slug}], colors[{name,slug,hex_color}], sizes[{code,label}]}`
