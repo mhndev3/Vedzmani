@@ -79,7 +79,7 @@ def test_product_add_rejects_invalid_sale_price_without_500(su_client, sale):
     assert response.status_code == 200 and not Product.objects.exists()
 
 
-def test_variant_page_can_add_size_with_stock(su_client, make_variant_size):
+def test_variant_page_can_add_size_but_stock_cannot_be_set_directly(su_client, make_variant_size):
     variant = make_variant_size().variant
     size = variant.sizes.get().size
     variant.sizes.all().delete()
@@ -95,7 +95,9 @@ def test_variant_page_can_add_size_with_stock(su_client, make_variant_size):
         "images-0-content_type": "image/webp", "images-0-is_active": "on",
     }
     assert su_client.post(f"/admin/catalog/colorvariant/{variant.pk}/change/", data).status_code == 302
-    assert VariantSize.objects.get(sku="NEW-SKU-1").stock_quantity == 7
+    # The size is created, but the posted stock (7) is ignored: stock starts at 0 and only inventory
+    # adjustments change it (see tests/test_inventory_admin.py).
+    assert VariantSize.objects.get(sku="NEW-SKU-1").stock_quantity == 0
 
 def test_two_primary_images_in_one_submission_is_a_form_error(su_client, make_variant_size):
     variant = make_variant_size().variant
