@@ -41,3 +41,17 @@ stored as `+989XXXXXXXXX` (`apps/accounts/phone.py` is the only normalizer).
 - Delivery: `OTP_DELIVERY_BACKEND` (`apps/accounts/delivery.py`). Default **refuses to send** (503);
   `ConsoleDelivery` (dev) / `InMemoryDelivery` (tests) are rejected by production settings.
   To add a real SMS provider: subclass `OTPDelivery`, point the setting at it.
+
+## OTP: development vs production (Agent 11 audit)
+- **Production login does not work yet.** No SMS provider is selected, configured or tested. With the default
+  `UnconfiguredDelivery`, `POST /otp/request/` answers `503 otp_delivery_unavailable`, so no real customer can sign in.
+  Do not describe production login as working until a provider is chosen, configured and verified end to end.
+- `ConsoleDelivery` is **development only**: it writes the code to the server log (logger `apps.accounts.delivery`,
+  level WARNING). It is not SMS delivery. `InMemoryDelivery` is for tests. `config.settings.prod` refuses to boot with
+  either.
+- **Docker Compose runs the backend with `DJANGO_SETTINGS_MODULE=config.settings.dev`** (see `docker-compose.yml`), and
+  the dev settings default `OTP_DELIVERY_BACKEND` to `ConsoleDelivery`. In that topology OTP codes are written to the
+  backend's log (whether they appear in `docker compose logs` depends on the logging configuration, which was not
+  verified). Treat Compose as a development/staging topology, never as a production deployment. Setting
+  `OTP_DELIVERY_BACKEND=apps.accounts.delivery.UnconfiguredDelivery` in Compose makes it refuse to send, like production.
+- The compose topology was only inspected, not changed or run.

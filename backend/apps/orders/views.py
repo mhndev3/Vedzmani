@@ -1,5 +1,6 @@
 """Orders API. Authentication = existing Django session auth (401 when anonymous, CSRF on POST).
-The owner is always `request.user`; the request body and any client-supplied user id are ignored entirely."""
+The owner is always `request.user`. The only client input to order creation is the Iranian delivery details
+(`CheckoutSerializer`); any other key in the body (user id, total, status, payment status, phone, ...) is ignored."""
 
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
@@ -10,7 +11,7 @@ from rest_framework.views import APIView
 
 from . import services
 from .models import Order
-from .serializers import OrderSerializer
+from .serializers import CheckoutSerializer, OrderSerializer
 
 
 def _own_orders(user):
@@ -25,7 +26,11 @@ class OrderListCreateView(APIView):
         return Response(OrderSerializer(_own_orders(request.user), many=True).data)
 
     def post(self, request):
-        order = services.create_order(request.user)
+        # Validate BEFORE the transaction: invalid delivery details take no lock and change nothing
+        # (no order, no stock change, cart untouched). Authentication and CSRF were already enforced by DRF.
+        details = CheckoutSerializer(data=request.data)
+        details.is_valid(raise_exception=True)
+        order = services.create_order(request.user, details.validated_data)
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 

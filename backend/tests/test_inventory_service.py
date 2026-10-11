@@ -18,7 +18,7 @@ from apps.inventory import services
 from apps.inventory.models import InventoryAdjustment
 from apps.inventory.services import InvalidAdjustment, StockWouldGoNegative, adjust_stock
 from apps.orders.services import create_order
-from tests.conftest import new_phone
+from tests.conftest import DELIVERY, new_phone
 
 pytestmark = pytest.mark.django_db
 
@@ -214,7 +214,7 @@ def test_order_checkout_still_decrements_stock_and_is_not_an_adjustment(make_var
     customer = get_user_model().objects.create_user(new_phone())
     CartItem.objects.create(cart=Cart.objects.create(user=customer), variant_size=vs, quantity=4)
 
-    order = create_order(customer)
+    order = create_order(customer, DELIVERY)
 
     assert stock(vs) == 11
     assert order.items.get().quantity == 4
@@ -284,7 +284,7 @@ def test_concurrent_adjustment_and_checkout_do_not_lose_updates(make_variant_siz
     for customer in customers:
         CartItem.objects.create(cart=Cart.objects.create(user=customer), variant_size=vs, quantity=1)
 
-    calls = [lambda c=c: create_order(c) for c in customers] + [lambda: adjust(vs, 5, by=actor) for _ in range(4)]
+    calls = [lambda c=c: create_order(c, DELIVERY) for c in customers] + [lambda: adjust(vs, 5, by=actor) for _ in range(4)]
     results = _run_concurrently(calls)
 
     assert all(kind == "ok" for kind, _ in results), results
