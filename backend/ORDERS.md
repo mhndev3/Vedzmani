@@ -30,7 +30,9 @@ ever accepted from the client. Responses are `Cache-Control: no-store, private`.
 | `postal_code` | required; after trimming and converting Persian/Arabic-Indic digits to ASCII it must be **exactly 10 digits** (`apps/orders/postal_code.py`). Separators, letters and other digit scripts are rejected. No stricter national rule is applied (none was provided). |
 
 JSON numbers, booleans and `null` are rejected for every field (a number would lose a leading zero). Text fields are
-single-line: control characters (newline, tab, NUL, ...) are rejected; zero-width non-joiner (needed for Persian) is
+single-line: control characters (newline, tab, NUL, ...) are rejected **anywhere in the submitted value, including a
+leading or trailing one** (they are checked before trimming, so they are never silently removed); ordinary spaces around
+the value are trimmed, and a value that is only whitespace is `blank`. Zero-width non-joiner (needed for Persian) is
 allowed. There is no `country` field (the V1 market is Iran). **There is no phone field**: see "Delivery phone".
 Any other key in the body (`user`, `total`, `status`, `payment_status`, `phone`, `items`, ...) is ignored and never read.
 
@@ -67,7 +69,8 @@ catalog or profile edits do not change what the API returns (tested).
 ### POST errors (`{"error": {"code", "message"}}`, same envelope as the rest of the API)
 | HTTP | code | when |
 |---|---|---|
-| 400 | `validation_error` | missing/blank/over-length/non-string delivery field or invalid `postal_code` (`details.<field>[].code`: `required`, `blank`, `null`, `max_length`, `not_a_string`, `control_characters`, `invalid_postal_code`); malformed or non-object body. Messages never contain the submitted value. |
+| 400 | `validation_error` | missing/blank/over-length/non-string delivery field or invalid `postal_code` (`details.<field>[].code`: `required`, `blank`, `null`, `max_length`, `not_a_string`, `control_characters`, `invalid_postal_code`); an empty body (every field `required`); valid JSON that is not an object (`details.non_field_errors[].code`: `invalid` for a list, string, number or boolean, `null` for `null`). Messages never contain the submitted value. |
+| 400 | `parse_error` | the body is not syntactically valid JSON (no `details`; the message never quotes the body) |
 | 400 | `empty_cart` | valid details but no cart row / no lines (this is also what a repeated submit gets) |
 | 401 | `not_authenticated` | anonymous |
 | 403 | `csrf_failed` | missing/invalid CSRF token |
@@ -155,7 +158,7 @@ response (200/404/401), GETs mutate nothing (orders, items, cart, stock), consta
 
 `tests/test_orders_checkout_details.py` (Agent 11): required/blank/null/over-length/non-string/control-character
 delivery fields and invalid postal codes each leave orders, stock and cart unchanged; Persian digits and trimming;
-exact maximum lengths; no echo of submitted values and no logging of them; malformed bodies; validation-before-cart
+exact maximum lengths; leading/trailing/embedded control characters rejected with that single field as the only error; no echo of submitted values and no logging of them; invalid JSON syntax (`parse_error`), empty and non-object bodies (`validation_error`); a self-test that the shared "nothing changed" snapshot (orders, order items, cart lines with variant and quantity, all stock) detects each kind of change; validation-before-cart
 ordering; account phone cannot be overridden and its snapshot survives a later account-phone change; client cannot set
 `payment_status`/`status`/`total`/owner/id; service ignores non-delivery keys and requires all five fields; valid body
 does not bypass 401/CSRF; another customer gets 404 and no address; legacy order without delivery data is readable.

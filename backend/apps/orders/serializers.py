@@ -24,10 +24,12 @@ class _TextField(serializers.CharField):
     def to_internal_value(self, data):
         if not isinstance(data, str):
             self.fail("not_a_string")
-        value = super().to_internal_value(data)
-        if any(unicodedata.category(char) == "Cc" for char in value):
+        # Check the RAW string: DRF's CharField trims whitespace (str.strip also removes a leading/trailing \n or
+        # \t), so checking afterwards would silently accept them. Spaces are not control characters and are still
+        # trimmed; a value that is only whitespace is rejected as `blank` before this method runs.
+        if any(unicodedata.category(char) == "Cc" for char in data):
             self.fail("control_characters")
-        return value
+        return super().to_internal_value(data)
 
 
 class PostalCodeField(_TextField):

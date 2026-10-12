@@ -62,11 +62,28 @@ def error_code(response):
     return response.json()["error"]["code"]
 
 
-def assert_nothing_changed(owner, stocks):
-    assert Order.objects.count() == 0 and OrderItem.objects.count() == 0
-    assert CartItem.objects.filter(cart__user=owner).count() == len(stocks)
-    for vs, expected in stocks:
-        assert stock(vs) == expected
+def world(owner):
+    """Everything a rejected checkout must leave alone, captured as plain values (no live ORM objects):
+    orders and order items, the owner's cart (its id and every line with its variant and quantity) and the
+    stock of every variant size. Take it right before the request under test."""
+    cart = Cart.objects.filter(user=owner).first()
+    return {
+        "orders": sorted(Order.objects.values_list("pk", flat=True)),
+        "order_items": sorted(OrderItem.objects.values_list("pk", flat=True)),
+        "cart_id": cart.pk if cart else None,
+        "cart_lines": sorted(
+            CartItem.objects.filter(cart__user=owner).values_list("pk", "variant_size_id", "quantity")
+        ),
+        "stock": dict(VariantSize.objects.values_list("pk", "stock_quantity")),
+    }
+
+
+def assert_nothing_changed(owner, before):
+    """`before` is `world(owner)` taken before the rejected request. Compares complete state, not counts."""
+    assert before["cart_lines"], "vacuous check: the cart was empty before the request"
+    after = world(owner)
+    for key in before:
+        assert after[key] == before[key], f"{key} changed: {before[key]!r} -> {after[key]!r}"
 
 
 # --- authentication / CSRF -------------------------------------------------------------------
@@ -190,10 +207,12 @@ def test_insufficient_stock_rejects_whole_order(http, user):
     short.stock_quantity = 2  # stock dropped after the item was added to the cart
     short.save()
 
+    before = world(user)
+
     response = checkout(http)
 
     assert response.status_code == 409 and error_code(response) == "insufficient_stock"
-    assert_nothing_changed(user, [(ok, 5), (short, 2)])
+    assert_nothing_changed(user, before)
     assert sorted(CartItem.objects.values_list("quantity", flat=True)) == [2, 3]
 
 
@@ -202,9 +221,10 @@ def test_out_of_stock_item_is_rejected(http, user):
     fill_cart(user, (vs, 1))
     vs.stock_quantity = 0
     vs.save()
+    before = world(user)
     response = checkout(http)
     assert response.status_code == 409 and error_code(response) == "insufficient_stock"
-    assert_nothing_changed(user, [(vs, 0)])
+    assert_nothing_changed(user, before)
 
 
 def _deactivate_product(vs):
@@ -233,11 +253,12 @@ def test_unavailable_item_rejects_whole_order(http, user, deactivate):
     gone = make_vs(slug="gone", stock=5, size_code="l")
     fill_cart(user, (good, 1), (gone, 1))
     deactivate(gone)
+    before = world(user)
 
     response = checkout(http)
 
     assert response.status_code == 409 and error_code(response) == "item_unavailable"
-    assert_nothing_changed(user, [(good, 5), (gone, 5)])
+    assert_nothing_changed(user, before)
 
 
 def test_unavailable_takes_precedence_over_insufficient_stock(http, user):
@@ -247,8 +268,9 @@ def test_unavailable_takes_precedence_over_insufficient_stock(http, user):
     _deactivate_product(gone)
     short.stock_quantity = 1
     short.save()
+    before = world(user)
     assert error_code(checkout(http)) == "item_unavailable"
-    assert_nothing_changed(user, [(gone, 5), (short, 1)])
+    assert_nothing_changed(user, before)
 
 
 # --- snapshots are independent of the live catalog -------------------------------------------
@@ -303,11 +325,12 @@ def test_failure_mid_transaction_rolls_everything_back(http, user, monkeypatch, 
     b = make_vs(slug="b", stock=4, size_code="l")
     fill_cart(user, (a, 2), (b, 3))
     fail(monkeypatch)
+    before = world(user)
 
     with pytest.raises(RuntimeError):
         checkout(http)
 
-    assert_nothing_changed(user, [(a, 5), (b, 4)])
+    assert_nothing_changed(user, before)
     assert sorted(CartItem.objects.values_list("quantity", flat=True)) == [2, 3]
 
 
