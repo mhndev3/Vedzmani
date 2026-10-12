@@ -77,6 +77,7 @@ class OTPVerifyView(CSRFProtectedAPIView):
         return Response({"user": CurrentUserSerializer(user).data, "is_new_user": created})
 
 
+@method_decorator(never_cache, name="dispatch")  # personal data (phone): never cacheable
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 

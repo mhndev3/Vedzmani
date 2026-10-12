@@ -45,6 +45,15 @@ def ready(request):
         status=200 if healthy else 503,
     )
 
+def api_not_found(request, exception=None):
+    """handler404: JSON envelope for unknown /api/ routes, Django's default page elsewhere."""
+    if request.path.startswith("/api/"):
+        return JsonResponse({"error": {"code": "not_found", "message": "Not found."}}, status=404)
+    from django.views.defaults import page_not_found
+
+    return page_not_found(request, exception)
+
+
 def csrf_failure(request, reason=""):
     """JSON body for CSRF rejections (CSRF_FAILURE_VIEW). The reason is logged
     by Django; it is deliberately not echoed to the client."""
