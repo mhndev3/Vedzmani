@@ -11,6 +11,8 @@ import json
 import pytest
 from django.test import Client
 
+from tests.conftest import DELIVERY
+
 PUBLIC_GET = [
     "/api/health/",
     "/api/health/ready/",
@@ -144,7 +146,7 @@ def test_detail_to_cart_to_order_handoff_uses_variant_size_id(api, make_variant_
     assert cart["items"][0]["variant_size"]["id"] == size_id
     assert cart["items"][0]["quantity"] == 2
 
-    created = api.post("/api/orders/")
+    created = api.post("/api/orders/", DELIVERY)  # checkout requires delivery details (see ORDERS.md)
     assert created.status_code == 201, created.content
     order = created.json()
     assert {"id", "status", "customer_phone", "total", "created_at", "items"} <= set(order)

@@ -30,7 +30,10 @@ to all of `/api/` and the known inconsistencies. Pinned by `tests/test_api_contr
 2. Cart `POST` also accepts form-encoded bodies, not only JSON. Clients should send JSON.
 3. `MEDIA_CDN_BASE_URL` is empty by default and absent from compose/`.env` examples, so image URLs are
    origin-relative (`/<key>`) and resolve against the Next origin. Set it (or route them) before launch.
-4. Orders contract will change when `origin/agent/11-checkout-session-01` merges (POST no longer takes an
-   empty body). Frontend must not rely on the empty-body form.
+4. `POST /api/orders/` requires a JSON body with the five Iranian delivery details (`recipient_name`, `province`,
+   `city`, `address`, `postal_code`; see `ORDERS.md`). An empty or missing body is `400 validation_error` (one
+   `required` entry per field in `details`) and creates nothing; 401 and `csrf_failed` are still answered before
+   validation. The earlier empty-body form no longer works, and the cross-endpoint test sends `DELIVERY` from
+   `tests/conftest.py`.
 5. Catalog `q`/`category` have server-side length caps; the frontend does not pre-validate them and shows its
    retry state on a 400.
