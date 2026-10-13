@@ -17,7 +17,7 @@ from apps.cart.models import CartItem
 from apps.catalog.models import VariantSize
 from apps.orders import services
 from apps.orders.models import Order, OrderItem
-from tests.conftest import ApiClient
+from tests.conftest import DELIVERY, ApiClient
 from tests.test_cart_api import Http, make_vs
 from tests.test_orders_api import fill_cart, stock
 
@@ -49,7 +49,7 @@ def other_user():
 def place(owner, *lines):
     """Place a real order for `owner` from the given (variant_size, quantity) lines."""
     fill_cart(owner, *lines)
-    return services.create_order(owner)
+    return services.create_order(owner, DELIVERY)
 
 
 def detail(order_id):
@@ -172,7 +172,11 @@ def test_items_quantities_prices_and_totals_are_returned_from_the_snapshot(http,
 
     body = http.get(detail(order.id)).json()
 
-    assert set(body) == {"id", "status", "customer_phone", "total", "created_at", "items"}
+    # Delivery snapshot + payment_status were added by Agent 11 (additive); there is no shipping/fee key.
+    assert set(body) == {
+        "id", "status", "payment_status", "customer_phone", "recipient_name", "province", "city", "address",
+        "postal_code", "total", "created_at", "items",
+    }
     assert body["total"] == "2100"
     items = {i["sku"]: i for i in body["items"]}
     assert set(items["hoodie-m"]) == {

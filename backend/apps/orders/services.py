@@ -8,8 +8,16 @@ Order of operations (all inside `transaction.atomic`, any exception rolls everyt
   4. snapshot names/SKU/price from the locked rows, compute totals, decrement stock, create order + items,
   5. delete the cart's lines.
 Prices are never read from the client or from the cart (the cart stores none).
+
+Delivery details (`Order.DELIVERY_FIELDS`) are validated by the API layer BEFORE this function runs, so invalid
+input never takes a lock, creates an order, touches stock or empties the cart. `create_order` still requires all
+of them (a missing key raises before any query) and copies exactly those keys, so no other value in `delivery`
+can ever reach the order. The delivery phone is the account phone (`user.phone`), never a client value.
+No shipping cost is computed: `total` is the sum of the line subtotals only. `payment_status` is not passed in;
+it always starts as `unpaid`.
 """
 
+from collections.abc import Mapping
 from decimal import Decimal
 
 from django.db import transaction
@@ -38,7 +46,10 @@ def _clear_cart(cart: Cart) -> None:
 
 
 @transaction.atomic
-def create_order(user) -> Order:
+def create_order(user, delivery: Mapping[str, str]) -> Order:
+    # Pick exactly the delivery keys (KeyError if one is missing) before any query or lock is taken.
+    delivery_snapshot = {field: delivery[field] for field in Order.DELIVERY_FIELDS}
+
     cart = Cart.objects.select_for_update().filter(user=user).first()
     cart_items = list(cart.items.order_by("variant_size_id")) if cart is not None else []
     if not cart_items:
@@ -79,7 +90,7 @@ def create_order(user) -> Order:
         if updated != 1:
             raise InsufficientStock()
 
-    order = Order.objects.create(user=user, customer_phone=user.phone, total=total)
+    order = Order.objects.create(user=user, customer_phone=user.phone, total=total, **delivery_snapshot)
     OrderItem.objects.bulk_create(
         [
             OrderItem(

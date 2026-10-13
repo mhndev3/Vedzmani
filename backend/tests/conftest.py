@@ -6,6 +6,15 @@ from django.test import Client
 
 from apps.accounts.delivery import InMemoryDelivery
 
+# A valid checkout body (Iranian delivery details). The delivery phone is NOT part of it: it is the account phone.
+DELIVERY = {
+    "recipient_name": "Test Customer",
+    "province": "Tehran",
+    "city": "Tehran",
+    "address": "No. 1, Example St.",
+    "postal_code": "1234567890",
+}
+
 
 @pytest.fixture(autouse=True)
 def _clean_state():

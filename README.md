@@ -40,6 +40,11 @@ Key variables: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DAT
 
 Settings modules: `config.settings.dev` (local), `prod` (fails fast on missing/insecure config), `test`. `wsgi.py`/`asgi.py` default to `prod`.
 
+**Compose is a development topology.** `docker-compose.yml` sets `DJANGO_SETTINGS_MODULE=config.settings.dev` for the
+backend, so OTP codes use the dev-only `ConsoleDelivery` (written to the backend log). No SMS provider and no payment
+provider are configured: production login and online payment are not available (see `backend/AUTH.md`,
+`backend/PAYMENT.md`).
+
 ## Backend
 
 - `GET /api/health/` — liveness, no dependencies.

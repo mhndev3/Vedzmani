@@ -13,6 +13,7 @@ from apps.cart.models import Cart, CartItem
 from apps.catalog.models import VariantSize
 from apps.orders import services
 from apps.orders.models import Order, OrderItem
+from tests.conftest import DELIVERY
 from tests.test_cart_api import Http, make_vs
 
 ORDERS = "/api/orders/"
@@ -41,6 +42,11 @@ def user(http):
     return User.objects.get(phone=normalize_phone(PHONE))
 
 
+def checkout(http, **overrides):
+    """POST /api/orders/ with valid delivery details (plus optional overrides/extra keys)."""
+    return http.send("post", ORDERS, {**DELIVERY, **overrides})
+
+
 def fill_cart(owner, *lines):
     cart, _ = Cart.objects.get_or_create(user=owner)
     for vs, quantity in lines:
@@ -56,11 +62,28 @@ def error_code(response):
     return response.json()["error"]["code"]
 
 
-def assert_nothing_changed(owner, stocks):
-    assert Order.objects.count() == 0 and OrderItem.objects.count() == 0
-    assert CartItem.objects.filter(cart__user=owner).count() == len(stocks)
-    for vs, expected in stocks:
-        assert stock(vs) == expected
+def world(owner):
+    """Everything a rejected checkout must leave alone, captured as plain values (no live ORM objects):
+    orders and order items, the owner's cart (its id and every line with its variant and quantity) and the
+    stock of every variant size. Take it right before the request under test."""
+    cart = Cart.objects.filter(user=owner).first()
+    return {
+        "orders": sorted(Order.objects.values_list("pk", flat=True)),
+        "order_items": sorted(OrderItem.objects.values_list("pk", flat=True)),
+        "cart_id": cart.pk if cart else None,
+        "cart_lines": sorted(
+            CartItem.objects.filter(cart__user=owner).values_list("pk", "variant_size_id", "quantity")
+        ),
+        "stock": dict(VariantSize.objects.values_list("pk", "stock_quantity")),
+    }
+
+
+def assert_nothing_changed(owner, before):
+    """`before` is `world(owner)` taken before the rejected request. Compares complete state, not counts."""
+    assert before["cart_lines"], "vacuous check: the cart was empty before the request"
+    after = world(owner)
+    for key in before:
+        assert after[key] == before[key], f"{key} changed: {before[key]!r} -> {after[key]!r}"
 
 
 # --- authentication / CSRF -------------------------------------------------------------------
@@ -92,7 +115,7 @@ def test_creates_order_with_snapshot_total_stock_and_clears_cart(http, user):
     tee = make_vs(slug="tee", price="500", stock=3, size_code="l")
     fill_cart(user, (hoodie, 2), (tee, 1))
 
-    response = http.send("post", ORDERS)
+    response = checkout(http)
 
     assert response.status_code == 201, response.content
     assert response["Cache-Control"].find("no-store") != -1
@@ -118,7 +141,7 @@ def test_creates_order_with_snapshot_total_stock_and_clears_cart(http, user):
 def test_can_buy_exactly_the_remaining_stock(http, user):
     vs = make_vs(stock=3)
     fill_cart(user, (vs, 3))
-    assert http.send("post", ORDERS).status_code == 201
+    assert checkout(http).status_code == 201
     assert stock(vs) == 0
 
 
@@ -128,7 +151,7 @@ def test_price_is_read_at_checkout_not_when_added_to_cart(http, user):
     product = vs.variant.product
     product.sale_price = Decimal("700")
     product.save()
-    body = http.send("post", ORDERS).json()
+    body = checkout(http).json()
     assert body["total"] == "1400" and body["items"][0]["unit_price"] == "700"
 
 
@@ -141,13 +164,15 @@ def test_client_supplied_fields_are_ignored_and_other_carts_untouched(http, user
 
     response = http.send(
         "post", ORDERS,
-        {"user": other_user.id, "user_id": other_user.id, "total": "1", "unit_price": "1", "status": "paid",
+        {**DELIVERY, "user": other_user.id, "user_id": other_user.id, "total": "1", "unit_price": "1",
+         "status": "paid", "payment_status": "paid",
          "items": [{"variant_size_id": theirs.id, "quantity": 4, "unit_price": "1"}]},
     )
 
     assert response.status_code == 201
     order = Order.objects.get()
     assert order.user == user and order.total == Decimal("1000") and order.status == "pending"
+    assert order.payment_status == "unpaid"
     assert [i.sku for i in order.items.all()] == ["mine-m"]
     assert (stock(mine), stock(theirs)) == (4, 5)
     assert CartItem.objects.filter(cart__user=other_user).get().quantity == 4  # untouched
@@ -156,10 +181,10 @@ def test_client_supplied_fields_are_ignored_and_other_carts_untouched(http, user
 # --- invalid carts ---------------------------------------------------------------------------
 
 def test_missing_cart_and_empty_cart_are_rejected(http, user):
-    response = http.send("post", ORDERS)
+    response = checkout(http)
     assert response.status_code == 400 and error_code(response) == "empty_cart"
     Cart.objects.create(user=user)
-    response = http.send("post", ORDERS)
+    response = checkout(http)
     assert response.status_code == 400 and error_code(response) == "empty_cart"
     assert Order.objects.count() == 0
 
@@ -167,8 +192,8 @@ def test_missing_cart_and_empty_cart_are_rejected(http, user):
 def test_second_submission_does_not_create_another_order(http, user):
     vs = make_vs(stock=5)
     fill_cart(user, (vs, 2))
-    assert http.send("post", ORDERS).status_code == 201
-    response = http.send("post", ORDERS)
+    assert checkout(http).status_code == 201
+    response = checkout(http)
     assert response.status_code == 400 and error_code(response) == "empty_cart"
     assert Order.objects.count() == 1 and stock(vs) == 3
 
@@ -182,10 +207,12 @@ def test_insufficient_stock_rejects_whole_order(http, user):
     short.stock_quantity = 2  # stock dropped after the item was added to the cart
     short.save()
 
-    response = http.send("post", ORDERS)
+    before = world(user)
+
+    response = checkout(http)
 
     assert response.status_code == 409 and error_code(response) == "insufficient_stock"
-    assert_nothing_changed(user, [(ok, 5), (short, 2)])
+    assert_nothing_changed(user, before)
     assert sorted(CartItem.objects.values_list("quantity", flat=True)) == [2, 3]
 
 
@@ -194,9 +221,10 @@ def test_out_of_stock_item_is_rejected(http, user):
     fill_cart(user, (vs, 1))
     vs.stock_quantity = 0
     vs.save()
-    response = http.send("post", ORDERS)
+    before = world(user)
+    response = checkout(http)
     assert response.status_code == 409 and error_code(response) == "insufficient_stock"
-    assert_nothing_changed(user, [(vs, 0)])
+    assert_nothing_changed(user, before)
 
 
 def _deactivate_product(vs):
@@ -225,11 +253,12 @@ def test_unavailable_item_rejects_whole_order(http, user, deactivate):
     gone = make_vs(slug="gone", stock=5, size_code="l")
     fill_cart(user, (good, 1), (gone, 1))
     deactivate(gone)
+    before = world(user)
 
-    response = http.send("post", ORDERS)
+    response = checkout(http)
 
     assert response.status_code == 409 and error_code(response) == "item_unavailable"
-    assert_nothing_changed(user, [(good, 5), (gone, 5)])
+    assert_nothing_changed(user, before)
 
 
 def test_unavailable_takes_precedence_over_insufficient_stock(http, user):
@@ -239,8 +268,9 @@ def test_unavailable_takes_precedence_over_insufficient_stock(http, user):
     _deactivate_product(gone)
     short.stock_quantity = 1
     short.save()
-    assert error_code(http.send("post", ORDERS)) == "item_unavailable"
-    assert_nothing_changed(user, [(gone, 5), (short, 1)])
+    before = world(user)
+    assert error_code(checkout(http)) == "item_unavailable"
+    assert_nothing_changed(user, before)
 
 
 # --- snapshots are independent of the live catalog -------------------------------------------
@@ -248,7 +278,7 @@ def test_unavailable_takes_precedence_over_insufficient_stock(http, user):
 def test_order_items_do_not_change_when_the_catalog_changes(http, user):
     vs = make_vs(slug="hoodie", price="1000", stock=5)
     fill_cart(user, (vs, 2))
-    http.send("post", ORDERS)
+    checkout(http)
     before = list(OrderItem.objects.values())
 
     product = vs.variant.product
@@ -268,7 +298,7 @@ def test_order_items_do_not_change_when_the_catalog_changes(http, user):
 def test_ordered_variant_size_cannot_be_deleted(http, user):
     vs = make_vs(stock=5)
     fill_cart(user, (vs, 1))
-    http.send("post", ORDERS)
+    checkout(http)
     with pytest.raises(ProtectedError):
         vs.delete()
 
@@ -295,11 +325,12 @@ def test_failure_mid_transaction_rolls_everything_back(http, user, monkeypatch, 
     b = make_vs(slug="b", stock=4, size_code="l")
     fill_cart(user, (a, 2), (b, 3))
     fail(monkeypatch)
+    before = world(user)
 
     with pytest.raises(RuntimeError):
-        http.send("post", ORDERS)
+        checkout(http)
 
-    assert_nothing_changed(user, [(a, 5), (b, 4)])
+    assert_nothing_changed(user, before)
     assert sorted(CartItem.objects.values_list("quantity", flat=True)) == [2, 3]
 
 
@@ -313,7 +344,7 @@ def _run_threads(target, count):
             client = Client()
             client.force_login(target(index))
             barrier.wait()
-            response = client.post(ORDERS, data="{}", content_type="application/json")
+            response = client.post(ORDERS, data=json.dumps(DELIVERY), content_type="application/json")
             results.append(response.status_code)
         except Exception as exc:  # noqa: BLE001 - surfaced by the assertions below
             results.append(repr(exc))

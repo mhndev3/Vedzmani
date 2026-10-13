@@ -150,3 +150,12 @@ Next.js is the frontend/application presentation layer. Django/DRF owns authorit
 - Admin: `VariantSize.stock_quantity` is read-only everywhere (new sizes start at 0). Adjustments are created at `/admin/inventory/inventoryadjustment/` (`inventory.add_inventoryadjustment`); history is append-only and read-only (`inventory.view_inventoryadjustment`), no change/delete even for superusers.
 - Order checkout is unchanged: it still decrements under its own row lock and is recorded by the order, not as an adjustment.
 - Open: automatic restock / order cancellation, an adjustments API or frontend, opening-balance backfill, low-stock alerts. `PROTECT` blocks deleting products/variants/sizes/staff that have history (deactivate instead).
+
+## Checkout Delivery Details (Agent 11, Session 1)
+- `POST /api/orders/` now requires Iranian delivery details in the body: `recipient_name`, `province`, `city`, `address`, `postal_code` (exactly 10 digits after Persian/Arabic-Indic digit normalization). Validated server-side before the transaction, so invalid input creates no order, changes no stock and leaves the cart intact. Contract: `backend/ORDERS.md`.
+- Delivery details are snapshotted on `Order` (migration `orders/0002`, additive; pre-existing orders keep blank values). The delivery phone is the account phone (`customer_phone`); no recipient phone is accepted.
+- `Order.payment_status` exists with the single server-owned value `unpaid`. **No payment provider is integrated; real payment is unavailable.** Boundary and requirements: `backend/PAYMENT.md`.
+- `total` is the sum of line subtotals and **excludes shipping**; shipping cost/rules remain undecided (owner).
+- Unchanged and documented risk: stock is still decremented at order creation, so unpaid orders can hold stock indefinitely (no expiry, cancellation or restock). Owner must decide the policy before online payment.
+- **Production login is not available:** no SMS provider is selected. Docker Compose runs the backend with `config.settings.dev` (dev-only `ConsoleDelivery`); see `backend/AUTH.md`.
+- Open / handed off: order admin (staff-only, restrict delivery PII), frontend sign-in, add-to-cart, cart, checkout and order pages, OTP provider, payment provider, shipping policy, unpaid-order stock policy.
