@@ -1,9 +1,24 @@
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.exceptions import PermissionDenied
+
+
+class CSRFFailed(PermissionDenied):
+    """403 whose error-envelope code matches Django's CSRF failure view (`csrf_failed`)."""
+
+    default_code = "csrf_failed"
+    default_detail = "CSRF verification failed."
 
 
 class SessionAuthentication401(SessionAuthentication):
     """Django session auth that answers 401 (not 403) when unauthenticated.
-    CSRF is still enforced for authenticated unsafe requests."""
+    CSRF is still enforced for authenticated unsafe requests; a failure is reported
+    as `csrf_failed` (the reason is not echoed to the client)."""
 
     def authenticate_header(self, request):
         return "Session"
+
+    def enforce_csrf(self, request):
+        try:
+            super().enforce_csrf(request)
+        except PermissionDenied:
+            raise CSRFFailed() from None
