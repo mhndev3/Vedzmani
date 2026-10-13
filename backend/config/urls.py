@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.urls import include, path
 
+handler404 = "apps.core.views.api_not_found"
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("apps.accounts.urls")),
