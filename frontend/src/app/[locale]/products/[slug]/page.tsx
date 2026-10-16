@@ -6,6 +6,7 @@ import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getProduct, type ProductDetail } from "@/lib/catalog";
 import { CatalogPicture, Price } from "@/components/storefront/catalog/ProductCard";
+import { AddToCart } from "@/components/storefront/cart/AddToCart";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -169,42 +170,29 @@ export default async function ProductPage({ params, searchParams }: Props) {
             </div>
           )}
 
-          {color && (
-            <div className="mt-6">
-              <h2 className="text-sm font-semibold">{t.product.sizes}</h2>
-              {color.sizes.length > 0 ? (
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {color.sizes.map((s) => (
-                    <li
-                      key={s.id}
-                      className={`inline-flex h-10 min-w-12 items-center justify-center rounded-lg border border-border px-3 text-sm ${
-                        s.in_stock ? "" : "text-muted-foreground line-through"
-                      }`}
-                    >
-                      {s.label}
-                      {!s.in_stock && <span className="sr-only"> ({t.product.sizeOutOfStock})</span>}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
+          {color &&
+            (color.sizes.length > 0 ? (
+              <AddToCart
+                key={color.slug}
+                locale={locale}
+                sizes={color.sizes.map((s) => ({ id: s.id, label: s.label, in_stock: s.in_stock }))}
+                labels={{
+                  sizes: t.product.sizes,
+                  sizeOutOfStock: t.product.sizeOutOfStock,
+                  addToCart: t.product.addToCart,
+                  adding: t.product.adding,
+                  added: t.product.added,
+                  viewCart: t.product.viewCart,
+                  sizeRequired: t.product.sizeRequired,
+                }}
+                errors={t.cart.errors}
+              />
+            ) : (
+              <div className="mt-6">
+                <h2 className="text-sm font-semibold">{t.product.sizes}</h2>
                 <p className="mt-2 text-sm text-muted-foreground">{t.product.noSizes}</p>
-              )}
-            </div>
-          )}
-
-          <div className="mt-8">
-            <button
-              type="button"
-              disabled
-              aria-describedby="cart-note"
-              className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground opacity-50 sm:w-auto"
-            >
-              {t.product.addToCart}
-            </button>
-            <p id="cart-note" className="mt-2 text-sm text-muted-foreground">
-              {t.product.addToCartUnavailable}
-            </p>
-          </div>
+              </div>
+            ))}
 
           {product.description.trim() && (
             <div className="mt-8 border-t border-border pt-6">

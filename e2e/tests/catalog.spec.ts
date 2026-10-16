@@ -92,19 +92,23 @@ test.describe("desktop", () => {
     await expect(page.getByRole("heading", { level: 2, name: "30 products" })).toBeVisible();
   });
 
-  test("product detail renders, switches color and honestly disables add to cart", async ({ page }) => {
+  test("product detail renders, switches color and enables add to cart only for in-stock sizes", async ({ page }) => {
     await page.goto("/en/products?search=Hoodie%2001");
     await cards(page).first().click();
     await expect(page).toHaveURL(/\/en\/products\/e2e-hoodie-01$/);
     await expect(page.getByRole("heading", { level: 1, name: "Hoodie 01" })).toBeVisible();
     await expect(page.getByText("Fixture Hoodie number 1.")).toBeVisible();
     await expect(page.getByText("In stock", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add to cart" })).toBeDisabled();
-    await expect(page.getByText(/cart is not available yet/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add to cart" })).toBeEnabled();
+    await expect(page.getByRole("radio", { name: "M" })).toBeEnabled();
+    await expect(page.getByText(/cart is not available yet/)).toHaveCount(0);
 
     await page.getByRole("link", { name: "White" }).click();
     await expect(page).toHaveURL(/color=white/);
     await expect(page.getByText("Out of stock", { exact: true })).toBeVisible();
+    // Every size of this color is sold out: nothing is selectable and the button is disabled.
+    await expect(page.getByRole("radio", { name: /^M/ })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Add to cart" })).toBeDisabled();
 
     await page.getByRole("link", { name: "Back to products" }).click();
     await expect(page).toHaveURL(/\/en\/products$/);
