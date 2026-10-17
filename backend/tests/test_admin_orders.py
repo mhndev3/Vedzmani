@@ -6,6 +6,8 @@ unauthorized page are deliberately unusual strings so a substring check cannot m
 
 from decimal import Decimal
 
+from urllib.parse import quote, quote_plus
+
 import pytest
 from django.contrib import admin as django_admin
 from django.contrib.auth.models import Permission
@@ -13,6 +15,7 @@ from django.core.management import call_command
 from django.db import connection
 from django.test import RequestFactory
 from django.test.utils import CaptureQueriesContext
+from django.utils.html import escape
 
 from apps.accounts.models import User
 from apps.orders.admin import OrderAdmin, OrderItemAdmin, OrderItemInline
@@ -67,8 +70,18 @@ def pii_client(make_staff):
     return client_for(make_staff(*VIEW, PII_PERMISSION))
 
 
-def assert_no_pii(response):
+def assert_no_pii(response, *, echoed_query=None):
+    """No protected value may appear in the page.
+
+    `echoed_query` is the search term the *requester* typed: Django reflects it in the search box and in `q=` link
+    parameters. That is the caller's own input, not stored data, so exactly those reflections are removed first.
+    Anything else on the page (rows, filters, other fields) is still checked, and the search tests also assert that
+    zero rows came back.
+    """
     body = response.content.decode()
+    if echoed_query:
+        for variant in {escape(echoed_query), quote(echoed_query, safe=""), quote_plus(echoed_query)}:
+            body = body.replace(f'value="{variant}"', "").replace(f"q={variant}", "")
     for value in PII_VALUES:
         assert value not in body, f"leaked {value!r}"
 
@@ -216,7 +229,7 @@ def test_search_cannot_find_orders_by_pii_without_permission(staff_client, order
     response = staff_client.get("/admin/orders/order/", {"q": term})
     assert response.status_code == 200
     assert response.context["cl"].result_count == 0
-    assert_no_pii(response)
+    assert_no_pii(response, echoed_query=term)
 
 
 @pytest.mark.parametrize("term", ["3456789", "09123456789", FULL_PHONE, "Zhaleh"])
@@ -247,7 +260,7 @@ def test_item_search_never_matches_parent_pii(staff_client, order):
     for term in (FULL_PHONE, RECIPIENT, ADDRESS, "3456789"):
         response = staff_client.get("/admin/orders/orderitem/", {"q": term})
         assert response.status_code == 200 and response.context["cl"].result_count == 0
-        assert_no_pii(response)
+        assert_no_pii(response, echoed_query=term)
 
 
 def test_search_fields_expose_pii_only_to_permission_holders(make_staff, superuser):
