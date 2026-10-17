@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
+import { SignInLink } from "@/components/auth/SignInLink";
 import type { Locale } from "@/i18n/config";
-import { errorText } from "@/lib/browser-api";
+import { BrowserApiError, errorText } from "@/lib/browser-api";
 import { cartApi } from "@/lib/cart";
 
 export type AddToCartLabels = {
@@ -20,7 +22,7 @@ type Status =
   | { kind: "idle" }
   | { kind: "pending" }
   | { kind: "success" }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; needsSignIn?: boolean };
 
 /**
  * Size selection + add to cart. Stock shown here comes from the catalog response and is only a
@@ -40,6 +42,7 @@ export function AddToCart({
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const pathname = usePathname();
   const inFlight = useRef(false);
   const anyInStock = sizes.some((s) => s.in_stock);
   const pending = status.kind === "pending";
@@ -57,7 +60,8 @@ export function AddToCart({
       await cartApi.add(selected, 1);
       setStatus({ kind: "success" });
     } catch (e) {
-      setStatus({ kind: "error", message: errorText(errors, e) });
+      const needsSignIn = e instanceof BrowserApiError && e.status === 401;
+      setStatus({ kind: "error", message: errorText(errors, e), needsSignIn });
     } finally {
       inFlight.current = false;
     }
@@ -111,8 +115,15 @@ export function AddToCart({
             </p>
           )}
           {status.kind === "error" && (
-            <p role="alert" className="font-medium">
-              {status.message}
+            <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 font-medium">
+              <span>{status.message}</span>
+              {status.needsSignIn && (
+                <SignInLink
+                  locale={locale}
+                  next={pathname}
+                  className="font-medium underline underline-offset-4"
+                />
+              )}
             </p>
           )}
         </div>

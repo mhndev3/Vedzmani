@@ -125,7 +125,7 @@ export const en: Dictionary = {
     title: "Profile",
     phone: "Mobile number",
     signedOut: "You are not signed in.",
-    signedOutHint: "One-time-code sign-in will be available here soon.",
+    signedOutHint: "Sign in with your mobile number to continue.",
     unavailable: "Account information is unavailable right now. Please try again later.",
   },
   cart: {
@@ -136,7 +136,7 @@ export const en: Dictionary = {
     browse: "Browse products",
     signInTitle: "Sign in to view your cart",
     signInText:
-      "Your cart is saved to your account, so you need to be signed in. One-time-code sign-in is not available yet.",
+      "Your cart is saved to your account, so you need to be signed in.",
     errorTitle: "Your cart could not be loaded",
     errorText: "Something went wrong. Please try again in a moment.",
     retry: "Try again",
@@ -160,7 +160,7 @@ export const en: Dictionary = {
       network_error: "Could not reach the store. Check your connection and try again.",
       csrf_unavailable: "Could not verify your session. Reload the page and try again.",
       csrf_failed: "Your session expired. Reload the page and try again.",
-      not_authenticated: "Sign in to use your cart. One-time-code sign-in is not available yet.",
+      not_authenticated: "Sign in to use your cart.",
       insufficient_stock: "There is not enough stock for that quantity.",
       item_unavailable: "This item is no longer available.",
       unavailable: "This item is no longer available.",

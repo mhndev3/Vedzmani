@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { SignInLink } from "@/components/auth/SignInLink";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { ApiError, apiGet } from "@/lib/api";
@@ -51,6 +52,9 @@ export default async function ProfilePage({ params }: Props) {
         <div className="mt-4">
           <p>{t.profile.signedOut}</p>
           <p className="mt-2 text-muted-foreground">{t.profile.signedOutHint}</p>
+          <div className="mt-4">
+            <SignInLink locale={locale} next={`/${locale}/profile`} />
+          </div>
         </div>
       )}
       {state.kind === "error" && (

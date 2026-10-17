@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { SignInLink } from "@/components/auth/SignInLink";
 import { useEffect, useRef, useState } from "react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries/fa";
@@ -122,6 +123,9 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
         <section className="rounded-lg border border-border p-6">
           <h2 className="text-lg font-semibold">{t.signInTitle}</h2>
           <p className="mt-2 text-sm text-muted-foreground">{t.signInText}</p>
+          <div className="mt-4">
+            <SignInLink locale={locale} next={`/${locale}/cart`} />
+          </div>
         </section>
       )}
 

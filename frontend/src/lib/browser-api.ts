@@ -12,6 +12,8 @@ export class BrowserApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     public readonly details?: ErrorDetails,
+    /** Seconds from the `Retry-After` header (Django sends it on 429), when present and numeric. */
+    public readonly retryAfterSeconds?: number,
   ) {
     super(`API ${status} ${code}`);
     this.name = "BrowserApiError";
@@ -20,12 +22,18 @@ export class BrowserApiError extends Error {
 
 const TIMEOUT_MS = 20_000;
 
+function retryAfterSeconds(res: Response): number | undefined {
+  const seconds = Number(res.headers.get("Retry-After"));
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : undefined;
+}
+
 async function parseError(res: Response): Promise<BrowserApiError> {
+  const retryAfter = retryAfterSeconds(res);
   try {
     const body = (await res.json()) as { error?: { code?: string; details?: ErrorDetails } };
-    return new BrowserApiError(res.status, body.error?.code ?? "error", body.error?.details);
+    return new BrowserApiError(res.status, body.error?.code ?? "error", body.error?.details, retryAfter);
   } catch {
-    return new BrowserApiError(res.status, "error");
+    return new BrowserApiError(res.status, "error", undefined, retryAfter);
   }
 }
 
