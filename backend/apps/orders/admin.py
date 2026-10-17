@@ -57,7 +57,9 @@ class _ReadOnlyModelAdmin(_ReadOnlyPermissions, admin.ModelAdmin):
 
     def to_field_allowed(self, request, to_field):
         # `?_popup=1&_to_field=customer_phone` would make a popup changelist print that column as the row value.
-        # Only the primary key may ever be referenced this way.
+        # Django's own check already rejects it (the tests pass with or without this override); this is kept as
+        # defense in depth so a future relation or registration can never expose another column. Only the primary
+        # key may be referenced this way.
         return to_field == "id" and super().to_field_allowed(request, to_field)
 
     def lookup_allowed(self, lookup, value, request=None):
