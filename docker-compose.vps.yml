@@ -1,0 +1,27 @@
+# VPS overlay. Use together with docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d --build
+#
+# 1) Docker-published ports BYPASS UFW. The base file publishes Postgres on 0.0.0.0:5433 and
+#    Nginx on 0.0.0.0:${HTTP_PORT}, which would expose them to the internet on a VPS.
+#    This overlay binds both to loopback only. Reach the app through an SSH tunnel:
+#      ssh -L 8080:127.0.0.1:8080 <user>@<vps>     then open http://localhost:8080
+#    Public HTTP(S) exposure requires explicit owner approval (see docs/VPS_DEVELOPMENT.md).
+# 2) restart: unless-stopped brings the stack back after a VPS reboot or Docker restart.
+#
+# Several stacks can coexist (one per agent): give each its own project name and ports, e.g.
+#   COMPOSE_PROJECT_NAME=vedzmani-<agent> HTTP_PORT=8101 POSTGRES_HOST_PORT=5441 ...
+services:
+  postgres:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
+  redis:
+    restart: unless-stopped
+  backend:
+    restart: unless-stopped
+  frontend:
+    restart: unless-stopped
+  nginx:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:${HTTP_PORT:-8080}:80"
