@@ -1,7 +1,12 @@
 # VPS development environment
 
 Shared development environment for Vedzmani on a single Ubuntu VPS. **Development only — not production.**
-Last verified: 2026-10-17 (see "Verification record" for what was actually executed).
+Last updated: 2026-10-17 (see "Verification record" for what was actually executed).
+
+Status labels used below: **verified** = executed and checked by the author of this revision;
+**previously reported** = result reported by an earlier session and not re-executed here;
+**documented, not executed** = derived from the repository files but not run;
+**owner approval required** = must not be done without the owner's explicit authorization.
 
 ## 1. Layout
 
@@ -93,7 +98,92 @@ docker run --rm --network host -v "$PWD:/src:ro" -e E2E_BASE_URL=http://127.0.0.
   && npx playwright test tests/smoke.spec.ts tests/storefront.spec.ts tests/auth-redirect.spec.ts'
 ```
 
-The `catalog`, `checkout` and `signin` specs seed or create data and use a dev-only OTP/session helper. Run them **only** on an isolated stack (own project name, ports and database volume) as described in `e2e/README-signin.md`.
+#### Isolated E2E stack (`catalog`, `checkout`, `signin`)
+
+These specs seed fixture data, create users and sessions through `e2e/e2e_helper.py`, and (`signin`) read one-time codes from backend logs. Run them **only** against a throwaway stack with its own Compose project name, host ports and PostgreSQL volume. Never point them at `vedzmani-dev`.
+
+**Status: previously reported (Session 5), documented, not executed in this revision.** The Session 5 override and environment files were temporary and no longer exist, so the steps below are reconstructed from `docker-compose.yml`, `docker-compose.vps.yml`, `e2e/README-signin.md`, `e2e/playwright.config.ts` and the specs. This is a multi-step workflow with prerequisites, not a one-command operation. Only the Compose invocation syntax was verified (with a dummy environment and `config` only; nothing was created).
+
+| Item | Dev stack | Isolated E2E stack |
+| --- | --- | --- |
+| Compose project | `vedzmani-dev` | unique name per run (Session 5: `vzs5e2e`) |
+| Nginx host binding | `127.0.0.1:8080` | its own loopback port (Session 5: `127.0.0.1:18091`) |
+| PostgreSQL host binding | `127.0.0.1:5433` | its own loopback port (Session 5: `127.0.0.1:15432`) |
+| PostgreSQL volume | `vedzmani-dev_postgres_data` | project-prefixed volume created by that project (Session 5: `vzs5e2e_postgres_data`) |
+| Env and override files | worktree `.env` (mode `600`) | new files outside the repository (Session 5: under `/tmp/vzs5e2e`) with freshly generated throwaway secrets |
+
+**1. Create the temporary files** (never print them, never commit them): a directory outside the repository with mode `700`, containing an env file copied from `.env.example` and a test-only override. In the env file set `COMPOSE_PROJECT_NAME`, a free `HTTP_PORT` and `POSTGRES_HOST_PORT` (the VPS overlay binds both to loopback), new random URL-safe `POSTGRES_PASSWORD` and `DJANGO_SECRET_KEY`, and `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS` and `NEXT_PUBLIC_API_URL` set to the isolated Nginx origin. The override raises the OTP rate limits **for this test stack only** (many sign-ins come from one IP):
+
+```yaml
+services:
+  backend:
+    environment:
+      OTP_REQUEST_IP_LIMIT: "1000"
+      OTP_VERIFY_IP_LIMIT: "1000"
+```
+
+Never raise these limits in a shared or production-like environment.
+
+**2. Start the stack.** Always pass `-p` and `--env-file` explicitly, otherwise Compose reads the worktree `.env` (dev values):
+
+```bash
+cd /srv/vedzmani/worktrees/infra-vps-development-environment
+E="docker compose --env-file /tmp/<project>/env -p <project> -f docker-compose.yml -f docker-compose.vps.yml -f /tmp/<project>/compose.e2e.yml"
+$E up -d --build
+$E ps
+$E exec -T backend python manage.py migrate
+```
+
+**3. Seed the fixture catalog** (idempotent; `e2e/seed_catalog.py` is E2E-only data) by copying it into the backend container and executing it in `manage.py shell` (documented, not executed):
+
+```bash
+$E cp e2e/seed_catalog.py backend:/tmp/seed_catalog.py
+$E exec -T backend python manage.py shell -c "exec(open('/tmp/seed_catalog.py', encoding='utf-8').read())"
+```
+
+**4. Verify the runner targets the isolated database before seeding or running the helper.** `checkout.spec.ts` runs `e2e/e2e_helper.py` on the host through `manage.py shell` in `E2E_BACKEND_DIR`, using the same `DATABASE_URL` and `REDIS_URL` as the running test server. Before the first helper call, confirm the host and port in `DATABASE_URL` are the isolated PostgreSQL port and not `5433`, without printing the password:
+
+```bash
+python3 -c "import os,urllib.parse as u; p=u.urlparse(os.environ['DATABASE_URL']); print(p.hostname, p.port, p.path)"
+```
+
+(The snippet's syntax was verified with a dummy value.) The helper creates users and sessions and can change stock, so a wrong target would modify real data. How Session 5 supplied the helper's database and cache environment is not recorded in the repository; record it the next time this workflow is run. Session 5 reported that the helper ran under Python 3.12 while the backend container uses Python 3.13.
+
+**5. Run the three suites** from `e2e/` (install `@playwright/test` as in the smoke command above, or use the existing `e2e/package.json`):
+
+```bash
+E2E_BASE_URL=http://127.0.0.1:<nginx-port> \
+E2E_BACKEND_DIR=<absolute path to backend/> \
+E2E_PYTHON=<python that has backend/requirements> \
+E2E_OTP_LOG_COMMAND="docker compose -p <project> logs --no-color backend" \
+npx playwright test tests/catalog.spec.ts tests/checkout.spec.ts tests/signin.spec.ts
+```
+
+`E2E_BROWSER_CHANNEL` (for example `msedge` or `chrome`) is optional and only needed when the bundled Chromium cannot be used. Without `E2E_BACKEND_DIR`, the signed-in checkout tests are skipped; without `E2E_OTP_LOG_COMMAND`, the "real OTP flow" signin tests are skipped. A run with skips is not a full run: confirm the report shows 0 skipped.
+
+**OTP delivery is test-only.** The test backend runs `config.settings.dev`, whose dev-only `ConsoleDelivery` writes the code to the backend log, and the signin spec reads it from there. **No SMS was sent and no SMS provider is configured.** Never point `E2E_OTP_LOG_COMMAND` at a stack with real customers.
+
+**6. Clean up only your own project.** Do not use `docker compose down -v`. Stop the isolated project, list its volumes by label, and remove only what that listing returns for your own unique project name (never `vedzmani-dev` or another agent's project):
+
+```bash
+$E down
+docker volume ls --filter label=com.docker.compose.project=<project> --format '{{.Name}}'
+docker volume rm <volume-name-from-the-listing-above>
+rm -r /tmp/<project>
+```
+
+(`$E down` and the removal commands were not executed in this revision. The label-filtered `docker volume ls` syntax was verified read-only against the dev project.)
+
+**Reported results (Session 5, isolated stack, not re-executed in this revision):**
+
+| Suite | Passed | Failed | Skipped | Reported duration |
+| --- | ---: | ---: | ---: | ---: |
+| `catalog` | 16 | 0 | 0 | 13.2 s |
+| `checkout` | 10 | 0 | 0 | 14.6 s |
+| `signin` | 21 | 0 | 0 | 12.3 s |
+| **Total** | **47** | **0** | **0** | |
+
+These are functional UI/API test results on development settings with a raised test-only OTP rate limit. They are **not** production-security verification and say nothing about real SMS delivery.
 
 ## 5. PostgreSQL backup and restore verification
 
@@ -132,7 +222,7 @@ Restoring over the real dev database is a separate, owner-approved operation. **
 ## 7. Network exposure (verified 2026-10-17)
 
 - Public listener: SSH (22) only. UFW: default deny incoming, allow 22.
-- `127.0.0.1:8080` -> Nginx, `127.0.0.1:5433` -> PostgreSQL. Redis, backend (8000) and frontend (3000) are not published to the host.
+- `127.0.0.1:8080` -> Nginx, `127.0.0.1:5433` -> PostgreSQL. Redis, backend (8000) and frontend (3000) are not published to the host. Re-verified in the latest revision from `docker compose ... config` (ports only), `docker ps` and `ss -ltn`: the only non-loopback TCP listener is SSH (22).
 - Docker-published ports bypass UFW, which is why the override binds to loopback. Public HTTP/HTTPS, DNS changes and TLS require explicit owner approval.
 
 ## 8. Proposed multi-agent access model (not yet applied)
@@ -146,6 +236,9 @@ Separate SSH key per human or agent; individual Linux accounts where practical; 
 - No off-server backups, no monitoring/alerting stack, no TLS, no public ingress.
 - SSH root/password login hardening and recovery-console access have not been confirmed; the owner should verify them.
 - Core Web Vitals (LCP/INP/CLS) have not been measured.
+- The isolated E2E workflow (section 4) was run once by a previous session and is reconstructed here; its temporary files are gone, the helper's database/cache environment is not recorded, and the workflow has not been re-executed since. The E2E stack used development Django settings and a test-only OTP rate-limit override, so the results are not production-security verification.
+- Other Compose projects or volumes on this VPS may belong to other agents or sessions. Do not stop, modify or delete them.
+- Off-server backup is not configured or verified (section 5).
 
 ## 10. Verification record (2026-10-17)
 
@@ -155,9 +248,25 @@ Separate SSH key per human or agent; individual Linux accounts where practical; 
 | `pytest` (isolated PostgreSQL 16) | 519 passed |
 | Frontend `pnpm install --frozen-lockfile`, `lint`, `typecheck`, `build` | all exit 0 (26 static pages; `.next/static` 764 KB) |
 | Playwright (`smoke`, `storefront`, `auth-redirect`) | 32 passed |
-| Playwright (`catalog`, `checkout`, `signin`) | not run (need an isolated seeded stack) |
+| Playwright (`catalog`, `checkout`, `signin`), isolated stack, Session 5 | 47 passed, 0 failed, 0 skipped (16 / 10 / 21); previously reported, not re-executed |
+| Playwright, all six specs | 79 = 32 + 47: the sum of two previous-session reports, not a single run |
 | Backup + restore into temp DB | 24 public tables and 24 `django_migrations` rows in both |
 | Latency, 20 sequential requests via Nginx on loopback | `/en` median 3 ms (max 5 ms); `/api/health/ready/` median 3 ms (max 75 ms) |
 | Resources, idle | about 510 MiB RAM used of 7.8 GiB; disk 11% of 97 GB; 0 restarts, all services healthy |
 
 Latency numbers are loopback, idle, `curl`, single client; `/en` is pre-rendered, so they are not a load or browser-performance result.
+
+Unless stated otherwise, the rows above are results reported by earlier sessions and were not re-executed when this document was last updated.
+
+Re-checks executed when this document was last updated (all read-only; no tests were re-run):
+
+| Check | Result |
+| --- | --- |
+| Branch `infra/vps-development-environment` at `49fef906b608e2ff8d3879c924bc8ec7e076f647`; working tree | clean before the documentation edit; `git diff --check` exit 0 |
+| `docker compose -f docker-compose.yml -f docker-compose.vps.yml config --quiet` | exit 0 |
+| Resolved host bindings | Nginx `127.0.0.1:8080`, PostgreSQL `127.0.0.1:5433`; Redis, backend, frontend not published; all five services `restart: unless-stopped` |
+| Isolated-stack Compose invocation (dummy env file, `-p`, override; `config` only) | exit 0; Nginx and PostgreSQL on loopback; OTP limits resolved from the override; no containers or volumes created |
+| Newest dump (`pg_restore --list`, no database connection, no restore) | readable, 218 table-of-contents lines, exit 0 |
+| Backups directory and `.env` | directory mode `700`, both dumps mode `600`; `.env` mode `600` and not tracked by Git |
+| Paths referenced by this document | all exist in the worktree |
+| Services | `docker` and `fail2ban` active |
