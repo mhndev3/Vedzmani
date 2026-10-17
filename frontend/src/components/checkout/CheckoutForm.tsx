@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SignInLink } from "@/components/auth/SignInLink";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import type { Locale } from "@/i18n/config";
 import { fill, type CheckoutDictionary } from "@/i18n/dictionaries/checkout";
@@ -216,9 +217,12 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
   if (phase.kind === "signin") {
     return (
       <Notice title={t.signIn.title} body={t.signIn.body}>
-        <button type="button" onClick={recheck} className={secondaryButton}>
-          {t.signIn.recheck}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <SignInLink locale={locale} next={`/${locale}/checkout`} />
+          <button type="button" onClick={recheck} className={secondaryButton}>
+            {t.signIn.recheck}
+          </button>
+        </div>
       </Notice>
     );
   }
