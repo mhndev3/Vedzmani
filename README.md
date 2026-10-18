@@ -21,7 +21,7 @@ Client -> CDN/WAF -> Nginx -> Next.js (/)
 backend/    Django project (config/, apps/ accounts, catalog, cart, orders, inventory, core; tests/, requirements/; API contracts in *.md)
 frontend/   Next.js App Router, TypeScript strict, Tailwind v4, shadcn-compatible
 e2e/        Playwright suite (separate package): smoke, storefront, catalog, sign-in, checkout, purchase journey
-docs/       V1 readiness audit (historical snapshot), production readiness audit (2026-10-18), VPS development environment
+docs/       V1 readiness audit (historical snapshot), production readiness audit (2026-10-18), production deployment decisions and procedure (draft), VPS development environment
 nginx/      Reverse-proxy config
 .github/    CI and E2E workflows
 docker-compose.yml, docker-compose.vps.yml, .env.example
