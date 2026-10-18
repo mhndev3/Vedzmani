@@ -69,4 +69,4 @@ product or category is inactive/unpublished). `unavailable` lines are shown, exc
 
 ## Not implemented (by design)
 Guest carts / merge on login, checkout/orders (now in `ORDERS.md`), stock deduction or reservation, coupons, shipping, tax, currency,
-cart expiry/cleanup job, frontend wiring (Add to Cart is still a placeholder on the storefront), caching.
+cart expiry/cleanup job, caching. (The storefront add-to-cart control and the cart page now use this API unchanged; see "Cart Frontend" in `PROJECT_CONTROL.md`.)

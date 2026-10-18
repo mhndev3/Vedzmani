@@ -20,6 +20,18 @@ const buttonBase =
   "inline-flex items-center justify-center rounded-lg border border-border text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
+ * After a failed mutation the screen may disagree with the server: a validation or stock refusal
+ * means our copy is stale, a 404 means the line is gone (another tab or device), and a network
+ * error or 5xx means we cannot know whether the change was applied. Only 401 (signed out, handled
+ * separately), 403 (CSRF rejected before anything ran) and 429 (throttled, nothing applied) leave
+ * the copy on screen trustworthy.
+ */
+function shouldResync(e: unknown): boolean {
+  if (!(e instanceof BrowserApiError)) return true;
+  return e.status !== 401 && e.status !== 403 && e.status !== 429;
+}
+
+/**
  * Cart page body. Items, quantities, unit prices, subtotals, total and availability are rendered
  * exactly as Django returns them (backend/CART.md); every change goes through the cart API and the
  * response replaces the whole cart. Nothing is computed or cached on the client.
@@ -70,8 +82,8 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
         setState({ kind: "anonymous" });
       } else {
         setError(errorText(t.errors, e));
-        if (e instanceof BrowserApiError && (e.status === 400 || e.status === 409)) {
-          // The server refused: show its current truth rather than our stale copy.
+        if (shouldResync(e)) {
+          // Our copy may be stale or its outcome unknown: show the server's current truth.
           try {
             setState({ kind: "ready", cart: await cartApi.get() });
           } catch {
@@ -161,7 +173,9 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
           </ul>
 
           {state.cart.has_issues && (
-            <p className="mt-4 text-sm font-medium">{t.issuesNote}</p>
+            <p id="cart-issues-note" className="mt-4 text-sm font-medium">
+              {t.issuesNote}
+            </p>
           )}
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
@@ -170,12 +184,17 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
               <span data-testid="cart-total">{formatPrice(state.cart.total, locale)}</span>
             </p>
             {state.cart.has_issues ? (
-              <span
+              // Django says this cart cannot proceed. Kept focusable (aria-disabled, not disabled)
+              // so keyboard and screen-reader users reach it and hear why via the note above.
+              <button
+                type="button"
                 aria-disabled="true"
-                className="inline-flex h-12 cursor-not-allowed items-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground opacity-50"
+                aria-describedby="cart-issues-note"
+                data-testid="cart-checkout-blocked"
+                className="inline-flex h-12 cursor-not-allowed items-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 {t.checkout}
-              </span>
+              </button>
             ) : (
               <Link
                 href={`/${locale}/checkout`}
@@ -224,7 +243,7 @@ function CartLine({
 
       <div className="min-w-0 flex-1">
         <Link
-          href={`/${locale}/products/${item.product.slug}?color=${item.color.slug}`}
+          href={`/${locale}/products/${encodeURIComponent(item.product.slug)}?color=${encodeURIComponent(item.color.slug)}`}
           className="font-medium hover:underline"
         >
           {name}
