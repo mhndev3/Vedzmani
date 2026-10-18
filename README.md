@@ -81,14 +81,14 @@ docker compose up -d
 ```powershell
 cd frontend; pnpm lint; pnpm typecheck; pnpm build
 cd backend;  python manage.py check; pytest          # needs PostgreSQL via DATABASE_URL
-cd e2e;      pnpm install; pnpm exec playwright install chromium; pnpm test   # stack must be up; sign-in, checkout and purchase-journey specs need a throwaway stack (see e2e/README-purchase-journey.md)
+cd e2e;      pnpm install; pnpm exec playwright install chromium; pnpm test   # stack must be up; sign-in, checkout and purchase-journey specs need a throwaway stack, and the helper/seeder also need `E2E_THROWAWAY_DB=1` (see e2e/README-purchase-journey.md)
 ```
 
 ## CI
 
 `.github/workflows/ci.yml`: frontend (lint, typecheck, build) and backend (`check`, migrations check, pytest against a PostgreSQL service). Requires a committed `frontend/pnpm-lock.yaml`.
 
-`.github/workflows/e2e.yml`: runs every spec in `e2e/tests` on a disposable Compose stack (empty volumes, removed with `down -v` at the end). It is triggered by pull requests that touch `e2e/**` or the workflow itself, and manually. It is not a required check, is not triggered by changes limited to `frontend/` or `backend/`, and does not run on pushes to `main`. See `e2e/README-purchase-journey.md`.
+`.github/workflows/e2e.yml`: runs every spec in `e2e/tests` on a disposable Compose stack (empty volumes, removed with `down -v` at the end). It is triggered by pull requests and pushes to `main` that touch `e2e/**`, `backend/**`, `frontend/**`, `nginx/**`, `docker-compose.yml`, `.env.example` or the workflow itself, and manually. It is not a required check, and documentation-only changes do not trigger it. See `e2e/README-purchase-journey.md`.
 
 ## Development flow
 

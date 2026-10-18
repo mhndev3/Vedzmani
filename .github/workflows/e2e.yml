@@ -6,8 +6,11 @@ name: E2E
 # concurrent runs cannot share a database. Dev-only OTP delivery (ConsoleDelivery) is used: no SMS is sent and
 # no real data is involved. It is a separate workflow from CI, so it does not change the existing
 # backend/frontend checks. A workflow_dispatch-only file on a non-default branch cannot be dispatched
-# (GitHub returns 404 until it is on the default branch), so it also runs on pull requests that touch the
-# E2E files. Keep it out of required checks until it has a track record.
+# (GitHub returns 404 until it is on the default branch), so it also runs on pull requests. The path filters
+# below cover the E2E files and the inputs the stack is built from (backend, frontend, nginx, the base
+# Compose file and .env.example), so application changes are exercised before and after merge; a push to
+# main re-checks the merged result. Docs-only changes do not trigger it. Keep it out of required checks until
+# it has a track record.
 
 on:
   workflow_dispatch:
@@ -15,6 +18,21 @@ on:
     paths:
       - "e2e/**"
       - ".github/workflows/e2e.yml"
+      - "backend/**"
+      - "frontend/**"
+      - "nginx/**"
+      - "docker-compose.yml"
+      - ".env.example"
+  push:
+    branches: [main]
+    paths:
+      - "e2e/**"
+      - ".github/workflows/e2e.yml"
+      - "backend/**"
+      - "frontend/**"
+      - "nginx/**"
+      - "docker-compose.yml"
+      - ".env.example"
 
 jobs:
   e2e:
@@ -61,7 +79,8 @@ jobs:
           C="docker compose -f docker-compose.yml -f $RUNNER_TEMP/compose.test.yml"
           $C exec -T backend python manage.py migrate --noinput
           $C cp e2e/seed_catalog.py backend:/tmp/seed_catalog.py
-          $C exec -T backend python manage.py shell -c "exec(open('/tmp/seed_catalog.py', encoding='utf-8').read())"
+          # E2E_THROWAWAY_DB=1: this stack was created seconds ago on a fresh runner (see the header comment).
+          $C exec -T -e E2E_THROWAWAY_DB=1 backend python manage.py shell -c "exec(open('/tmp/seed_catalog.py', encoding='utf-8').read())"
 
       - uses: actions/setup-python@v5
         with:
@@ -99,6 +118,9 @@ jobs:
           E2E_OTP_LOG_COMMAND: docker compose -p vedzmani-ci-e2e logs --no-color backend
           PLAYWRIGHT_JSON_OUTPUT_NAME: results.json
           # e2e_helper.py runs on the runner against the SAME throwaway database/secret as the server.
+          # E2E_THROWAWAY_DB is the operator confirmation e2e_helper.py requires; here the database is the
+          # loopback-published throwaway Postgres above.
+          E2E_THROWAWAY_DB: "1"
           E2E_BACKEND_DIR: ${{ github.workspace }}/backend
           E2E_PYTHON: python
           DJANGO_SETTINGS_MODULE: config.settings.dev

@@ -134,11 +134,11 @@ $E ps
 $E exec -T backend python manage.py migrate
 ```
 
-**3. Seed the fixture catalog** (idempotent; `e2e/seed_catalog.py` is E2E-only data) by copying it into the backend container and executing it in `manage.py shell` (documented, not executed):
+**3. Seed the fixture catalog** (idempotent; `e2e/seed_catalog.py` is E2E-only data) by copying it into the backend container and executing it in `manage.py shell` with `E2E_THROWAWAY_DB=1` (the seeder refuses to run without it; the flag is your confirmation that this is the isolated project, not proof) (documented, not executed):
 
 ```bash
 $E cp e2e/seed_catalog.py backend:/tmp/seed_catalog.py
-$E exec -T backend python manage.py shell -c "exec(open('/tmp/seed_catalog.py', encoding='utf-8').read())"
+$E exec -T -e E2E_THROWAWAY_DB=1 backend python manage.py shell -c "exec(open('/tmp/seed_catalog.py', encoding='utf-8').read())"
 ```
 
 **4. Verify the runner targets the isolated database before seeding or running the helper.** `checkout.spec.ts` runs `e2e/e2e_helper.py` on the host through `manage.py shell` in `E2E_BACKEND_DIR`, using the same `DATABASE_URL` and `REDIS_URL` as the running test server. Before the first helper call, confirm the host and port in `DATABASE_URL` are the isolated PostgreSQL port and not `5433`, without printing the password:
@@ -147,7 +147,7 @@ $E exec -T backend python manage.py shell -c "exec(open('/tmp/seed_catalog.py', 
 python3 -c "import os,urllib.parse as u; p=u.urlparse(os.environ['DATABASE_URL']); print(p.hostname, p.port, p.path)"
 ```
 
-(The snippet's syntax was verified with a dummy value.) The helper creates users and sessions and can change stock, so a wrong target would modify real data. How Session 5 supplied the helper's database and cache environment is not recorded in the repository; record it the next time this workflow is run. Session 5 reported that the helper ran under Python 3.12 while the backend container uses Python 3.13.
+(The snippet's syntax was verified with a dummy value.) The helper creates users and sessions and can change stock, so a wrong target would modify real data. The helper also refuses to run unless `E2E_THROWAWAY_DB=1` is set and the settings module is `config.settings.dev` or `config.settings.test`. The dev stack uses `config.settings.dev` too, so that check cannot tell the isolated database from `vedzmani-dev`: the host/port check above is the real control, and the flag only records that you made it. Set the flag on the command that needs it, never in a shell profile. How Session 5 supplied the helper's database and cache environment is not recorded in the repository; record it the next time this workflow is run. Session 5 reported that the helper ran under Python 3.12 while the backend container uses Python 3.13.
 
 **5. Run the three suites** from `e2e/` (install `@playwright/test` as in the smoke command above, or use the existing `e2e/package.json`):
 
@@ -155,6 +155,7 @@ python3 -c "import os,urllib.parse as u; p=u.urlparse(os.environ['DATABASE_URL']
 E2E_BASE_URL=http://127.0.0.1:<nginx-port> \
 E2E_BACKEND_DIR=<absolute path to backend/> \
 E2E_PYTHON=<python that has backend/requirements> \
+E2E_THROWAWAY_DB=1 \
 E2E_OTP_LOG_COMMAND="docker compose -p <project> logs --no-color backend" \
 npx playwright test tests/catalog.spec.ts tests/checkout.spec.ts tests/signin.spec.ts
 ```

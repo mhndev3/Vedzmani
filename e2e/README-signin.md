@@ -28,7 +28,9 @@ provider is configured, and these tests say nothing about real SMS.** They are s
 3. `docker compose -p vedzmani-agenti -f docker-compose.yml -f compose.test.yml up -d --build`
    (a distinct project name gives separate containers, network and database volume).
 4. `... exec -T backend python manage.py migrate`, then seed the fixture catalog with
-   `e2e/seed_catalog.py` (copy it into the container and `exec(open(...).read())` in `manage.py shell`).
+   `e2e/seed_catalog.py` (copy it into the container and `exec(open(...).read())` in `manage.py shell`, using
+   `exec -T -e E2E_THROWAWAY_DB=1 backend ...`: the seeder refuses to run without that flag, which is your
+   confirmation that this stack is disposable, not proof; see `README-purchase-journey.md`).
 5. Run:
 
    ```
