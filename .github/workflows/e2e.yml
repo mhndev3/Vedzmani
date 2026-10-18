@@ -1,0 +1,87 @@
+name: E2E (manual, UNVERIFIED)
+
+# UNVERIFIED: written in an environment with no access to package or image registries, so this
+# workflow has never run. It is manual-only (workflow_dispatch) so it cannot break the required CI
+# checks. Run it from the Actions tab, fix whatever it finds, then decide whether to trigger it on PRs.
+# Everything runs on a disposable Compose stack with its own project name and volumes, removed at the end.
+# Dev-only OTP delivery (ConsoleDelivery) is used; no SMS is sent and no real data is involved.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  purchase-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: vedzmani-ci-e2e
+      HTTP_PORT: "8091"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write throwaway stack config (CI-only values, not secrets)
+        run: |
+          cp .env.example .env
+          sed -i \
+            -e "s|^HTTP_PORT=.*|HTTP_PORT=8091|" \
+            -e "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://localhost:8091|" \
+            -e "s|^CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=http://localhost:8091|" \
+            -e "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://localhost:8091|" \
+            -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=ci-e2e-throwaway|" \
+            -e "s|^DJANGO_SECRET_KEY=.*|DJANGO_SECRET_KEY=ci-e2e-not-a-secret|" \
+            .env
+          cat > "$RUNNER_TEMP/compose.test.yml" <<'EOF'
+          services:
+            postgres:
+              ports: !reset []
+            backend:
+              environment:
+                OTP_REQUEST_IP_LIMIT: "1000"
+                OTP_VERIFY_IP_LIMIT: "1000"
+          EOF
+
+      - name: Start isolated stack
+        run: docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.test.yml" up -d --build --wait
+
+      - name: Migrate and seed the throwaway database
+        run: |
+          C="docker compose -f docker-compose.yml -f $RUNNER_TEMP/compose.test.yml"
+          $C exec -T backend python manage.py migrate --noinput
+          $C cp e2e/seed_catalog.py backend:/tmp/seed_catalog.py
+          $C exec -T backend python manage.py shell -c "exec(open('/tmp/seed_catalog.py', encoding='utf-8').read())"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install Playwright (e2e/ has no lockfile yet, so this is not a frozen install)
+        working-directory: e2e
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Run purchase journey and sign-in specs
+        working-directory: e2e
+        env:
+          CI: "true"
+          E2E_BASE_URL: http://localhost:8091
+          E2E_OTP_LOG_COMMAND: docker compose -p vedzmani-ci-e2e logs --no-color backend
+        run: npx playwright test tests/purchase-journey.spec.ts tests/signin.spec.ts tests/auth-redirect.spec.ts
+
+      - name: Upload Playwright report and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+          if-no-files-found: ignore
+
+      - name: Show backend logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.test.yml" logs --no-color --tail=200 backend
+
+      - name: Remove the throwaway stack and its volumes
+        if: always()
+        run: docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.test.yml" down -v
