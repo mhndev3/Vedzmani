@@ -1,13 +1,18 @@
-name: E2E (manual, UNVERIFIED)
+name: E2E
 
-# UNVERIFIED: written in an environment with no access to package or image registries, so this
-# workflow has never run. It is manual-only (workflow_dispatch) so it cannot break the required CI
-# checks. Run it from the Actions tab, fix whatever it finds, then decide whether to trigger it on PRs.
-# Everything runs on a disposable Compose stack with its own project name and volumes, removed at the end.
-# Dev-only OTP delivery (ConsoleDelivery) is used; no SMS is sent and no real data is involved.
+# Runs the purchase-journey, sign-in and redirect specs on a disposable Compose stack with its own project
+# name and volumes (removed at the end). Dev-only OTP delivery (ConsoleDelivery) is used: no SMS is sent and
+# no real data is involved. It is a separate workflow from CI, so it does not change the existing
+# backend/frontend checks. A workflow_dispatch-only file on a non-default branch cannot be dispatched
+# (GitHub returns 404 until it is on the default branch), so it also runs on pull requests that touch the
+# E2E files. Keep it out of required checks until it has a track record.
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "e2e/**"
+      - ".github/workflows/e2e.yml"
 
 jobs:
   purchase-journey:
