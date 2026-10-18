@@ -11,6 +11,15 @@ if not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be set in production.")
 if SECRET_KEY.startswith("dev-only"):
     raise ImproperlyConfigured("A development SECRET_KEY must not be used in production.")
+# .env.example ships a placeholder key for the development Compose stack; it must never reach production.
+# Django's own `check --deploy` calls keys under 50 characters weak (CI runs it); here only clearly unusable
+# values stop the process from booting. The key itself is never echoed.
+_PLACEHOLDER_SECRET_KEYS = {"change-me", "changeme", "secret", "secret-key"}
+if SECRET_KEY.strip().lower() in _PLACEHOLDER_SECRET_KEYS or len(SECRET_KEY) < 32:
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY is a known placeholder or shorter than 32 characters; "
+        "set a long random value in production."
+    )
 
 if OTP_DELIVERY_BACKEND in {
     "apps.accounts.delivery.ConsoleDelivery",
