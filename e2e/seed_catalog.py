@@ -1,11 +1,30 @@
 """E2E-only fixture data for the catalog tests (NOT production data).
 
-Run against a throwaway database, never the real one:
-  cd backend; DATABASE_URL=postgres://.../vedzmani_e2e python manage.py shell < ../e2e/seed_catalog.py
+Run against a throwaway database, never the real one. It refuses to run unless E2E_THROWAWAY_DB=1 is set
+(your confirmation that the database is disposable; see the guard below). It creates ACTIVE products with
+stock, which would appear on a real storefront:
+  cd backend; E2E_THROWAWAY_DB=1 DATABASE_URL=postgres://.../vedzmani_e2e python manage.py shell -c "exec(open('../e2e/seed_catalog.py', encoding='utf-8').read())"
 Idempotent: skips if the fixture products already exist.
 """
 
+import os
 from decimal import Decimal
+
+# --- Safety guard (runs before any database access) -------------------------------------------------
+# This script writes to whatever database DATABASE_URL points at. E2E_THROWAWAY_DB=1 is the OPERATOR'S
+# CONFIRMATION that it is disposable; it cannot verify that, and it does not make a real database safe.
+# The settings check only rejects an obviously wrong configuration (production). It never prints
+# DATABASE_URL, which can contain a password.
+from django.conf import settings  # noqa: E402
+
+if os.environ.get("E2E_THROWAWAY_DB") != "1":
+    raise SystemExit(
+        "refusing to run: set E2E_THROWAWAY_DB=1 to confirm DATABASE_URL points at a disposable test "
+        "database (never a development, staging or production one)"
+    )
+if settings.SETTINGS_MODULE not in ("config.settings.dev", "config.settings.test"):
+    raise SystemExit(f"refusing to run with settings module {settings.SETTINGS_MODULE!r}")
+# -----------------------------------------------------------------------------------------------------
 
 from apps.catalog.models import (
     Category,

@@ -1,9 +1,10 @@
 """E2E-only helper for the checkout tests (NOT production code).
 
-Run against a THROWAWAY database only, from the backend directory:
+Run against a THROWAWAY database only, from the backend directory. It refuses to run unless
+E2E_THROWAWAY_DB=1 is set (your confirmation that the database is disposable; see the guard below):
 
   cd backend
-  E2E_ACTION=session E2E_PHONE=09120000001 python manage.py shell -c "exec(open('../e2e/e2e_helper.py', encoding='utf-8').read())"
+  E2E_THROWAWAY_DB=1 E2E_ACTION=session E2E_PHONE=09120000001 python manage.py shell -c "exec(open('../e2e/e2e_helper.py', encoding='utf-8').read())"
 
 (Use `-c exec(...)`, not `< file`: piped stdin is not executed on Windows and fails silently.)
 
@@ -21,6 +22,22 @@ Actions (E2E_ACTION):
 
 import json
 import os
+
+# --- Safety guard (runs before any database access) -------------------------------------------------
+# This script writes to whatever database DATABASE_URL points at. E2E_THROWAWAY_DB=1 is the OPERATOR'S
+# CONFIRMATION that it is disposable; it cannot verify that, and it does not make a real database safe.
+# The settings check only rejects an obviously wrong configuration (production). It never prints
+# DATABASE_URL, which can contain a password.
+from django.conf import settings  # noqa: E402
+
+if os.environ.get("E2E_THROWAWAY_DB") != "1":
+    raise SystemExit(
+        "refusing to run: set E2E_THROWAWAY_DB=1 to confirm DATABASE_URL points at a disposable test "
+        "database (never a development, staging or production one)"
+    )
+if settings.SETTINGS_MODULE not in ("config.settings.dev", "config.settings.test"):
+    raise SystemExit(f"refusing to run with settings module {settings.SETTINGS_MODULE!r}")
+# -----------------------------------------------------------------------------------------------------
 
 from django.test import Client
 
