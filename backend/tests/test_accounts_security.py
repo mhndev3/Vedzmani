@@ -87,6 +87,13 @@ def test_production_refuses_to_boot_with_dev_delivery_backends(backend):
     assert "must not be used in production" in result.stderr
 
 
+@pytest.mark.parametrize("key", ["change-me", "CHANGE-ME", "changeme", "short-key", "x" * 31])
+def test_production_refuses_to_boot_with_placeholder_or_short_secret_key(key):
+    result = _run_settings({"DJANGO_SECRET_KEY": key})
+    assert result.returncode != 0
+    assert "DJANGO_SECRET_KEY" in result.stderr
+
+
 # ------------------------------------------------------------ client IP --
 def test_forwarded_for_is_ignored_unless_proxies_are_trusted(rf, settings):
     from apps.accounts.ratelimit import get_client_ip

@@ -21,7 +21,7 @@ Client -> CDN/WAF -> Nginx -> Next.js (/)
 backend/    Django project (config/, apps/ accounts, catalog, cart, orders, inventory, core; tests/, requirements/; API contracts in *.md)
 frontend/   Next.js App Router, TypeScript strict, Tailwind v4, shadcn-compatible
 e2e/        Playwright suite (separate package): smoke, storefront, catalog, sign-in, checkout, purchase journey
-docs/       V1 readiness audit (historical snapshot), VPS development environment
+docs/       V1 readiness audit (historical snapshot), production readiness audit (2026-10-18), VPS development environment
 nginx/      Reverse-proxy config
 .github/    CI and E2E workflows
 docker-compose.yml, docker-compose.vps.yml, .env.example
@@ -58,7 +58,7 @@ provider are configured: production login and online payment are not available (
 
 - Secure headers: Next.js (`next.config.ts`) and Django prod settings (HSTS, secure cookies, SSL redirect behind `X-Forwarded-Proto`).
 - **CSRF strategy:** same-origin deployment behind Nginx, session auth with Django CSRF protection; `CSRF_TRUSTED_ORIGINS` lists allowed origins. CORS is closed unless `CORS_ALLOWED_ORIGINS` is set. Revisit when the auth flow is designed.
-- Only Nginx publishes a host port in Compose.
+- `docker-compose.yml` publishes Nginx (`HTTP_PORT`, default 8080) and PostgreSQL (host port 5433) on all host interfaces; Redis, backend and frontend are not published. Docker-published ports bypass host firewalls such as UFW, so on any internet-facing host use `docker-compose.vps.yml`, which rebinds both to `127.0.0.1`.
 - HSTS stays at `0` until HTTPS is verified end-to-end.
 
 ## Manual commands
@@ -86,7 +86,7 @@ cd e2e;      pnpm install; pnpm exec playwright install chromium; pnpm test   # 
 
 ## CI
 
-`.github/workflows/ci.yml`: frontend (lint, typecheck, build) and backend (`check`, migrations check, pytest against a PostgreSQL service). Requires a committed `frontend/pnpm-lock.yaml`.
+`.github/workflows/ci.yml`: frontend (lint, typecheck, build) and backend (`check`, `check --deploy --fail-level WARNING` against `config.settings.prod` with throwaway values and no database contact, migrations check, pytest against a PostgreSQL service). Requires a committed `frontend/pnpm-lock.yaml`.
 
 `.github/workflows/e2e.yml`: runs every spec in `e2e/tests` on a disposable Compose stack (empty volumes, removed with `down -v` at the end). It is triggered by pull requests and pushes to `main` that touch `e2e/**`, `backend/**`, `frontend/**`, `nginx/**`, `docker-compose.yml`, `.env.example` or the workflow itself, and manually. It is not a required check, and documentation-only changes do not trigger it. See `e2e/README-purchase-journey.md`.
 
