@@ -1,5 +1,7 @@
 # Vedzmani V1 Readiness Audit
 
+> **Historical snapshot (2026-10-14, `main` at `ab51850`).** Several statuses below are out of date: the sign-in, cart and checkout UI and a read-only order admin have since been implemented. Do not use this file as current status; see `PROJECT_CONTROL.md`.
+
 Audit date: 2026-10-14. Author: Agent A (coordinator / integration analyst). Docs-only change; no product code touched.
 Legend: **[V]** verified by running it or by reading the cited source; **[A]** assumption / not verified.
 

@@ -2,8 +2,9 @@
 
 ## What runs in CI
 `.github/workflows/e2e.yml` runs **every spec in `e2e/tests`** (purchase journey, checkout, catalog, storefront,
-smoke, sign-in, auth-redirect) on a disposable Compose stack, on pull requests that touch `e2e/**` or the workflow, and
-on demand once the workflow exists on the default branch. It is **not** a required check. Each run:
+smoke, sign-in, auth-redirect) on a disposable Compose stack, on pull requests that touch `e2e/**` or the workflow, and on
+demand (`workflow_dispatch`; the workflow is on the default branch). It does not run on pushes to `main` or on pull
+requests that only touch `frontend/` or `backend/`. It is **not** a required check. Each run:
 
 1. starts from empty volumes (own Compose project name, fresh runner VM), runs `migrate`, seeds `seed_catalog.py`;
 2. installs E2E dependencies with `pnpm install --frozen-lockfile` (`e2e/pnpm-lock.yaml`, pnpm pinned by
