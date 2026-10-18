@@ -138,9 +138,8 @@ Any exception anywhere rolls all of it back (tested by failing after the stock d
 
 ## Not implemented (by design, so far)
 Guest checkout; status transitions, cancellation, refunds and restocking; any payment processing (only the `unpaid`
-boundary exists); shipping cost/rules, tax, currency; a public order number; idempotency keys; pagination of the order list; admin registration
-for orders (hand-off: staff-only, restrict delivery PII); frontend wiring (the storefront still has no sign-in,
-add-to-cart, cart, checkout or order pages).
+boundary exists); shipping cost/rules, tax, currency; a public order number; idempotency keys; pagination of the order list; customer order list/detail pages in the frontend (sign-in, add-to-cart, cart and
+checkout pages exist). Staff can inspect orders in a read-only Django admin (`apps/orders/admin.py`, see `ADMIN.md`).
 
 ## Tests
 `tests/test_orders_api.py`: auth/CSRF/405, success + snapshot + server totals + sale price, price read at checkout,

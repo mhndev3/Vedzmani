@@ -1,7 +1,7 @@
 # Vedzmani
 
 Production-grade fashion e-commerce platform. **Modular monolith**: Next.js frontend + Django/DRF backend.
-Authoritative contract: [`PROJECT_CONTROL.md`](PROJECT_CONTROL.md). This README covers the **foundation only** — no business features exist yet.
+Authoritative contract: [`PROJECT_CONTROL.md`](PROJECT_CONTROL.md). This README covers architecture, environment, testing and CI. Implemented V1 features are described in `PROJECT_CONTROL.md` and the contracts in `backend/*.md`. Production SMS login, online payment, shipping fees and release of stock held by unpaid orders are **not** implemented.
 
 ## Architecture
 
@@ -18,12 +18,13 @@ Client -> CDN/WAF -> Nginx -> Next.js (/)
 ## Repository structure
 
 ```
-backend/    Django project (config/, apps/core health endpoints, tests/, requirements/)
+backend/    Django project (config/, apps/ accounts, catalog, cart, orders, inventory, core; tests/, requirements/; API contracts in *.md)
 frontend/   Next.js App Router, TypeScript strict, Tailwind v4, shadcn-compatible
-e2e/        Playwright smoke tests (separate package)
+e2e/        Playwright suite (separate package): smoke, storefront, catalog, sign-in, checkout, purchase journey
+docs/       V1 readiness audit (historical snapshot), VPS development environment
 nginx/      Reverse-proxy config
-.github/    CI workflow
-docker-compose.yml, .env.example
+.github/    CI and E2E workflows
+docker-compose.yml, docker-compose.vps.yml, .env.example
 ```
 
 ## Environment
@@ -49,6 +50,7 @@ provider are configured: production login and online payment are not available (
 
 - `GET /api/health/` — liveness, no dependencies.
 - `GET /api/health/ready/` — checks PostgreSQL and Redis cache; `503` if either fails.
+- Business API contracts: `backend/API.md` (conventions), `AUTH.md`, `CATALOG.md`, `CART.md`, `ORDERS.md`, `INVENTORY.md`, `PAYMENT.md`, `ADMIN.md`.
 - DRF default permission is `IsAuthenticated` (secure by default; public endpoints must opt in).
 - Object storage (S3-compatible) is a future integration boundary; DB will store image metadata only.
 
@@ -79,12 +81,14 @@ docker compose up -d
 ```powershell
 cd frontend; pnpm lint; pnpm typecheck; pnpm build
 cd backend;  python manage.py check; pytest          # needs PostgreSQL via DATABASE_URL
-cd e2e;      pnpm install; pnpm exec playwright install chromium; pnpm test   # stack must be up
+cd e2e;      pnpm install; pnpm exec playwright install chromium; pnpm test   # stack must be up; sign-in, checkout and purchase-journey specs need a throwaway stack (see e2e/README-purchase-journey.md)
 ```
 
 ## CI
 
 `.github/workflows/ci.yml`: frontend (lint, typecheck, build) and backend (`check`, migrations check, pytest against a PostgreSQL service). Requires a committed `frontend/pnpm-lock.yaml`.
+
+`.github/workflows/e2e.yml`: runs every spec in `e2e/tests` on a disposable Compose stack (empty volumes, removed with `down -v` at the end). It is triggered by pull requests that touch `e2e/**` or the workflow itself, and manually. It is not a required check, is not triggered by changes limited to `frontend/` or `backend/`, and does not run on pushes to `main`. See `e2e/README-purchase-journey.md`.
 
 ## Development flow
 

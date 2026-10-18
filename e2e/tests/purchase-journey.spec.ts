@@ -5,8 +5,9 @@ import { execSync } from "node:child_process";
  * Purchase journey smoke test, driven entirely through the UI:
  *   storefront -> product -> size -> add to cart -> cart -> OTP sign-in -> checkout -> order confirmation.
  *
- * STATUS: UNVERIFIED. Written in an environment where package registries were unreachable, so this
- * file has not been executed. Run it (see e2e/README-purchase-journey.md) before trusting it.
+ * STATUS: runs in the E2E workflow (.github/workflows/e2e.yml) on a disposable Compose stack. That
+ * workflow's report check (e2e/scripts/report-summary.mjs) fails the job if this test is missing, is
+ * skipped, or does not pass on its first attempt. To run it locally see e2e/README-purchase-journey.md.
  *
  * Sign-in uses the real OTP UI. The code is read from the TEST backend's log, which only works because
  * config.settings.dev uses the DEV-ONLY ConsoleDelivery. That is not SMS delivery. Needs a THROWAWAY
