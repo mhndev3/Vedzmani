@@ -34,6 +34,18 @@ on:
       - "docker-compose.yml"
       - ".env.example"
 
+# Least privilege: the job only reads the repository. Fork pull requests run with a read-only token and no
+# secrets (this workflow uses `pull_request`, never `pull_request_target`, and needs no secrets).
+permissions:
+  contents: read
+
+# A newer push to the same pull request cancels the run it supersedes. Runs on main are never cancelled.
+# Every run is isolated anyway (own runner VM, own Compose stack, `down -v` in an `always()` step), so
+# cancelling cannot leave state behind for the next run.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   e2e:
     runs-on: ubuntu-latest
@@ -137,6 +149,13 @@ jobs:
         working-directory: e2e
         run: node scripts/report-summary.mjs results.json
 
+      # Artifact contents, reviewed on purpose: Playwright traces (`trace: retain-on-failure` in
+      # playwright.config.ts) can contain cookies, request bodies (OTP codes, phone numbers, delivery details)
+      # and page snapshots. Here every one of those values belongs to a stack created seconds earlier from
+      # CI-only throwaway secrets, synthetic users and synthetic delivery data, and that stack is destroyed by
+      # `down -v` in this same job, so no captured session, OTP or database outlives the run. Keep it that way:
+      # never add `.env`, backend or compose logs, or a real/shared environment to this upload, and never point
+      # this workflow at a real database or a real SMS provider. Retention is kept short for the same reason.
       - name: Upload Playwright traces and report
         if: always()
         uses: actions/upload-artifact@v4

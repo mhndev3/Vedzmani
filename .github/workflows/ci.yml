@@ -1,13 +1,33 @@
 name: CI
 
+# Quality gates that must pass before code reaches main: frontend (lint, typecheck, build) and backend
+# (Django checks, migration consistency, pytest on PostgreSQL). Any failing command fails its job.
+#
+# Triggers: every pull request, plus pushes to main (re-checks the merged result). Branch pushes are NOT a
+# trigger: with `push: agent/**` as well, every push to a branch that has an open PR ran the whole workflow
+# twice (once per event). A branch without a pull request therefore gets no CI run until one is opened.
+# There are deliberately no path filters, so these jobs always report a status on a pull request.
+#
+# Only `pull_request` is used (never `pull_request_target`): pull requests from forks run with a read-only
+# token and no repository secrets. This workflow needs no secrets; every value below is a throwaway.
 on:
   push:
-    branches: [main, "agent/**"]
+    branches: [main]
   pull_request:
+
+# Least privilege: the jobs only read the repository.
+permissions:
+  contents: read
+
+# A newer push to the same pull request cancels the run it supersedes. Runs on main are never cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -30,9 +50,15 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
+    # Only PostgreSQL is started: config.settings.test keeps PostgreSQL as the database engine (no alternate
+    # engine). There is no Redis service because that settings module replaces the Redis cache with an
+    # in-memory one; REDIS_URL below is only needed so the shared settings module can be imported.
+    # The database is a throwaway container that lives for this job only. No external or shared database
+    # (VPS, development or production) is ever used.
     services:
       postgres:
         image: postgres:16-alpine
