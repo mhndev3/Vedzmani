@@ -1,12 +1,13 @@
 # Local development topology.
-# PostgreSQL is exposed on host port 5433 for host-side Django tests.
-# Internal Docker services continue using postgres:5432.
+# PostgreSQL is exposed on host port 5433 for host-side Django tests, bound to loopback only:
+# Docker-published ports bypass host firewalls (UFW), so an unqualified "5433:5432" would put the
+# database on every network interface. Internal Docker services continue using postgres:5432.
 
 services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
