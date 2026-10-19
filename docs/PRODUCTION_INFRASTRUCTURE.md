@@ -107,3 +107,22 @@ cache and rate-limit counters and is not backed up.
   not touched; copying its data is a separate, owner-approved step.
 - Docker-published ports bypass UFW; restricting 80/443 to Cloudflare ranges needs a `DOCKER-USER` rule (host-side).
 - The stack has not been started on any server by this work.
+
+## 8. First deployment on the VPS (2026-10-19)
+
+Server-local layout (outside Git, owner `vzinfra`, directory mode 700): `~/prod/vedzmani` (checkout of the release
+commit), `~/prod/.env.production` (mode 600, generated on the server), `~/prod/certs/{origin.pem,origin.key}`,
+`~/prod/cloudflare-realip.conf` (generated from cloudflare.com/ips-v4 and ips-v6) and `~/prod/server.override.yml`
+(mounts that file over `nginx/cloudflare-realip.conf`). Compose project `vedzmani-prod`; the development project
+`vedzmani-dev` was not touched. Command prefix:
+
+    docker compose --env-file ~/prod/.env.production -f ~/prod/vedzmani/docker-compose.prod.yml -f ~/prod/server.override.yml
+
+- The certificate in use is TEMPORARY and self-signed (90 days). Cloudflare `Full` accepts it; `Full (strict)` does
+  not. Replace `origin.pem`/`origin.key` with a Cloudflare Origin CA certificate, run `nginx -t`, recreate nginx, test
+  with SNI, and only then switch to `Full (strict)`.
+- When replacing a single bind-mounted file (certificate or real-IP list), recreate the container
+  (`up -d --force-recreate --no-deps nginx`); a reload does not see a file replaced by `mv`.
+- `DJANGO_ALLOWED_HOSTS` must include `backend` (see `.env.production.example`).
+- The database starts empty. Create the first staff user interactively on the server
+  (`... --profile ops run --rm migrate python manage.py createsuperuser`), never from a script that holds the password.
