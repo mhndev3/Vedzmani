@@ -58,7 +58,7 @@ provider are configured: production login and online payment are not available (
 
 - Secure headers: Next.js (`next.config.ts`) and Django prod settings (HSTS, secure cookies, SSL redirect behind `X-Forwarded-Proto`).
 - **CSRF strategy:** same-origin deployment behind Nginx, session auth with Django CSRF protection; `CSRF_TRUSTED_ORIGINS` lists allowed origins. CORS is closed unless `CORS_ALLOWED_ORIGINS` is set. Revisit when the auth flow is designed.
-- `docker-compose.yml` publishes Nginx (`HTTP_PORT`, default 8080) and PostgreSQL (host port 5433) on all host interfaces; Redis, backend and frontend are not published. Docker-published ports bypass host firewalls such as UFW, so on any internet-facing host use `docker-compose.vps.yml`, which rebinds both to `127.0.0.1`.
+- `docker-compose.yml` publishes Nginx (`HTTP_PORT`, default 8080) on all host interfaces and PostgreSQL (host port 5433) on `127.0.0.1` only; Redis, backend and frontend are not published. Docker-published ports bypass host firewalls such as UFW, so on any internet-facing host use `docker-compose.vps.yml`, which also rebinds Nginx to `127.0.0.1`.
 - HSTS stays at `0` until HTTPS is verified end-to-end.
 
 ## Manual commands
