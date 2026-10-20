@@ -8,7 +8,12 @@ RUN pnpm install --frozen-lockfile
 
 FROM base AS build
 ARG NEXT_PUBLIC_API_URL
+# Optional, non-secret, build-time only (see docs/IMAGES.md). Both empty = images served as-is.
+ARG IMAGE_OPTIMIZER
+ARG MEDIA_CDN_BASE_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    IMAGE_OPTIMIZER=$IMAGE_OPTIMIZER \
+    MEDIA_CDN_BASE_URL=$MEDIA_CDN_BASE_URL \
     NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

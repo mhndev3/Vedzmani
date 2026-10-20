@@ -9,6 +9,7 @@ import type { Dictionary } from "@/i18n/dictionaries/fa";
 import { BrowserApiError, errorText } from "@/lib/browser-api";
 import { cartApi, type Cart, type CartItem } from "@/lib/cart";
 import { fill, formatPrice } from "@/lib/format";
+import { IMAGE_SIZES, imageDelivery } from "@/lib/images";
 
 type State =
   | { kind: "loading" }
@@ -215,8 +216,8 @@ function CartLine({
             src={item.image.url}
             alt={item.image.alt_text || name}
             fill
-            sizes="96px"
-            unoptimized
+            sizes={IMAGE_SIZES.cartThumb}
+            {...imageDelivery(item.image.url)}
             className="object-cover"
           />
         )}

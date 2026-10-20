@@ -6,6 +6,7 @@ import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getProduct, type ProductDetail } from "@/lib/catalog";
 import { CatalogPicture, Price } from "@/components/storefront/catalog/ProductCard";
+import { IMAGE_SIZES, imageDelivery } from "@/lib/images";
 import { AddToCart } from "@/components/storefront/cart/AddToCart";
 
 type Props = {
@@ -100,8 +101,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
                     alt={img.alt_text || `${product.name}${color ? ` - ${color.name}` : ""}`}
                     width={img.width}
                     height={img.height}
-                    sizes={i === 0 ? "(min-width:768px) 50vw, 100vw" : "(min-width:768px) 25vw, 50vw"}
-                    unoptimized
+                    sizes={i === 0 ? IMAGE_SIZES.galleryMain : IMAGE_SIZES.galleryThumb}
+                    {...imageDelivery(img.url)}
                     loading={i === 0 ? "eager" : "lazy"}
                     fetchPriority={i === 0 ? "high" : "auto"}
                     className="h-auto w-full rounded-lg bg-muted"

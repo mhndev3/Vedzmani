@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { formatPrice, type CatalogImage, type ProductCardData } from "@/lib/catalog";
+import { IMAGE_SIZES, imageDelivery } from "@/lib/images";
 
 /** Shows real prices only: a struck-through original appears solely when the backend sends a sale_price. */
 export function Price({
@@ -40,7 +41,8 @@ export function Price({
 
 /**
  * Images are already WebP on the CDN boundary, so Next's optimizer is bypassed
- * (`unoptimized`); the 3:4 box is reserved up front (no CLS).
+ * (`unoptimized`) unless it is explicitly enabled for the CDN host (see
+ * `imageDelivery`); the 3:4 box is reserved up front (no CLS).
  */
 export function CatalogPicture({
   image,
@@ -63,7 +65,7 @@ export function CatalogPicture({
           alt={image.alt_text || fallbackAlt}
           fill
           sizes={sizes}
-          unoptimized
+          {...imageDelivery(image.url)}
           loading={eager ? "eager" : "lazy"}
           fetchPriority={eager ? "high" : "auto"}
           className="object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-[1.02]"
@@ -97,7 +99,7 @@ export function ProductCard({
         <CatalogPicture
           image={product.image}
           fallbackAlt={product.name}
-          sizes="(min-width:1024px) 20vw, (min-width:640px) 33vw, 50vw"
+          sizes={IMAGE_SIZES.catalogCard}
           eager={eager}
           noImage={t.catalog.noImage}
         />

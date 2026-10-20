@@ -178,3 +178,10 @@ Next.js is the frontend/application presentation layer. Django/DRF owns authorit
 - Tests: e2e/tests/auth-redirect.spec.ts (unit), e2e/tests/signin.spec.ts; stack/instructions in e2e/README-signin.md. Real-OTP tests read the code from the TEST backend log (dev-only ConsoleDelivery).
 - **Real SMS is NOT available:** no provider is configured; production returns 503 otp_delivery_unavailable, which the UI reports as "can't send codes right now". Real customer login remains unverified until a provider is chosen and tested.
 - Known limitations / follow-ups: the language switcher drops the query string, so switching language on the sign-in page loses ?next= (falls back to profile); remember_me is not sent (session cookie only); no logout UI; no header sign-in link; checkout.spec.ts throws in its test.skip callback when E2E_BACKEND_DIR is unset (pre-existing); the other checkout tests were not run in this session.
+
+## Images and CDN (Agent 2, Session 1)
+- Details, verification record and open items: `docs/IMAGES.md`. No CDN, storage vendor or upload pipeline is configured by this work; production hosting of product images is **not** set up.
+- Default behaviour is unchanged (all `next/image` stay `unoptimized`). New opt-in, build time: `IMAGE_OPTIMIZER=true` + https `MEDIA_CDN_BASE_URL` enables Next's built-in optimizer (AVIF/WebP, fixed widths) for URLs under that one base only (`frontend/next.config.ts`, `frontend/src/lib/images.ts`, Dockerfile build args). `docker-compose.yml` does not pass them yet.
+- **Known problem, not fixed:** with `MEDIA_CDN_BASE_URL` unset, image URLs are `/<key>` and nginx routes them to Next.js, so they 404. Needs an owner decision (real CDN/bucket or an nginx media route).
+- A CDN/proxy in front must forward and key on `Accept` for `/_next/image`. Immutable/long caching is unsafe while storage keys are not content-hashed. If `sharp` fails to load, Next silently serves the original image; check once after deploy (see `docs/IMAGES.md` section 7).
+- Verified with synthetic fixtures only (not real product images); the Linux Docker image, browser LCP/CLS and any CDN were **not** verified.
