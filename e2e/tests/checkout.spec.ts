@@ -254,6 +254,75 @@ test.describe("checkout", () => {
     });
   }
 
+  // The response is lost AFTER Django committed the order: route.fetch() makes the request really reach the
+  // backend, then abort() makes the browser see a network failure. Nothing is faked: the order is real.
+  // The page reads the customer's existing orders in the background after load; wait for it so the test is
+  // deterministic (if a customer submits before it finishes, the UI safely falls back to "unconfirmed").
+  async function loseResponseAfterOrderCreated(page: Page, options: { failLookup: boolean }) {
+    const state = { posts: 0 };
+    await page.route("**/api/orders/", async (route) => {
+      const method = route.request().method();
+      if (method === "POST") {
+        state.posts += 1;
+        await route.fetch();
+        return route.abort("failed");
+      }
+      return options.failLookup && state.posts > 0 ? route.abort("failed") : route.continue();
+    });
+    return state;
+  }
+
+  test("lost response after Django created the order: the real order is recovered and nothing is ordered twice", async ({
+    page,
+    baseURL,
+  }) => {
+    const s = await signIn(page, baseURL!);
+    await addToCart(page, s.variantSizeIds["e2e-tee-12-black-m"], 1);
+    const state = await loseResponseAfterOrderCreated(page, { failLookup: false });
+
+    const baselineRead = page.waitForResponse((r) => r.url().includes("/api/orders/") && r.request().method() === "GET");
+    await page.goto("/en/checkout");
+    await baselineRead;
+    await fillDelivery(page);
+    await placeOrder(page).click();
+
+    await expect(page.getByRole("heading", { name: "Order placed" })).toBeVisible();
+    const orders = await getJson(page, "/api/orders/");
+    expect(orders).toHaveLength(1);
+    await expect(page.getByTestId("order-id")).toHaveText(String(orders[0].id));
+    await expect(page.getByText("Not paid. No payment has been taken.")).toBeVisible();
+    expect(orders[0].payment_status).toBe("unpaid");
+    expect(state.posts).toBe(1);
+    expect((await getJson(page, "/api/cart/")).items).toHaveLength(0);
+  });
+
+  test("lost response and the order lookup also fails: stays uncertain, no success and no false 'not placed'", async ({
+    page,
+    baseURL,
+  }) => {
+    const s = await signIn(page, baseURL!);
+    await addToCart(page, s.variantSizeIds["e2e-tee-14-black-m"], 1);
+    const state = await loseResponseAfterOrderCreated(page, { failLookup: true });
+
+    const baselineRead = page.waitForResponse((r) => r.url().includes("/api/orders/") && r.request().method() === "GET");
+    await page.goto("/en/checkout");
+    await baselineRead;
+    await fillDelivery(page);
+    await placeOrder(page).click();
+
+    // Filter by text: Next also renders its own empty role="alert" route announcer.
+    const notice = page.getByRole("alert").filter({ hasText: "Please check before ordering again" });
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText("Please check before ordering again");
+    await expect(notice).toContainText("do not order again");
+    await expect(notice.getByRole("link", { name: "Browse products" })).toHaveAttribute("href", "/en/products");
+    await expect(page.getByRole("heading", { name: "Order placed" })).toHaveCount(0);
+    await expect(page.getByText("was not placed")).toHaveCount(0);
+    await expect(placeOrder(page)).toHaveCount(0); // no form: a second order cannot be submitted from here
+    expect(state.posts).toBe(1);
+    expect(await getJson(page, "/api/orders/")).toHaveLength(1); // the order really exists; the UI did not deny it
+  });
+
   test("Persian locale renders RTL and completes an order", async ({ page, baseURL }) => {
     const s = await signIn(page, baseURL!);
     await addToCart(page, s.variantSizeIds["e2e-tee-08-black-m"], 1);

@@ -11,7 +11,10 @@ import {
   EMPTY_DELIVERY,
   MAX_LENGTH,
   fieldErrorFromServerCode,
+  findOrderMatchingSubmission,
+  highestOrderId,
   isConfirmedOrder,
+  submittedLines,
   validateDelivery,
   type Cart,
   type DeliveryField,
@@ -19,6 +22,7 @@ import {
   type FieldErrors,
   type Me,
   type Order,
+  type SubmittedLine,
 } from "@/lib/checkout/model";
 
 type Phase =
@@ -49,6 +53,13 @@ async function fetchSnapshot(): Promise<Snapshot> {
   const phase: Phase =
     cartRes.data.items.length === 0 ? { kind: "empty" } : { kind: "ready", cart: cartRes.data };
   return { phase, me: meRes.data };
+}
+
+/** Reads the caller's own orders (`GET /api/orders/`). null = could not be read; callers must then stay uncertain. */
+async function fetchOrders(): Promise<Order[] | null> {
+  const res = await apiGet<unknown>("/api/orders/");
+  if (!res.ok || !Array.isArray(res.data)) return null;
+  return res.data.filter(isConfirmedOrder);
 }
 
 function formatMoney(value: string, locale: Locale): string {
@@ -84,8 +95,22 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
   const [banner, setBanner] = useState<Banner | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const inFlight = useRef(false); // synchronous guard: state updates are too late to stop a double click
+  // Highest order id the customer already had when this form was shown (null = not read yet or unreadable), and
+  // what was last submitted. Together they let an unconfirmed submit be resolved from `GET /api/orders/`.
+  const knownOrderId = useRef<number | null>(null);
+  const lastSubmission = useRef<{ delivery: DeliveryValues; lines: SubmittedLine[] } | null>(null);
   const alive = useRef(true);
   const confirmationHeading = useRef<HTMLHeadingElement>(null);
+
+  /** Best effort and off the critical path. Only a signed-in customer with a cart can place an order, so nobody else asks. */
+  function rememberExistingOrders(shown: Phase) {
+    if (shown.kind !== "ready" || knownOrderId.current !== null) return;
+    void fetchOrders().then((orders) => {
+      if (alive.current && orders !== null && knownOrderId.current === null) {
+        knownOrderId.current = highestOrderId(orders);
+      }
+    });
+  }
 
   useEffect(() => {
     alive.current = true;
@@ -93,6 +118,7 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
       if (!alive.current) return;
       setMe(snapshot.me);
       setPhase(snapshot.phase);
+      rememberExistingOrders(snapshot.phase);
     });
     return () => {
       alive.current = false;
@@ -109,6 +135,16 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
     if (!alive.current) return;
     setMe(snapshot.me);
     setPhase(snapshot.phase);
+    rememberExistingOrders(snapshot.phase);
+  }
+
+  /** Did one of THIS customer's submissions become an order? null = no provable match, or orders unreadable. */
+  async function findPlacedOrder(): Promise<Order | null> {
+    const after = knownOrderId.current;
+    const sent = lastSubmission.current;
+    if (after === null || sent === null) return null;
+    const orders = await fetchOrders();
+    return orders === null ? null : findOrderMatchingSubmission(orders, after, sent.delivery, sent.lines);
   }
 
   /** Re-reads the cart after a failed or unconfirmed submit. Entered values are never touched. */
@@ -117,8 +153,12 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
     if (!alive.current) return;
     if (snapshot.me) setMe(snapshot.me);
     if (snapshot.phase.kind === "unavailable") return; // transient: keep what the customer sees
-    if (snapshot.phase.kind === "empty" && unknownOutcome) setPhase({ kind: "maybePlaced" });
-    else setPhase(snapshot.phase);
+    if (snapshot.phase.kind === "empty" && unknownOutcome) {
+      // The cart is gone: either an order exists or the cart was emptied elsewhere. Ask Django which.
+      const placed = await findPlacedOrder();
+      if (!alive.current) return;
+      setPhase(placed ? { kind: "placed", order: placed } : { kind: "maybePlaced" });
+    } else setPhase(snapshot.phase);
   }
 
   function setValue(field: DeliveryField, value: string) {
@@ -144,7 +184,10 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
     setBanner(null);
     setFieldErrors({});
     try {
-      const body = Object.fromEntries(DELIVERY_FIELDS.map((field) => [field, values[field].trim()]));
+      const body = Object.fromEntries(
+        DELIVERY_FIELDS.map((field) => [field, values[field].trim()]),
+      ) as DeliveryValues;
+      lastSubmission.current = { delivery: body, lines: submittedLines(phase.cart) };
       const res = await apiPostJson<unknown>("/api/orders/", body);
 
       if (res.ok) {
@@ -175,7 +218,9 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
         return;
       }
       if (res.status === 400 && res.code === "empty_cart") {
-        setPhase({ kind: "maybePlaced" });
+        // A repeat or a stale page: the cart was already ordered. Show that order only if it is provably this one.
+        const placed = await findPlacedOrder();
+        if (alive.current) setPhase(placed ? { kind: "placed", order: placed } : { kind: "maybePlaced" });
         return;
       }
       if (res.status === 409 && (res.code === "item_unavailable" || res.code === "insufficient_stock")) {
@@ -230,7 +275,7 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
   if (phase.kind === "empty" || phase.kind === "maybePlaced") {
     const copy = phase.kind === "empty" ? t.empty : t.maybePlaced;
     return (
-      <Notice title={copy.title} body={copy.body}>
+      <Notice title={copy.title} body={copy.body} role={phase.kind === "maybePlaced" ? "alert" : undefined}>
         <Link href={`/${locale}/products`} className={secondaryButton}>
           {copy.browse}
         </Link>
@@ -381,9 +426,19 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
   );
 }
 
-function Notice({ title, body, children }: { title: string; body: string; children: ReactNode }) {
+function Notice({
+  title,
+  body,
+  role,
+  children,
+}: {
+  title: string;
+  body: string;
+  role?: "alert";
+  children: ReactNode;
+}) {
   return (
-    <section className="mt-6 rounded-lg border border-border p-6">
+    <section role={role} className="mt-6 rounded-lg border border-border p-6">
       <h2 className="text-xl font-semibold">{title}</h2>
       <p className="mt-2 text-muted-foreground">{body}</p>
       <div className="mt-4">{children}</div>

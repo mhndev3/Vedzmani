@@ -141,3 +141,50 @@ export function isConfirmedOrder(value: unknown): value is Order {
     Array.isArray(o.items)
   );
 }
+
+// --- Recovery after an unconfirmed submit ------------------------------------
+// When the outcome of `POST /api/orders/` is unknown (network loss, timeout, 5xx), or a repeat submit finds the
+// cart empty, the customer may already have an order. Django has no idempotency key, so the only way to tell is
+// the existing read endpoint `GET /api/orders/`. An order is attributed to THIS submission only when it is newer
+// than every order the customer had when the form was shown AND its delivery snapshot and its lines equal what
+// was sent. Anything less certain stays "unconfirmed": the UI never guesses and never invents an order.
+
+/** A cart line as submitted: identity and quantity only, never a price. */
+export type SubmittedLine = { variantSizeId: number; quantity: number };
+
+export function submittedLines(cart: Cart): SubmittedLine[] {
+  return cart.items.map((item) => ({ variantSizeId: item.variant_size.id, quantity: item.quantity }));
+}
+
+/** Highest order id in a `GET /api/orders/` list (0 for none). Ids only grow, so it marks "before this form". */
+export function highestOrderId(orders: readonly Order[]): number {
+  return orders.reduce((highest, order) => Math.max(highest, order.id), 0);
+}
+
+function sameLines(order: Order, lines: readonly SubmittedLine[]): boolean {
+  const wanted = new Map(lines.map((line) => [line.variantSizeId, line.quantity] as const));
+  if (wanted.size !== lines.length || order.items.length !== lines.length) return false;
+  return order.items.every((item) => item != null && wanted.get(item.variant_size_id) === item.quantity);
+}
+
+/**
+ * The newest order created after `afterOrderId` whose delivery fields and lines equal the submission, or null.
+ * `delivery` must hold exactly the values that were sent (trimmed). The postal code is compared after the same
+ * digit normalization the server applies. Prices and totals are deliberately not compared: Django sets them.
+ */
+export function findOrderMatchingSubmission(
+  orders: readonly Order[],
+  afterOrderId: number,
+  delivery: DeliveryValues,
+  lines: readonly SubmittedLine[],
+): Order | null {
+  let match: Order | null = null;
+  for (const order of orders) {
+    if (order.id <= afterOrderId || (match !== null && order.id <= match.id)) continue;
+    const sameDelivery = DELIVERY_FIELDS.every(
+      (field) => order[field] === (field === "postal_code" ? toAsciiDigits(delivery[field]) : delivery[field]),
+    );
+    if (sameDelivery && sameLines(order, lines)) match = order;
+  }
+  return match;
+}

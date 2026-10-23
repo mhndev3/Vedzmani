@@ -103,6 +103,31 @@ per-line `availability` the client can show.
    then delete the cart's lines (the empty `Cart` row stays).
 Any exception anywhere rolls all of it back (tested by failing after the stock decrement and order insert).
 
+## Duplicate submission and lost responses
+- **Server:** there is no idempotency key. A double or concurrent submit is safe (the cart lock makes the second request
+  find an empty cart and get `400 empty_cart`), but a client that never received the response to `POST /api/orders/`
+  cannot tell from that call alone whether the order exists, and `empty_cart` on a retry is ambiguous: the lost attempt
+  may have created the order, or the cart was emptied elsewhere. The existing read endpoint `GET /api/orders/` is the only
+  way to find out. No endpoint, field or status was added for this.
+- **Frontend recovery** (`CheckoutForm.tsx`, matching in `lib/checkout/model.ts`): after an unconfirmed outcome (network
+  failure or timeout, 5xx, a 2xx whose body is not a valid order) that leaves the cart empty, or after `400 empty_cart`
+  on a submit, the page reads `GET /api/orders/`. An order is shown as this submission's result only if **all** hold: its
+  id is higher than every order the customer had when the form was shown (read in the background, only for a signed-in
+  customer with a non-empty cart); its five delivery fields equal what was sent (the postal code after the same digit
+  normalization the server applies); and its lines (variant size id and quantity) equal the cart lines that were submitted.
+  Prices, totals and statuses are not compared; the page then shows the order exactly as Django returned it (`pending`,
+  `unpaid`). If the cart is still non-empty after an unconfirmed outcome, the form stays with the "couldn't confirm"
+  banner and a retry is possible. In every other case (baseline not read yet, orders unreadable, no match, cart changed in
+  another tab) the page shows "Please check before ordering again" (`role="alert"`, no form) and never claims success or
+  that the order was not placed.
+- **Limits:** matching is a heuristic, not an identifier. An identical order (same address and lines) placed from another
+  tab or device after the form was shown is indistinguishable and would be shown; it is a real order and none is created
+  twice. A submit that happens before the background read finishes, or a request still running on the server when the
+  20 s client timeout fires, falls back to the uncertain state. The list is read unpaginated. A server-side idempotency key
+  would remove the guesswork but changes the API contract and needs the owner's decision.
+- **Price changes:** the order is priced from the live catalog at creation and the contract has no expected-total field,
+  so a customer is not warned if a price changed after they saw the cart; the confirmation shows the real total.
+
 ## Data decisions
 - **Snapshots:** `OrderItem` stores `product_name`, `color_name`, `size_label`, `sku`, `unit_price`, `quantity`,
   `subtotal`; `Order` stores `customer_phone`. Later catalog/user edits do not change history (tested).
@@ -164,3 +189,8 @@ does not bypass 401/CSRF; another customer gets 404 and no address; legacy order
 `tests/test_orders_postal_code.py`: the pure normalizer. `tests/test_orders_migration.py`: migration with an existing
 order on real PostgreSQL. The existing order/inventory tests only gained the shared `DELIVERY` payload
 (`tests/conftest.py`); no assertion about stock, locking or concurrency was changed.
+
+Frontend recovery (no backend change): `e2e/tests/checkout-recovery.spec.ts` (16 pure unit tests of the matching rules) and
+two browser tests in `e2e/tests/checkout.spec.ts` that make the response disappear AFTER Django created the order
+(`route.fetch()` then `abort()`): one recovers and shows the real order with no second order, the other also fails the
+order lookup and must stay uncertain.
