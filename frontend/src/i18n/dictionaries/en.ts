@@ -81,6 +81,8 @@ export const en: Dictionary = {
     noImages: "No images are available for this color.",
     noSizes: "No sizes are listed for this color.",
     sizeOutOfStock: "Out of stock",
+    colorOutOfStock: "Out of stock",
+    unavailable: "This product is currently unavailable.",
     addToCart: "Add to cart",
     adding: "Adding…",
     added: "Added to your cart.",

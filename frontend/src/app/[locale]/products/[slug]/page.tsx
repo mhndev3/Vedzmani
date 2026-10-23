@@ -136,6 +136,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               {inStock ? t.catalog.inStock : t.catalog.outOfStock}
             </p>
           )}
+          {!color && <p className="mt-2 text-sm font-medium">{t.product.unavailable}</p>}
 
           {product.colors.length > 0 && color && (
             <div className="mt-6">
@@ -145,6 +146,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
               <ul className="mt-2 flex flex-wrap gap-2">
                 {product.colors.map((c) => {
                   const current = c.slug === color.slug;
+                  // Sold out per the backend's own in_stock flags; still viewable, never purchasable.
+                  const soldOut = !c.sizes.some((s) => s.in_stock);
                   return (
                     <li key={c.slug}>
                       <Link
@@ -161,7 +164,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
                           className="size-4 rounded-full border border-border"
                           style={c.hex_color ? { backgroundColor: c.hex_color } : undefined}
                         />
-                        {c.name}
+                        <span className={soldOut ? "text-muted-foreground line-through" : undefined}>
+                          {c.name}
+                        </span>
+                        {soldOut && <span className="sr-only">({t.product.colorOutOfStock})</span>}
                       </Link>
                     </li>
                   );

@@ -67,7 +67,14 @@ if not Product.objects.filter(slug="e2e-hoodie-01").exists():
             )
             for code, size in sizes.items():
                 # Hoodie 03 is entirely out of stock; Hoodie 01 white is out of stock only.
-                stock = 0 if (p.slug == "e2e-hoodie-03" or (p.slug == "e2e-hoodie-01" and slug == "white")) else 5
+                # Tee 15 black has exactly one sold-out size (L), so product-detail.spec.ts can check a
+                # partially available color. It does not change any product's overall in-stock status.
+                sold_out = (
+                    p.slug == "e2e-hoodie-03"
+                    or (p.slug == "e2e-hoodie-01" and slug == "white")
+                    or (p.slug == "e2e-tee-15" and slug == "black" and code == "l")
+                )
+                stock = 0 if sold_out else 5
                 VariantSize.objects.create(variant=v, size=size, sku=f"{p.slug}-{slug}-{code}", stock_quantity=stock)
 
     for n in range(1, 16):
