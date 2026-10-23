@@ -4,6 +4,7 @@ Carts belong to customers and are priced from the catalog at request time, so st
 create/edit (no silent ownership, quantity or price changes). Delete permission is left to Django's
 model permissions on purpose: overriding it would also block deleting a *user* who owns a cart.
 The cart is not an inventory reservation; nothing here touches stock.
+Owner phones are masked, and they are searchable only by staff who can already read full phone numbers.
 """
 
 from django.contrib import admin
@@ -15,6 +16,15 @@ from .models import Cart, CartItem
 def mask_phone(phone: str) -> str:
     """+989123456789 -> +9891****789 (enough to tell customers apart, not to contact them)."""
     return f"{phone[:5]}****{phone[-3:]}" if len(phone) > 8 else "****"
+
+
+def can_search_by_phone(user) -> bool:
+    """Phone search needs view or change permission on `User` (the user admin shows full phones to those holders).
+
+    The owner column is masked. If anyone with cart access could search the full phone, they could recover the hidden
+    digits one substring at a time (does "23456" match? does "234567"?). For everyone else the phone is not searched.
+    """
+    return bool(user.is_active and (user.has_perm("accounts.view_user") or user.has_perm("accounts.change_user")))
 
 
 class _ReadOnlyMixin:
@@ -55,7 +65,7 @@ class CartItemInline(_ReadOnlyMixin, admin.TabularInline):
 class CartAdmin(_ReadOnlyMixin, admin.ModelAdmin):
     list_display = ("id", "owner", "item_count", "created_at", "updated_at")
     list_select_related = ("user",)
-    search_fields = ("user__phone",)
+    search_fields = ()  # the phone is added by get_search_fields, only for staff allowed to see it
     ordering = ("-updated_at", "-id")
     fields = ("id", "owner", "created_at", "updated_at")
     readonly_fields = fields
@@ -63,6 +73,9 @@ class CartAdmin(_ReadOnlyMixin, admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(_item_count=Count("items", distinct=True))
+
+    def get_search_fields(self, request):
+        return ("user__phone",) if can_search_by_phone(request.user) else ()
 
     @admin.display(description="Owner")
     def owner(self, obj):
@@ -77,10 +90,14 @@ class CartAdmin(_ReadOnlyMixin, admin.ModelAdmin):
 class CartItemAdmin(_ReadOnlyMixin, admin.ModelAdmin):
     list_display = ("id", "owner", "sku", "product", "quantity", "updated_at")
     list_select_related = ("cart__user", "variant_size__variant__product")
-    search_fields = ("variant_size__sku", "variant_size__variant__product__name", "cart__user__phone")
+    search_fields = ("variant_size__sku", "variant_size__variant__product__name")  # phone: see get_search_fields
     ordering = ("-updated_at", "-id")
     fields = ("id", "owner", "sku", "product", "quantity", "created_at", "updated_at")
     readonly_fields = fields
+
+    def get_search_fields(self, request):
+        fields = ("variant_size__sku", "variant_size__variant__product__name")
+        return (*fields, "cart__user__phone") if can_search_by_phone(request.user) else fields
 
     @admin.display(description="Owner")
     def owner(self, obj):

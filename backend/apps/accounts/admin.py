@@ -5,12 +5,22 @@ Authorization stays Django-native (is_staff / is_superuser / groups / permission
 
 ``OTPChallenge`` is deliberately NOT registered: it is authentication state (code hash + salt) with no
 operational value for staff.
+
+Privilege boundaries (enforced server-side, never by hiding controls):
+* Only superusers change who is staff or a superuser, and only superusers manage staff accounts (edit, reset the
+  password of, delete). Otherwise a staff member holding ``change_user`` could reset a more privileged colleague's
+  password and sign in as them, or give a customer a password plus ``is_staff`` and sign in to the admin as that
+  customer (the session is shared with the storefront API).
+* Only superusers add, change or delete groups. Django's stock ``GroupAdmin`` would let anyone holding
+  ``change_group`` add any permission to a group they belong to.
 """
 
 from django import forms
 from django.contrib import admin
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import AdminUserCreationForm
+from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -86,16 +96,39 @@ class UserAdmin(BaseUserAdmin):
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
         if not request.user.is_superuser:
-            # No self-service privilege escalation through the user form.
-            readonly += ["is_superuser", "groups", "user_permissions"]
+            # No self-service privilege escalation through the user form. `is_staff` is included: making an
+            # account staff (plus a password set here) would be a way to sign in to the admin as that account.
+            readonly += ["is_staff", "is_superuser", "groups", "user_permissions"]
         return readonly
 
+    @staticmethod
+    def _managed_by_superusers_only(request, obj) -> bool:
+        """Staff and superuser accounts can only be edited, password-reset or deleted by a superuser."""
+        return obj is not None and (obj.is_superuser or obj.is_staff) and not request.user.is_superuser
+
     def has_change_permission(self, request, obj=None):
-        if obj is not None and obj.is_superuser and not request.user.is_superuser:
+        if self._managed_by_superusers_only(request, obj):
             return False
         return super().has_change_permission(request, obj)
 
     def has_delete_permission(self, request, obj=None):
-        if obj is not None and obj.is_superuser and not request.user.is_superuser:
+        if self._managed_by_superusers_only(request, obj):
             return False
         return super().has_delete_permission(request, obj)
+
+
+class SuperuserOnlyGroupAdmin(BaseGroupAdmin):
+    """Groups carry permissions, so only superusers may add, change or delete them (others can read them)."""
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser and super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser and super().has_delete_permission(request, obj)
+
+
+admin.site.unregister(Group)
+admin.site.register(Group, SuperuserOnlyGroupAdmin)

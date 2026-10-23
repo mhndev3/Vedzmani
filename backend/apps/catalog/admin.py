@@ -174,6 +174,23 @@ class ColorVariantAdmin(admin.ModelAdmin):
         return obj._image_count
 
 
+class StockLevelFilter(admin.SimpleListFilter):
+    """Sold out vs available, straight from `VariantSize.stock_quantity`. No low-stock threshold: none is decided."""
+
+    title = "stock"
+    parameter_name = "stock"
+
+    def lookups(self, request, model_admin):
+        return (("out", "Out of stock"), ("in", "In stock"))
+
+    def queryset(self, request, queryset):
+        if self.value() == "out":
+            return queryset.filter(stock_quantity=0)
+        if self.value() == "in":
+            return queryset.filter(stock_quantity__gt=0)
+        return queryset
+
+
 class _VariantColumnsMixin:
     @admin.display(description="Product", ordering="variant__product__name")
     def product(self, obj):
@@ -187,7 +204,7 @@ class _VariantColumnsMixin:
 @admin.register(VariantSize)
 class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     list_display = ("sku", "product", "color", "size", "stock_quantity", "is_active")
-    list_filter = ("is_active", "size")
+    list_filter = ("is_active", StockLevelFilter, "size")
     list_select_related = ("variant__product", "size")
     search_fields = ("sku", "variant__product__name", "variant__name")
     ordering = ("variant__product__name", "variant__position", "size__position")
