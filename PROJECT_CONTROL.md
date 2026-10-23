@@ -178,3 +178,10 @@ Next.js is the frontend/application presentation layer. Django/DRF owns authorit
 - Tests: e2e/tests/auth-redirect.spec.ts (unit), e2e/tests/signin.spec.ts; stack/instructions in e2e/README-signin.md. Real-OTP tests read the code from the TEST backend log (dev-only ConsoleDelivery).
 - **Real SMS is NOT available:** no provider is configured; production returns 503 otp_delivery_unavailable, which the UI reports as "can't send codes right now". Real customer login remains unverified until a provider is chosen and tested.
 - Known limitations / follow-ups: the language switcher drops the query string, so switching language on the sign-in page loses ?next= (falls back to profile); remember_me is not sent (session cookie only); no logout UI; no header sign-in link; checkout.spec.ts throws in its test.skip callback when E2E_BACKEND_DIR is unset (pre-existing); the other checkout tests were not run in this session.
+
+
+## Authentication & Session Audit (Agent 6, Session 1)
+- Audited the existing phone + OTP / Django session / CSRF boundary; details, effective session lifetimes and limits in `backend/AUTH.md` ("Audit"). No new endpoints, no API contract change, no frontend change.
+- Fixed: an OTP-only session for an `is_staff` phone used to open `/admin/` (bypassing the staff password); admin now requires the password form (`apps/accounts/admin_site.py`, `backend/ADMIN.md`). Fixed: any delivery-adapter exception now yields the documented 503 and expires the unsent code.
+- Tests: `test_accounts_admin_gate.py`, `test_accounts_delivery_failures.py`, `test_accounts_session_security.py` (isolated PostgreSQL, in-memory cache, mocked delivery).
+- **Real SMS/OTP delivery is still NOT available and live-provider verification is BLOCKED** (no provider chosen). Open: purge jobs for expired sessions and `OTPChallenge` rows, `AUTH_TRUSTED_PROXY_COUNT` verification behind the real proxy chain, 14-day server-side lifetime of browser-session logins (owner may want a shorter value).

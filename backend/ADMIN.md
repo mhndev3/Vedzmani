@@ -9,6 +9,12 @@ Staff sign in with **phone + password** at `/admin/login/`. The login form does 
 type the canonical form `+989XXXXXXXXX`. Customers are OTP-only (unusable password) and can never enter the admin
 unless explicitly given `is_staff` and a password.
 
+**A session created by the customer OTP flow never opens the admin** (Agent 6). `apps/accounts/admin_site.py`
+refuses sessions flagged by `/api/auth/otp/verify/`, even for `is_staff` phones, so an SMS code alone cannot reach
+`/admin/`. Succeeding at `/admin/login/` (password) lifts the restriction for that session; a later OTP login on the
+same session closes it again. Staff accounts without a password (shown as "Not set (OTP login only)" in the user
+admin) therefore cannot use the admin until a password is set.
+
 ## What exists
 | Area | Notes |
 |---|---|

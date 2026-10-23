@@ -42,7 +42,8 @@ DEBUG = False
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    # django.contrib.admin, with a site that refuses OTP-only sessions (apps/accounts/admin_site.py).
+    "apps.accounts.admin_config.PasswordLoginAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",

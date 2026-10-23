@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
+from .authentication import OTP_SESSION_FLAG
 from .models import OTPChallenge
 from .ratelimit import get_client_ip
 from .serializers import CurrentUserSerializer, OTPRequestSerializer, OTPVerifySerializer
@@ -72,6 +73,8 @@ class OTPVerifyView(CSRFProtectedAPIView):
         )
         django_request = request._request
         login(django_request, user, backend=BACKEND)  # rotates the session key
+        # Established by an SMS code only: valid for the customer API, refused by Django Admin (password required).
+        django_request.session[OTP_SESSION_FLAG] = True
         # Deterministic remember-me: browser-session cookie vs. fixed lifetime.
         django_request.session.set_expiry(settings.AUTH_REMEMBER_ME_SECONDS if data["remember_me"] else 0)
         return Response({"user": CurrentUserSerializer(user).data, "is_new_user": created})

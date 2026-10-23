@@ -11,7 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import ratelimit
-from .delivery import OTPDeliveryError, get_delivery
+from .delivery import get_delivery
 from .exceptions import (
     AccountDisabled,
     DeliveryUnavailable,
@@ -62,8 +62,11 @@ def request_otp(*, phone: str, purpose: str, ip: str) -> None:
 
     try:
         get_delivery().send(phone=phone, code=code, purpose=purpose)
-    except OTPDeliveryError:
-        logger.error("OTP delivery failed (challenge=%s)", challenge.pk)
+    except Exception as exc:  # noqa: BLE001 - adapters wrap transport errors, but a missed one must not escape
+        # OTPDeliveryError is the adapter contract; any other failure (timeout, bad provider response, adapter
+        # bug) gets the same treatment: the unsent code is invalidated and the customer sees the documented 503.
+        # Only the exception TYPE is logged: provider messages can embed URLs with API keys or the phone number.
+        logger.error("OTP delivery failed (challenge=%s, error=%s)", challenge.pk, type(exc).__name__)
         OTPChallenge.objects.filter(pk=challenge.pk).update(expires_at=timezone.now())
         raise DeliveryUnavailable() from None
 
