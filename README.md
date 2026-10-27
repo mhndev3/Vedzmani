@@ -58,7 +58,7 @@ provider are configured: production login and online payment are not available (
 
 - Secure headers: Next.js (`next.config.ts`) and Django prod settings (HSTS, secure cookies, SSL redirect behind `X-Forwarded-Proto`).
 - **CSRF strategy:** same-origin deployment behind Nginx, session auth with Django CSRF protection; `CSRF_TRUSTED_ORIGINS` lists allowed origins. CORS is closed unless `CORS_ALLOWED_ORIGINS` is set. Revisit when the auth flow is designed.
-- `docker-compose.yml` publishes Nginx (`HTTP_PORT`, default 8080) and PostgreSQL (host port 5433) on all host interfaces; Redis, backend and frontend are not published. Docker-published ports bypass host firewalls such as UFW, so on any internet-facing host use `docker-compose.vps.yml`, which rebinds both to `127.0.0.1`.
+- `docker-compose.yml` publishes Nginx (`HTTP_PORT`, default 8080) on all host interfaces and PostgreSQL (host port 5433) on `127.0.0.1` only; Redis, backend and frontend are not published. Docker-published ports bypass host firewalls such as UFW, so on any internet-facing host use `docker-compose.vps.yml`, which also rebinds Nginx to `127.0.0.1`.
 - HSTS stays at `0` until HTTPS is verified end-to-end.
 
 ## Manual commands
@@ -88,7 +88,13 @@ cd e2e;      pnpm install; pnpm exec playwright install chromium; pnpm test   # 
 
 `.github/workflows/ci.yml`: frontend (lint, typecheck, build) and backend (`check`, `check --deploy --fail-level WARNING` against `config.settings.prod` with throwaway values and no database contact, migrations check, pytest against a PostgreSQL service). Requires a committed `frontend/pnpm-lock.yaml`.
 
-`.github/workflows/e2e.yml`: runs every spec in `e2e/tests` on a disposable Compose stack (empty volumes, removed with `down -v` at the end). It is triggered by pull requests and pushes to `main` that touch `e2e/**`, `backend/**`, `frontend/**`, `nginx/**`, `docker-compose.yml`, `.env.example` or the workflow itself, and manually. It is not a required check, and documentation-only changes do not trigger it. See `e2e/README-purchase-journey.md`.
+- **Triggers:** every pull request, and pushes to `main`. Pushes to other branches do not run CI by themselves (they used to, which ran everything twice on a branch with an open PR); open a pull request to get a CI run. There are no path filters, so the `frontend` and `backend` jobs always report on a pull request.
+- **Safety:** the workflow token is limited to `contents: read`, it uses `pull_request` (never `pull_request_target`) and needs no secrets, so pull requests from forks are safe. A newer push to the same pull request cancels the superseded run; runs on `main` are never cancelled. Jobs have timeouts.
+- **Backend services:** only a throwaway PostgreSQL 16 container that exists for that job. There is no Redis service because `config.settings.test` uses an in-memory cache. CI never connects to the VPS, a development database or a production database.
+- **Reproducibility:** frontend dependencies come from `frontend/pnpm-lock.yaml` (`--frozen-lockfile`, pnpm version from `packageManager`). Backend dependencies are version ranges in `backend/requirements/*.txt` (there is no Python lockfile), so a new upstream patch release can change a run.
+- **Required checks:** the job names are `frontend` and `backend`. Marking them as required status checks is a repository (branch protection) setting for the owner; this workflow does not configure it.
+
+`.github/workflows/e2e.yml`: runs every spec in `e2e/tests` on a disposable Compose stack (empty volumes, removed with `down -v` at the end). It is triggered by pull requests and pushes to `main` that touch `e2e/**`, `backend/**`, `frontend/**`, `nginx/**`, `docker-compose.yml`, `.env.example` or the workflow itself, and manually. It is not a required check, and documentation-only changes do not trigger it. It has the same least-privilege token, no-secrets and cancel-superseded-runs rules as `ci.yml`. Its uploaded Playwright traces and `results.json` come only from the throwaway stack (synthetic users, CI-only secrets, destroyed in the same job); see the comment above the upload step before changing what is uploaded. See `e2e/README-purchase-journey.md`.
 
 ## Development flow
 

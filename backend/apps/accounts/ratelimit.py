@@ -10,6 +10,7 @@ rather than silently dropping its abuse protection.
 """
 
 import hashlib
+import ipaddress
 
 from django.conf import settings
 from django.core.cache import cache
@@ -17,15 +18,36 @@ from django.core.cache import cache
 from .exceptions import RateLimited
 
 
+def _canonical_ip(value: str) -> str | None:
+    """Rate-limit identity for an address, or None when `value` is not an IP address at all.
+
+    IPv4 is used as is. IPv4-mapped IPv6 collapses to its IPv4. Any other IPv6 address collapses to its /64:
+    one subscriber normally controls a whole /64, so per-address buckets would let a single client mint
+    unlimited fresh identities. Anything that is not an IP never becomes a rate-limit key."""
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError:
+        return None
+    if address.version == 6:
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.ip_network((address, 64), strict=False))
+    return str(address)
+
+
 def get_client_ip(request) -> str:
     """Client IP. X-Forwarded-For is trusted ONLY when AUTH_TRUSTED_PROXY_COUNT
-    says how many proxies we sit behind; otherwise it is ignored (spoofable)."""
+    says how many proxies we sit behind; otherwise it is ignored (spoofable).
+    The trusted entry must be a valid IP, otherwise the peer address is used (coarse but never attacker-chosen
+    text). Safe only while the backend is reachable exclusively through the trusted proxy (see AUTH.md)."""
     hops = settings.AUTH_TRUSTED_PROXY_COUNT
     if hops > 0:
         forwarded = [p.strip() for p in request.META.get("HTTP_X_FORWARDED_FOR", "").split(",") if p.strip()]
         if len(forwarded) >= hops:
-            return forwarded[-hops]
-    return request.META.get("REMOTE_ADDR", "") or "unknown"
+            candidate = _canonical_ip(forwarded[-hops])
+            if candidate:
+                return candidate
+    return _canonical_ip(request.META.get("REMOTE_ADDR", "")) or "unknown"
 
 
 def _ident(value: str) -> str:

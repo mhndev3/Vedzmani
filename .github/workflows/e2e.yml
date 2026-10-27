@@ -34,6 +34,18 @@ on:
       - "docker-compose.yml"
       - ".env.example"
 
+# Least privilege: the job only reads the repository. Fork pull requests run with a read-only token and no
+# secrets (this workflow uses `pull_request`, never `pull_request_target`, and needs no secrets).
+permissions:
+  contents: read
+
+# A newer push to the same pull request cancels the run it supersedes. Runs on main are never cancelled.
+# Every run is isolated anyway (own runner VM, own Compose stack, `down -v` in an `always()` step), so
+# cancelling cannot leave state behind for the next run.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   e2e:
     runs-on: ubuntu-latest
@@ -110,6 +122,12 @@ jobs:
         working-directory: e2e
         run: pnpm exec playwright test --list
 
+      # Synthetic values only; prints check names, never values. A failing privacy rule blocks the run before any
+      # test executes or any artifact can be produced.
+      - name: Privacy self-tests (sanitizer and log redactor, synthetic values only)
+        working-directory: e2e
+        run: node scripts/privacy-selftest.mjs
+
       - name: Run all E2E specs
         working-directory: e2e
         env:
@@ -137,20 +155,52 @@ jobs:
         working-directory: e2e
         run: node scripts/report-summary.mjs results.json
 
-      - name: Upload Playwright traces and report
-        if: always()
+      # Artifact policy (see e2e/README-artifact-privacy.md): the ONLY thing uploaded is one sanitized JSON report.
+      # Playwright traces (cookies incl. live sessionid/csrftoken, typed OTP codes, phone numbers, delivery details,
+      # page snapshots), screenshots, videos, e2e/test-results, backend/compose logs and .env are never uploaded:
+      # `down -v` destroys the stack, but an uploaded artifact outlives the job and is downloadable. With CI=true
+      # playwright.config.ts does not create traces/screenshots/videos at all (prevention, not post-processing).
+      # The upload path is one explicit file, never a directory or glob, and the sanitizer fails closed.
+      # The sanitizer deletes its output file before doing anything else and again on every failure path, and the
+      # upload below runs ONLY when this step's outcome is `success`, so a failed (or skipped) sanitization can
+      # never lead to a stale or partial report being uploaded.
+      - name: Sanitize the JSON report (fails closed; nothing is uploaded if sensitive-shaped content remains)
+        id: sanitize
+        if: always() && hashFiles('e2e/results.json') != ''
+        working-directory: e2e
+        run: node scripts/sanitize-results.mjs results.json results.sanitized.json
+
+      - name: Make sure no sanitized report exists unless sanitization succeeded
+        if: always() && steps.sanitize.outcome != 'success'
+        working-directory: e2e
+        run: rm -f results.sanitized.json results.sanitized.json.tmp
+
+      - name: Upload sanitized Playwright report (no traces, screenshots, videos or test-results)
+        if: always() && steps.sanitize.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-results
-          path: |
-            e2e/test-results
-            e2e/results.json
-          if-no-files-found: ignore
+          name: playwright-results-sanitized
+          path: e2e/results.sanitized.json
+          if-no-files-found: error
           retention-days: 7
 
-      - name: Show backend logs on failure
+      # The raw log is written to a temp file and is NEVER printed: only the redacted output is. If redaction
+      # fails or finds sensitive-shaped content left over (fail closed), a one-line notice is printed instead.
+      - name: Show backend logs on failure (OTP delivery lines dropped, phone numbers and secrets redacted)
         if: failure()
-        run: docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.test.yml" logs --no-color --tail=200 backend
+        run: |
+          raw="$RUNNER_TEMP/backend.raw.log"
+          red="$RUNNER_TEMP/backend.redacted.log"
+          trap 'rm -f "$raw" "$red"' EXIT
+          if ! docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.test.yml" logs --no-color --tail=200 backend > "$raw" 2>&1; then
+            echo "Could not read the backend log; nothing printed."
+            exit 0
+          fi
+          if node e2e/scripts/redact-backend-log.mjs < "$raw" > "$red"; then
+            cat "$red"
+          else
+            echo "Backend log withheld: redaction failed or left sensitive-shaped content. Reproduce locally."
+          fi
 
       - name: Remove the throwaway stack and its volumes
         if: always()

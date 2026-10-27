@@ -1,6 +1,10 @@
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import PermissionDenied
 
+# Session key set by the customer OTP flow (views.OTPVerifyView). A session carrying it was established by
+# possession of an SMS code, which is NOT enough to enter Django Admin (see admin_site.PasswordLoginAdminSite).
+OTP_SESSION_FLAG = "auth_via_otp"
+
 
 class CSRFFailed(PermissionDenied):
     """403 whose error-envelope code matches Django's CSRF failure view (`csrf_failed`)."""
