@@ -149,27 +149,43 @@ jobs:
         working-directory: e2e
         run: node scripts/report-summary.mjs results.json
 
-      # Artifact contents, reviewed on purpose: Playwright traces (`trace: retain-on-failure` in
-      # playwright.config.ts) can contain cookies, request bodies (OTP codes, phone numbers, delivery details)
-      # and page snapshots. Here every one of those values belongs to a stack created seconds earlier from
-      # CI-only throwaway secrets, synthetic users and synthetic delivery data, and that stack is destroyed by
-      # `down -v` in this same job, so no captured session, OTP or database outlives the run. Keep it that way:
-      # never add `.env`, backend or compose logs, or a real/shared environment to this upload, and never point
-      # this workflow at a real database or a real SMS provider. Retention is kept short for the same reason.
-      - name: Upload Playwright traces and report
+      # Artifact policy (see e2e/README-artifact-privacy.md): the ONLY thing uploaded is one sanitized JSON report.
+      # Playwright traces (cookies incl. live sessionid/csrftoken, typed OTP codes, phone numbers, delivery details,
+      # page snapshots), screenshots, videos, e2e/test-results, backend/compose logs and .env are never uploaded:
+      # `down -v` destroys the stack, but an uploaded artifact outlives the job and is downloadable. With CI=true
+      # playwright.config.ts does not create traces/screenshots/videos at all (prevention, not post-processing).
+      # The upload path is one explicit file, never a directory or glob, and the sanitizer fails closed.
+      - name: Sanitize the JSON report (fails closed; nothing is uploaded if sensitive-shaped content remains)
+        if: always() && hashFiles('e2e/results.json') != ''
+        working-directory: e2e
+        run: node scripts/sanitize-results.mjs results.json results.sanitized.json
+
+      - name: Upload sanitized Playwright report (no traces, screenshots, videos or test-results)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-results
-          path: |
-            e2e/test-results
-            e2e/results.json
+          name: playwright-results-sanitized
+          path: e2e/results.sanitized.json
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Show backend logs on failure
+      # The raw log is written to a temp file and is NEVER printed: only the redacted output is. If redaction
+      # fails or finds sensitive-shaped content left over (fail closed), a one-line notice is printed instead.
+      - name: Show backend logs on failure (OTP delivery lines dropped, phone numbers and secrets redacted)
         if: failure()
-        run: docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.test.yml" logs --no-color --tail=200 backend
+        run: |
+          raw="$RUNNER_TEMP/backend.raw.log"
+          red="$RUNNER_TEMP/backend.redacted.log"
+          trap 'rm -f "$raw" "$red"' EXIT
+          if ! docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.test.yml" logs --no-color --tail=200 backend > "$raw" 2>&1; then
+            echo "Could not read the backend log; nothing printed."
+            exit 0
+          fi
+          if node e2e/scripts/redact-backend-log.mjs < "$raw" > "$red"; then
+            cat "$red"
+          else
+            echo "Backend log withheld: redaction failed or left sensitive-shaped content. Reproduce locally."
+          fi
 
       - name: Remove the throwaway stack and its volumes
         if: always()
