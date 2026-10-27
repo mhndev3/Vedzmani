@@ -95,11 +95,63 @@ the phone or code.
 **Rate-limit store down (Redis):** OTP request and verify fail closed (HTTP 5xx, nothing created or sent, no login,
 no internals in the body). Sessions and OTP state stay in PostgreSQL.
 
+## Expired-data cleanup (Agent 6, Session 2)
+`python manage.py purge_expired_auth_data` (`apps/accounts/cleanup.py`). **Dry run by default**; nothing is deleted without
+`--execute`. Output is counts only.
+
+| Table | Eligible rows | Policy |
+|---|---|---|
+| `django_session` | `expire_date < now` | none needed: Django already refuses these rows and they hold no audit data |
+| `accounts_otpchallenge` | `expires_at < now - N days` | **N is an owner decision, there is no default.** Without `--otp-retention-days N` (N >= 1) OTP rows are never touched |
+
+- Consumed, delivery-invalidated and unused challenges follow the same single rule (they are all expired after the TTL).
+  A challenge that is still valid, or expired less than N days ago, is never deleted.
+- Deleting only EXPIRED rows can neither reopen a guessing window nor allow code reuse: `verify_otp` rejects an expired
+  challenge anyway. Visible effect: a code older than the retention answers `otp_invalid` instead of `otp_expired` /
+  `otp_consumed`.
+- Safe next to live traffic: batches (`--batch-size`, default 1000) use `FOR UPDATE SKIP LOCKED`, so a row that
+  `verify_otp` holds locked is skipped and picked up by the next run; one run is bounded by `--max-batches` (default 100).
+- Indexes already exist (`otp_expires_at_idx`, Django's `django_session_expire_date`). Measured on a disposable PostgreSQL
+  16 with 300k expired rows per table: about 3 s for a 100k+100k run, drained in 3 runs, a 4th run deleted 0.
+- Example: `manage.py purge_expired_auth_data --execute --otp-retention-days 30`.
+
+**Scheduling is NOT configured: no branch of this repository contains a scheduler** (no cron, Celery, beat or sidecar; the
+production compose file only has one-shot `migrate` services). Until the owner chooses one, nothing runs this command and
+expired rows keep accumulating. Options for the owner (each is an infrastructure decision, none was implemented):
+1. host cron on the VPS calling `docker compose ... exec -T backend python manage.py purge_expired_auth_data --execute
+   --otp-retention-days N` (smallest change, outside the repository);
+2. a small compose sidecar that loops the command (needs a compose change);
+3. Celery beat (README says Celery is deliberately not introduced yet).
+
+## Client IP and per-IP limits (Agent 6, Session 2)
+`get_client_ip` (`ratelimit.py`) with `AUTH_TRUSTED_PROXY_COUNT=1` takes the LAST `X-Forwarded-For` entry. It must be a valid
+IP (otherwise the peer address is used); IPv6 collapses to its /64 and IPv4-mapped IPv6 to IPv4. Used only as a rate-limit key.
+
+**Verified locally** (`scripts/proxy-chain-probe/run.ps1`: real `nginx/default.conf` and the infra branch's real
+`nginx/prod.conf`, disposable Docker network, fixed client IPs, the real `get_client_ip`; plus `tests/test_accounts_client_ip.py`):
+- `nginx/default.conf` appends to `X-Forwarded-For`: a spoofed prefix is kept but ignored, the identity is the address Nginx saw.
+- `nginx/prod.conf` overwrites `X-Forwarded-For`; `CF-Connecting-IP` is honored only from addresses listed in
+  `cloudflare-realip.conf` (committed empty = honored from nobody) and ignored from any other peer.
+- Both configs pass `nginx -t`.
+
+**NOT verified (needs the real VPS / Cloudflare, none was accessed):**
+- Which Nginx config and Django settings module vedzmani.ir actually runs, and whether `cloudflare-realip.conf` is populated
+  with the current Cloudflare ranges. Without it every user behind a Cloudflare edge address shares ONE per-IP bucket (safe
+  against spoofing, but one abuser can exhaust the OTP verify/request budget of everyone on that edge; see the test
+  `test_users_behind_one_unresolved_edge_address_share_one_verify_budget`).
+- That the backend (gunicorn) is reachable only through Nginx. If anything else can reach it, a request can send its own
+  `X-Forwarded-For` and choose its per-IP identity (`test_known_limitation_a_direct_hit_...`). The compose files publish no
+  backend port; host firewall and other containers on the network were not checked. The per-phone limit and the
+  5-attempts-per-code limit (PostgreSQL) do not depend on the client IP and still bound guessing.
+- That the origin only accepts traffic from Cloudflare (otherwise `CF-Connecting-IP` is simply ignored, which is safe).
+
+Evidence the owner can collect without secrets: (1) `nginx -T | grep -E "real_ip|set_real_ip_from"` inside the production Nginx
+container shows the Cloudflare ranges; (2) the Nginx access log shows real client addresses, not Cloudflare ones; (3)
+`docker compose ps` / `ss -ltn` show no published backend port; (4) the firewall allows 80/443 only as intended.
 **Open / production dependencies (not fixed here):**
 - Real SMS provider: none chosen. Live delivery verification is **BLOCKED**. No provider environment variables exist;
   a future adapter defines its own and must be isolated behind `OTP_DELIVERY_BACKEND`.
-- Nothing purges expired `django_session` rows (schedule `manage.py clearsessions`) or `OTPChallenge` rows (they hold
-  phone numbers and are kept forever). No scheduler exists in the repo.
-- Per-IP limits need the real client IP: `AUTH_TRUSTED_PROXY_COUNT` must match the proxy chain (Nginx = 1; behind
-  Cloudflare the Nginx real-IP configuration decides). Not verifiable without a deployment.
-- Compose still runs `config.settings.dev` (non-Secure cookies, console OTP delivery).
+- Cleanup exists as a command but is **not scheduled** and the OTP retention period is undecided (see above).
+- Production client-IP chain is **unverified** (see above). `AUTH_TRUSTED_PROXY_COUNT` must keep matching the proxy chain.
+- `main`'s Compose still runs `config.settings.dev` (non-Secure cookies, OTP codes and phones logged by `ConsoleDelivery`); the
+  production compose with `config.settings.prod` exists only on unmerged infra branches.
