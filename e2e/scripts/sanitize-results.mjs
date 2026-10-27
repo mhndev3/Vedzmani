@@ -2,69 +2,76 @@
 // Writes a copy of the Playwright JSON report that is safe to upload as a CI artifact.
 //
 // Why: failure messages can echo typed values (phone numbers, OTP codes, delivery details) through
-// `Expected:` / `Received:` lines, and call logs can quote cookies or tokens. Pattern-based redaction cannot
-// recognise free-form text such as an address, so the `Expected`/`Received` value lines are withheld
-// outright. It FAILS CLOSED: if anything sensitive-shaped survives, no output file is written and the step
-// fails, so nothing is uploaded.
+// `Expected:` / `Received:` blocks, call logs can quote element values, cookies or tokens, and report objects can
+// carry sensitive values as JSON properties (`"otp": "..."`). Pattern-based redaction cannot recognise
+// free-form text such as an address, so `Expected` / `Received` blocks (including multi-line values and diffs)
+// are withheld outright. See scripts/lib/redaction.mjs for the rules.
+//
+// FAILS CLOSED, on every path: the destination file is deleted FIRST (before reading or parsing anything), and
+// again on any error, unreadable/invalid input, residual sensitive-shaped content, or write failure. A stale or
+// partial output can therefore never survive a failed run. Error text from the JSON parser is never printed
+// because it can quote input. Exit code 0 only when a verified file was written.
 //
 // Usage: node scripts/sanitize-results.mjs [results.json] [results.sanitized.json]
-import { readFileSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
+import { redactTree, treeProblems, serializedProblems } from "./lib/redaction.mjs";
 
 const [src = "results.json", dst = "results.sanitized.json"] = process.argv.slice(2);
+const tmp = `${dst}.tmp`;
 
-const ANSI = /\u001b\[[0-9;]*m/g;
-const ECHO_LINE = /^(\s*)(Expected|Received)(\s+\w+)?\s*:.*$/gim;
-const SENSITIVE_KEY =
-  "sessionid|csrftoken|csrf[-_]?token|x-csrftoken|set-cookie|cookie|authorization|bearer|token|otp|code|phone|password|secret";
-const HEADER_LINE = /\b(cookie|set-cookie|authorization)(\s*[=:]\s*)[^\n]*/gi;
-const KEY_VALUE = new RegExp(`\\b(${SENSITIVE_KEY})(\\s*[=:]\\s*)("?)(?:(?:Bearer|Basic|Token)\\s+)?[^\\s"';,&]+`, "gi");
-const PHONE_INTL = /(?:\+|00)?98[\s-]?9\d{2}[\s-]?\d{3}[\s-]?\d{4}/g;
-const PHONE_LOCAL = /(?<!\d)09\d{2}[\s-]?\d{3}[\s-]?\d{4}(?!\d)/g;
-const LONG_TOKEN = /\b[A-Za-z0-9_-]{32,}\b/g;
-
-function sanitizeString(s) {
-  return s
-    .replace(ANSI, "")
-    .replace(ECHO_LINE, "$1$2$3: [value withheld]")
-    .replace(HEADER_LINE, "$1$2[redacted]")
-    .replace(KEY_VALUE, "$1$2$3[redacted]")
-    .replace(PHONE_INTL, "[phone]")
-    .replace(PHONE_LOCAL, "[phone]")
-    .replace(LONG_TOKEN, "[token]");
+function removeOutputs() {
+  try {
+    rmSync(dst, { force: true });
+    rmSync(tmp, { force: true });
+  } catch {
+    /* best effort; the exit code below is what the workflow acts on */
+  }
 }
 
-function walk(node, key) {
-  if (typeof node === "string") return key === "id" ? node : sanitizeString(node); // "id" = test hash, not data
-  if (Array.isArray(node)) return node.map((n) => walk(n, key));
-  if (node && typeof node === "object") {
-    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, walk(v, k)]));
-  }
-  return node;
-}
-
-// Independent post-check on the serialised output (what would actually be uploaded).
-function residualProblems(text) {
-  const withoutIds = text.replace(/"id":\s*"[^"]*"/g, '"id":""');
-  const problems = [];
-  if (new RegExp(PHONE_INTL.source).test(withoutIds)) problems.push("international phone number");
-  if (new RegExp(PHONE_LOCAL.source).test(withoutIds)) problems.push("local phone number");
-  if (new RegExp(LONG_TOKEN.source).test(withoutIds)) problems.push("long opaque token");
-  for (const m of withoutIds.matchAll(new RegExp(KEY_VALUE.source, "gi"))) {
-    if (!/\[redacted\]/.test(m[0])) problems.push(`unredacted ${m[1].toLowerCase()} value`);
-  }
-  for (const m of withoutIds.replace(/\\n/g, "\n").matchAll(/^\s*(Expected|Received)(\s+\w+)?\s*:(.*)$/gim)) {
-    if (!/^\s*\[value withheld\]\s*$/.test(m[3])) problems.push(`${m[1]} value not withheld`);
-  }
-  return [...new Set(problems)];
-}
-
-const raw = readFileSync(src, "utf8").replace(/^\uFEFF/, "");
-const out = JSON.stringify(walk(JSON.parse(raw)), null, 2);
-const problems = residualProblems(out);
-rmSync(dst, { force: true });
-if (problems.length > 0) {
-  console.error(`sanitize-results: REFUSING to write ${dst}; residual sensitive-shaped content: ${problems.join(", ")}`);
+function fail(message) {
+  removeOutputs();
+  console.error(`sanitize-results: ${message}`);
   process.exit(1);
 }
-writeFileSync(dst, out);
+
+const verify = (text) => [...new Set([...treeProblems(JSON.parse(text)), ...serializedProblems(text)])];
+
+// Must run BEFORE any deletion: if dst were the source, removing "the stale output" would destroy the input.
+if (resolve(src) === resolve(dst) || resolve(src) === resolve(tmp)) {
+  console.error("sanitize-results: source and destination are the same file; refusing (nothing touched)");
+  process.exit(1);
+}
+
+removeOutputs(); // first destructive action: nothing stale can outlive any later failure
+process.on("uncaughtException", () => fail("unexpected error; no output written (details withheld)"));
+
+let out;
+try {
+  const raw = readFileSync(src, "utf8").replace(/^\uFEFF/, "");
+  out = JSON.stringify(redactTree(JSON.parse(raw)), null, 2);
+} catch (e) {
+  // Never print e.message: JSON.parse errors can quote part of the input.
+  fail(`could not read or parse ${src}${e && e.code ? ` (${e.code})` : ""}; no output written`);
+}
+
+let problems;
+try {
+  problems = verify(out);
+} catch {
+  fail("could not verify the sanitized report; no output written");
+}
+if (problems.length > 0) {
+  fail(`REFUSING to write ${dst}; residual sensitive-shaped content: ${problems.join(", ")}`);
+}
+
+try {
+  writeFileSync(tmp, out);
+  renameSync(tmp, dst);
+  // Re-read what is actually on disk and verify it once more.
+  const onDisk = readFileSync(dst, "utf8");
+  if (verify(onDisk).length > 0) fail(`REFUSING to keep ${dst}; post-write verification found sensitive-shaped content`);
+} catch {
+  fail("could not write the sanitized report; no output left behind");
+}
 console.log(`sanitize-results: wrote ${dst} (${out.length} bytes) from ${src}`);

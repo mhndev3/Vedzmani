@@ -122,6 +122,12 @@ jobs:
         working-directory: e2e
         run: pnpm exec playwright test --list
 
+      # Synthetic values only; prints check names, never values. A failing privacy rule blocks the run before any
+      # test executes or any artifact can be produced.
+      - name: Privacy self-tests (sanitizer and log redactor, synthetic values only)
+        working-directory: e2e
+        run: node scripts/privacy-selftest.mjs
+
       - name: Run all E2E specs
         working-directory: e2e
         env:
@@ -155,18 +161,27 @@ jobs:
       # `down -v` destroys the stack, but an uploaded artifact outlives the job and is downloadable. With CI=true
       # playwright.config.ts does not create traces/screenshots/videos at all (prevention, not post-processing).
       # The upload path is one explicit file, never a directory or glob, and the sanitizer fails closed.
+      # The sanitizer deletes its output file before doing anything else and again on every failure path, and the
+      # upload below runs ONLY when this step's outcome is `success`, so a failed (or skipped) sanitization can
+      # never lead to a stale or partial report being uploaded.
       - name: Sanitize the JSON report (fails closed; nothing is uploaded if sensitive-shaped content remains)
+        id: sanitize
         if: always() && hashFiles('e2e/results.json') != ''
         working-directory: e2e
         run: node scripts/sanitize-results.mjs results.json results.sanitized.json
 
+      - name: Make sure no sanitized report exists unless sanitization succeeded
+        if: always() && steps.sanitize.outcome != 'success'
+        working-directory: e2e
+        run: rm -f results.sanitized.json results.sanitized.json.tmp
+
       - name: Upload sanitized Playwright report (no traces, screenshots, videos or test-results)
-        if: always()
+        if: always() && steps.sanitize.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-results-sanitized
           path: e2e/results.sanitized.json
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 7
 
       # The raw log is written to a temp file and is NEVER printed: only the redacted output is. If redaction
