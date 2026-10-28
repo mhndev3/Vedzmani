@@ -205,7 +205,7 @@ class EdgeContainer:
 
     def __init__(self, image, network, name, realip: Path, certs: Path):
         self.name = name
-        cmd = ["docker", "run", "-d", "--name", name, "--network", network, "-p", "127.0.0.1::443",
+        cmd = ["docker", "run", "-d", "--name", name, "--network", network, "-p", "127.0.0.1::443", "-p", "127.0.0.1::80",
                *mount(PROD_CONF, "/etc/nginx/conf.d/default.conf"), *mount(realip, "/etc/nginx/cloudflare-realip.conf"),
                *mount(certs, "/etc/nginx/certs"), image]
         result = run(cmd)
@@ -213,6 +213,8 @@ class EdgeContainer:
             raise EnvironmentUnavailable("could not start the nginx test container: " + result.stderr.strip()[:400])
         port = run(["docker", "port", name, "443/tcp"]).stdout.strip().splitlines()
         self.port = int(port[0].rsplit(":", 1)[1])
+        http_port = run(["docker", "port", name, "80/tcp"]).stdout.strip().splitlines()
+        self.http_port = int(http_port[0].rsplit(":", 1)[1])
         deadline = time.monotonic() + 30
         while True:
             try:
@@ -226,6 +228,16 @@ class EdgeContainer:
 
     def get(self, *, host=SERVER_NAME, sni=SERVER_NAME, headers=None):
         return https_get(self.port, sni=sni, host=host, headers=headers or {})
+
+    def http_get(self, path: str, *, host: str = "localhost"):
+        """Plain HTTP on the published port 80 (health check and redirect). Returns (status, headers, body)."""
+        connection = http.client.HTTPConnection("127.0.0.1", self.http_port, timeout=10)
+        try:
+            connection.request("GET", path, headers={"Host": host})
+            response = connection.getresponse()
+            return response.status, dict(response.getheaders()), response.read().decode("utf-8", "replace")
+        finally:
+            connection.close()
 
 
 def check_nginx() -> None:
@@ -305,6 +317,16 @@ def check_nginx() -> None:
             except (ssl.SSLError, ConnectionResetError, ConnectionAbortedError):
                 refused = True
             report(refused, "TLS handshake with an unknown SNI name is refused")
+
+            # Port 80: the contract of the compose health check, and the fixed redirect target.
+            status, _, body = edge.http_get("/nginx-health")
+            report(status == 200 and body == "ok", "port 80 /nginx-health answers 200 ok (compose nginx health check)",
+                   f"status={status} body={body!r}")
+            status, headers, _ = edge.http_get("/some/path?x=1", host="evil.example")
+            location = headers.get("Location", "")
+            report(status == 301 and location == f"https://{SERVER_NAME}/some/path?x=1",
+                   "port 80 redirects to the fixed https host even for a forged Host header (no open redirect)",
+                   f"status={status} location={location!r}")
             run(["docker", "rm", "-f", edge_a])
             created_containers.remove(edge_a)
 
@@ -325,6 +347,11 @@ def check_nginx() -> None:
             seen = parse_echo(body)
             report(status == 200 and seen.get("xff") == peer and seen.get("xri") == peer,
                    "trusted peer without CF-Connecting-IP: the peer address is used, client X-Forwarded-For is dropped",
+                   f"status={status} echo={body.strip()}")
+            status, body = edge.get(headers={"CF-Connecting-IP": "2001:db8::1234"})
+            seen = parse_echo(body)
+            report(status == 200 and seen.get("xff") == "2001:db8::1234" and seen.get("xri") == "2001:db8::1234",
+                   "trusted peer with an IPv6 CF-Connecting-IP: the IPv6 client address is passed on as is",
                    f"status={status} echo={body.strip()}")
             status, body = edge.get(headers={"CF-Connecting-IP": "not-an-address"})
             seen = parse_echo(body)

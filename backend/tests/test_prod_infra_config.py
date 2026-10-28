@@ -241,3 +241,120 @@ def test_check_flags_stale_or_undated_files_only_when_asked(cf):
     assert not cf.check_text(text, max_age_days=45, today=today).ok
     undated = "\n".join(line for line in text.splitlines() if "Generated:" not in line)
     assert not cf.check_text(undated, max_age_days=45, today=today).ok
+
+
+# ------------------------------------------------------------- proxy and health-check contracts (static)
+
+def _example_values() -> dict:
+    values = {}
+    for line in ENV_EXAMPLE.read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.lstrip().startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            values[key] = value
+    return values
+
+
+def test_proxy_contract_between_compose_nginx_and_django_settings():
+    compose = COMPOSE.read_text(encoding="utf-8")
+    backend = _without_comments(_service_block(compose, "backend"))
+    # One trusted hop (this Nginx), which overwrites X-Forwarded-For with the verified client address.
+    assert re.search(r'AUTH_TRUSTED_PROXY_COUNT:\s*"1"', backend)
+    assert re.search(r'DJANGO_SECURE_SSL_REDIRECT:\s*"true"', backend)
+    # Nginx terminates TLS and tells Django so; SECURE_PROXY_SSL_HEADER in prod.py trusts exactly this header.
+    assert re.search(r"proxy_set_header\s+X-Forwarded-Proto\s+\$scheme;", _without_comments(PROD_CONF.read_text(encoding="utf-8")))
+    prod_py = (REPO_ROOT / "backend" / "config" / "settings" / "prod.py").read_text(encoding="utf-8")
+    assert 'SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")' in prod_py
+
+
+def test_health_check_contracts_match_the_code_they_call():
+    compose = COMPOSE.read_text(encoding="utf-8")
+    values = _example_values()
+    hosts = values["DJANGO_ALLOWED_HOSTS"].split(",")
+    # Backend: the check sends PRIMARY_HOST as Host, so it must be an allowed host; /api/health/ is exempt from the
+    # HTTPS redirect (prod.py), otherwise a plain-HTTP check inside the container would be redirected.
+    backend = _service_block(compose, "backend")
+    assert "/api/health/" in backend and "${PRIMARY_HOST:-vedzmani.ir}" in backend
+    assert values["PRIMARY_HOST"] in hosts and "vedzmani.ir" in hosts
+    assert 'SECURE_REDIRECT_EXEMPT = [r"^api/health/"]' in (REPO_ROOT / "backend/config/settings/prod.py").read_text(encoding="utf-8")
+    # Frontend: the server-side API calls use http://backend:8000, so Django sees Host "backend:8000".
+    assert "API_INTERNAL_URL: http://backend:8000" in compose
+    assert "backend" in hosts
+    frontend = _service_block(compose, "frontend")
+    assert "/healthz" in frontend and (REPO_ROOT / "frontend/src/app/healthz/route.ts").is_file()
+    # Nginx: the check hits the port-80 server's /nginx-health, which must exist there.
+    nginx = _service_block(compose, "nginx")
+    assert "/nginx-health" in nginx
+    conf = _without_comments(PROD_CONF.read_text(encoding="utf-8"))
+    assert re.search(r"listen 80 default_server;.*?location = /nginx-health\s*\{[^}]*return 200", conf, re.DOTALL)
+    # Start order follows health.
+    assert re.search(r"backend:\s*\{\s*condition:\s*service_healthy\s*\}", nginx)
+    assert re.search(r"frontend:\s*\{\s*condition:\s*service_healthy\s*\}", nginx)
+
+
+def _prod_settings_env() -> dict:
+    """Environment for config.settings.prod built from the template, with dummies for every placeholder."""
+    env = {k: v for k, v in _example_values().items()}
+    for key, value in list(env.items()):
+        if value.startswith("<"):
+            env[key] = "ci-validation-placeholder-0123456789abcdef-0123456789"
+    env["DATABASE_URL"] = f"postgres://{env['POSTGRES_USER']}:{env['POSTGRES_PASSWORD']}@postgres:5432/{env['POSTGRES_DB']}"
+    env["REDIS_URL"] = "redis://redis:6379/0"
+    env.update({"DJANGO_SETTINGS_MODULE": "config.settings.prod", "AUTH_TRUSTED_PROXY_COUNT": "1",
+                "DJANGO_SECURE_SSL_REDIRECT": "true"})
+    return env
+
+
+def test_django_prod_settings_honor_the_proxy_and_health_contract():
+    """Real Django under config.settings.prod (no database or Redis connection is opened by these requests)."""
+    import json
+    import os
+    import subprocess
+
+    code = (
+        "import json, django\n"
+        "django.setup()\n"
+        "from django.test import Client\n"
+        "c = Client()\n"
+        "out = {}\n"
+        "out['health_primary_http'] = c.get('/api/health/', HTTP_HOST='vedzmani.ir').status_code\n"
+        "out['health_backend_host'] = c.get('/api/health/', HTTP_HOST='backend:8000').status_code\n"
+        "out['health_unknown_host'] = c.get('/api/health/', HTTP_HOST='evil.example').status_code\n"
+        "out['health_forwarded_https'] = c.get('/api/health/', HTTP_HOST='vedzmani.ir', HTTP_X_FORWARDED_PROTO='https').status_code\n"
+        "r = c.get('/api/catalog/products/', HTTP_HOST='vedzmani.ir')\n"
+        "out['other_path_http'] = [r.status_code, r.headers.get('Location')]\n"
+        "print('RESULT ' + json.dumps(out))\n"
+    )
+    env = {**{k: v for k, v in os.environ.items() if k in {"PATH", "SYSTEMROOT", "TEMP", "TMP", "HOME"}}, **_prod_settings_env()}
+    result = subprocess.run([sys.executable, "-c", code], cwd=REPO_ROOT / "backend", env=env, capture_output=True,
+                            text=True, timeout=120)
+    assert result.returncode == 0, result.stderr[-800:]
+    out = json.loads(next(line for line in result.stdout.splitlines() if line.startswith("RESULT "))[7:])
+    assert out["health_primary_http"] == 200, "the compose health check (plain HTTP, Host vedzmani.ir) must pass"
+    assert out["health_backend_host"] == 200, "server-side calls from the frontend use Host backend:8000"
+    assert out["health_unknown_host"] == 400
+    assert out["health_forwarded_https"] == 200
+    assert out["other_path_http"] == [301, "https://vedzmani.ir/api/catalog/products/"]
+
+
+# ---------------------------------------------------- real-IP generator: IPv4 + IPv6, placeholder behavior
+
+def test_generated_include_contains_both_ipv4_and_ipv6_ranges(cf):
+    v4, v6 = _lists(cf)
+    text = cf.render(v4, v6, generated_on=dt.date(2026, 10, 28))
+    result = cf.check_text(text, require_populated=True)
+    assert result.ok
+    assert sum(1 for n in result.ranges if n.version == 4) == 15
+    assert sum(1 for n in result.ranges if n.version == 6) == 7
+    assert re.search(r"^set_real_ip_from 2606:4700::/32;$", text, re.MULTILINE)
+    assert re.search(r"^set_real_ip_from 173\.245\.48\.0/20;$", text, re.MULTILINE)
+
+
+def test_cli_check_fails_the_committed_placeholder_when_population_is_required(cf, capsys):
+    placeholder = cf.check_text(REALIP.read_text(encoding="utf-8")).status == "placeholder"
+    code = cf.main(["check", str(REALIP), "--require-populated"])
+    captured = capsys.readouterr()
+    if placeholder:
+        assert code == 1 and "NOT active" in captured.err
+    else:
+        assert code == 0
+    assert cf.main(["check", str(REALIP)]) == 0  # without the flag a placeholder is reported, not failed

@@ -233,6 +233,13 @@ only cache and rate-limit counters and is not backed up.
   compose file requires and keeps secrets as placeholders; Nginx never forwards client-supplied addresses and rejects
   unknown TLS names; the committed real-IP file is valid; and the generator and checker in
   `scripts/cloudflare_realip.py` reject unsafe or malformed input and never replace a good file with a bad one.
+  The same file also tests the proxy and health-check contracts: the compose health checks (backend, frontend, nginx)
+  match the code they call; and real Django under `config.settings.prod` (no database or Redis connection opened)
+  answers the compose health check, accepts `Host: backend:8000` (server-side calls from the frontend), rejects an
+  unknown Host with 400, and redirects other plain-HTTP paths to HTTPS while `/api/health/` stays exempt.
+- The backend side of the client-IP chain (how `get_client_ip` uses `AUTH_TRUSTED_PROXY_COUNT`, IPv6 /64 grouping,
+  rejection of non-IP values) is documented and tested by Agent 6: `backend/AUTH.md` ("Client IP and per-IP limits"),
+  `backend/tests/test_accounts_client_ip.py` and `scripts/proxy-chain-probe/`. This document does not repeat it.
 - `prod-config` job (new): runs `python3 scripts/validate_prod_stack.py`, described in section 10.
 
 ## 10. Production configuration validation
@@ -253,8 +260,10 @@ What it proves:
   the test and fake upstream names. A deliberately broken include is rejected, which shows the include is read.
 - Through a real proxy hop in a throwaway Docker network: from an untrusted peer, forged `CF-Connecting-IP`,
   `X-Real-IP` and `X-Forwarded-For` are ignored; from a trusted peer, `CF-Connecting-IP` becomes the client address
-  and a forged `X-Forwarded-For` is overwritten; a malformed `CF-Connecting-IP` is ignored; an unknown SNI is refused
-  at the TLS handshake and an unknown `Host` is not proxied (observed answer: 404).
+  and a forged `X-Forwarded-For` is overwritten; an IPv6 or malformed `CF-Connecting-IP` is handled (IPv6 passed on,
+  malformed ignored); an unknown SNI is refused at the TLS handshake and an unknown `Host` is not proxied (observed
+  answer: 404); on port 80 `/nginx-health` answers `ok` (the compose health check) and every other path redirects to
+  the fixed `https://vedzmani.ir` target even for a forged `Host`.
 
 What it does not prove (no reliable check is possible from a repository): the real origin certificate, its chain or
 expiry; Cloudflare's SSL/TLS mode or headers; the contents of any file on the VPS; firewall or Docker port exposure
