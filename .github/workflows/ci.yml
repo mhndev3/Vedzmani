@@ -97,3 +97,16 @@ jobs:
         run: python manage.py check --deploy --fail-level WARNING
       - run: python manage.py makemigrations --check --dry-run
       - run: pytest
+
+  # Production Compose/Nginx validation. Everything is throwaway: values come from .env.production.example with
+  # placeholders replaced by dummies, the TLS certificate is generated inside the job, and the Cloudflare ranges
+  # come from offline test fixtures. No secrets, VPS, Cloudflare account or dashboard is used, and nothing is
+  # deployed. See scripts/validate_prod_stack.py for exactly what is and is not proven. The job pulls the pinned
+  # nginx image from Docker Hub.
+  prod-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker compose config, nginx -t and real-IP behavior (isolated)
+        run: python3 scripts/validate_prod_stack.py
