@@ -65,12 +65,12 @@ test.describe("desktop", () => {
   });
 
   test("pagination uses backend pages and keeps state", async ({ page }) => {
-    await page.goto("/en/products?sort=name_asc");
+    await page.goto("/en/products?sort=price_asc");
     await expect(page.getByText("Page 1 of 2")).toBeVisible();
     await expect(page.locator('span[aria-disabled="true"]', { hasText: "Previous" })).toBeVisible();
     await page.getByRole("link", { name: "Next" }).click();
     await expect(page).toHaveURL(/page=2/);
-    await expect(page).toHaveURL(/sort=name_asc/);
+    await expect(page).toHaveURL(/sort=price_asc/);
     await expect(page.getByText("Page 2 of 2")).toBeVisible();
     await expect(cards(page)).toHaveCount(6);
     await expect(page.locator('span[aria-disabled="true"]', { hasText: "Next" })).toBeVisible();

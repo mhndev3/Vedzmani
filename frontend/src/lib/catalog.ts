@@ -10,7 +10,7 @@ import type { Locale } from "@/i18n/config";
  */
 
 export const PAGE_SIZE = 24;
-export const SORTS = ["newest", "price_asc", "price_desc", "name_asc", "name_desc"] as const;
+export const SORTS = ["newest", "price_asc", "price_desc"] as const;
 export type Sort = (typeof SORTS)[number];
 export const DEFAULT_SORT: Sort = "newest";
 
