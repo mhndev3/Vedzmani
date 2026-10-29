@@ -3,9 +3,19 @@
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
-from .base import ALLOWED_HOSTS, OTP_DELIVERY_BACKEND, SECRET_KEY, env, env_bool
+from .base import ALLOWED_HOSTS, MIDDLEWARE, OTP_DELIVERY_BACKEND, SECRET_KEY, env, env_bool
 
 DEBUG = False
+
+# Django Admin static files: served by WhiteNoise from STATIC_ROOT, which the image build fills with
+# `collectstatic`. Development settings are unaffected. Inserted right after SecurityMiddleware, as
+# WhiteNoise requires.
+MIDDLEWARE = list(MIDDLEWARE)
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 if not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be set in production.")

@@ -135,3 +135,42 @@ def make_variant_size(db):
         return VariantSize.objects.create(variant=variant, size=size, sku=f"SKU-{n}", stock_quantity=stock)
 
     return _make
+
+
+# --- production static files for the prod-settings subprocess tests ------------------------------------------
+# Under config.settings.prod, Django Admin pages render `{% static %}` through WhiteNoise's manifest storage, which
+# raises "Missing staticfiles manifest entry" until `collectstatic` has produced backend/staticfiles/staticfiles.json.
+# The production image does that at build time (backend/Dockerfile). A fresh checkout (CI, a new clone) has no such
+# directory (it is git-ignored), so the tests below that serve /admin/ under prod settings need the same step; a
+# developer machine that had ever run collectstatic hid the problem. This runs the same command with throwaway
+# values, only when the manifest is missing, and only for modules that start a prod-settings subprocess.
+import os  # noqa: E402
+import subprocess  # noqa: E402
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+_PROD_SUBPROCESS_MODULES = {"test_production_proxy_behavior"}
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _prod_static_manifest(request):
+    if request.module.__name__.rsplit(".", 1)[-1] not in _PROD_SUBPROCESS_MODULES:
+        return
+    if (_BACKEND_DIR / "staticfiles" / "staticfiles.json").is_file():
+        return
+    env = {
+        **os.environ,
+        "DJANGO_SETTINGS_MODULE": "config.settings.prod",
+        "DJANGO_SECRET_KEY": "build-time-only-not-a-real-secret-key-0000000000",
+        "DJANGO_ALLOWED_HOSTS": "build.invalid",
+        "DATABASE_URL": "postgres://build:build@build.invalid:5432/build",
+        "REDIS_URL": "redis://build.invalid:6379/0",
+    }
+    for name in ("OTP_DELIVERY_BACKEND", "DJANGO_SECURE_SSL_REDIRECT"):
+        env.pop(name, None)
+    result = subprocess.run(
+        [sys.executable, "manage.py", "collectstatic", "--noinput"],
+        cwd=_BACKEND_DIR, env=env, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"collectstatic failed:\n{result.stdout[-500:]}\n{result.stderr[-1500:]}"

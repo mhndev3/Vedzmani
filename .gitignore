@@ -2,6 +2,12 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
+# TLS material must never be committed (origin certificates, private keys)
+*.pem
+*.key
+*.crt
+certs/
 
 # python
 __pycache__/
