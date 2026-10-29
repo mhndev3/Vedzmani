@@ -5,7 +5,7 @@
 - Default branch: main
 - Architecture status: modular monolith implemented (Next.js + Django/DRF); the sections below record what exists
 - Source of truth: GitHub
-- Current phase: V1 readiness. The browse -> cart -> sign-in -> checkout -> order journey works on development settings and is covered by the E2E workflow. Remaining blockers: the owner decisions under "Architecture Decisions Pending External Product Inputs" and production-deployment gaps (no migrate/collectstatic step, no static serving for Django admin, Compose runs development settings)
+- Current phase: V1 readiness. The browse -> cart -> sign-in -> checkout -> order journey is covered by CI/E2E on a test stack; real OTP delivery and real payment are not integrated. A separate production Compose topology, WhiteNoise/static handling and production Nginx config now exist in `main`, but production deployment is not thereby approved or verified. Remaining blockers include live VPS/Cloudflare/firewall verification, off-host backup and rehearsed rollback, real OTP provider, payment integration, product/catalog data and owner decisions under "Architecture Decisions Pending External Product Inputs".
 - V1 deadline constraint: 18 days from project restart
 
 ## Product Scope

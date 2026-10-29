@@ -95,7 +95,9 @@ no restart policy in the base Compose file.
 Changed in this session: a documentation file, this update, and one test module pinning the proxy/redirect contract.
 No settings, Compose, Nginx or Dockerfile change: each remaining fix depends on an owner decision.
 
-## Update: Agent 6 continuation, session 2 (2026-10-29)
+## Historical snapshot: Agent 6 continuation, session 2 (2026-10-29)
+
+**Historical record only.** The following section describes an earlier repository state before PR #27 and PR #30 were merged. Its statements about the current main branch are superseded by the correction at the end of this file; do not use them as current status.
 
 Re-checked against `main` at `de13470` (merges of PRs #25, #26, #28, #29 since the audit above). Scope unchanged: no
 deployment, no VPS or Cloudflare access, no database. **This update does not declare the project production-ready.**
@@ -115,3 +117,12 @@ defined at the top of that file.
 CI for this branch has not run on the new commits at the time of writing; the earlier CI statements (runs #89 to #91,
 E2E #8 and #9) concern the 2026-10-18 audit commit and are unchanged. No VPS, Cloudflare or backup observation is
 claimed anywhere in this update.
+
+
+## Correction: repository state after PR #27 and PR #30 (2026-10-29)
+
+The Agent 6 continuation above is a historical snapshot and its statements that PR #27 is open/unmerged and that the production Compose/WhiteNoise files are absent are stale. The production topology is now present on `main` (`docker-compose.prod.yml`, `nginx/prod.conf`, `nginx/cloudflare-realip.conf`, WhiteNoise/static handling and `scripts/validate_prod_stack.py`). PR #30 also merged the frontend `X-Forwarded-Proto: https` forwarding fix.
+
+Post-merge GitHub Actions for merge commit `b3e6f733e11cf84e9f6fc5a8cc2f20806863fd5d` succeeded: CI run [#119](https://github.com/mhndev3/Vedzmani/actions/runs/40803268625) and E2E run [#29](https://github.com/mhndev3/Vedzmani/actions/runs/40803268629). These results establish repository CI/E2E status only; they do not establish that this commit has been deployed or that live production is healthy.
+
+Historical production observations recorded separately in the project handoff include a successful on-host PostgreSQL backup and disposable restore rehearsal on 2026-10-29, but no off-host backup copy or isolated-cluster rehearsal. Current live VPS, Cloudflare settings, firewall, public smoke tests and deployment commit have not been re-verified in this revision. Do not use this correction as deployment approval.

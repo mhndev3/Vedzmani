@@ -1,21 +1,12 @@
 # Production deployment: decisions and procedure (draft)
 
-Status: **planning document.** Nothing here was executed against a production host by the authors of this document.
-`main` has no production Compose file, because it depends on the owner decisions below. Commands are templates; every
-`<placeholder>` is an owner-supplied value. See `docs/PRODUCTION_READINESS_AUDIT.md` for the evidence behind each point.
+Status: **release procedure and readiness checklist; not deployment authorization.** The production Compose topology exists in `main`, but reading or merging repository files does not prove that the live VPS uses them. Commands below are templates; every `<placeholder>` is an owner-supplied value. See `docs/PRODUCTION_INFRASTRUCTURE.md` and `docs/PRODUCTION_READINESS_AUDIT.md` for related evidence and limitations.
 
-Revision 2026-10-29: re-checked against `main` at `de13470` (includes PRs #25, #26, #28, #29). **PR #27
-(`infra/production-stack-v1`) is an open, unmerged proposal** (production Compose, TLS-terminating Nginx, WhiteNoise,
-Cloudflare real-IP tooling), owned by the infrastructure workstream. This document only records contracts that
-`main`'s settings impose on it; where it mentions the PR it describes what the PR proposes, not infrastructure that
-exists on `main` or is known to run anywhere.
+Revision 2026-10-29: re-checked against current `main` after PR #30 merged. The production stack introduced in PR #27 is present in the repository (`docker-compose.prod.yml`, `nginx/prod.conf`, WhiteNoise/static handling and Cloudflare real-IP tooling). This corrects the stale revision below that described PR #27 as open and unmerged. Repository state and historical VPS observations are kept separate; this document does not authorize a deployment or claim that the live host matches `main`.
 
-Evidence labels: **[repo]** read in a file at the stated commit; **[test]** asserted by an automated test (local run
-and/or CI, as stated); **[owner]** stated by the owner, with no log, output or screenshot in the repository;
-**[unverified]** no evidence at all. Nothing in this file is "production-verified": no VPS, Cloudflare, backup or
-provider observation was made while writing it.
+Evidence labels: **[repo]** read from repository files; **[test]** asserted by an automated test or CI run, with scope stated; **[reported]** historical owner/agent report not independently rechecked in this revision; **[production-verified]** observed against the live system with date and method; **[unverified]** no adequate evidence. Current post-merge CI and E2E passed for merge commit `b3e6f733e11cf84e9f6fc5a8cc2f20806863fd5d`; this is not evidence of deployment or live production health.
 
-## 1. Owner decisions that block a production Compose file
+## 1. Owner decisions required before a production release
 
 | Decision | Why it blocks | Where it lands |
 | --- | --- | --- |
@@ -44,8 +35,7 @@ Do not "fix" it by disabling `DJANGO_SECURE_SSL_REDIRECT` or by trusting the hea
 
 **A. TLS ends at Nginx** (no TLS-terminating CDN in front, or CDN re-encrypts to origin). Add a `listen 443 ssl`
 server with owner-supplied certificate paths and an `80 -> 443` redirect that still answers `/nginx-health`.
-`$scheme` is then truthful and the current `prod.py` works unchanged. Open the host firewall for 443 only. PR #27 (open, not merged) proposes this variant (`nginx/prod.conf`, origin
-certificate, Cloudflare `Full (strict)`); this document has not verified how it behaves on a real host.
+`$scheme` is then truthful and the current `prod.py` works unchanged. Open the host firewall for 443 only. The production files in `main` implement this topology, but their behavior on the live host must still be verified before relying on it.
 
 **B. TLS ends at a CDN/WAF; Nginx is reachable only from it.** Nginx must pass `https` only when the request really
 came from the edge, otherwise `http`. Template (untested; edge CIDRs come from the provider):
@@ -96,8 +86,8 @@ Consequences for any production topology:
 - The Next.js server calls the backend as `http://backend:8000` (`API_INTERNAL_URL`, `docker-compose.yml`) [repo], so
   Django sees `Host: backend:8000`. `backend` must therefore also be in `DJANGO_ALLOWED_HOSTS` (the root
   `.env.example` already lists it) [repo][test].
-- PR #27 (open proposal, unmerged) takes the second route for its backend health check and requires `backend` in the
-  allowed hosts. That is a statement about the proposal's files; it has not been run against a real host here.
+- The production Compose file in `main` takes the second route for its backend health check and requires `backend` in
+  the allowed hosts. This is repository evidence, not proof that the live host is running this file.
 - `/api/health/` is liveness (no dependencies). `/api/health/ready/` checks PostgreSQL and Redis and is the right
   post-deploy gate. Responses contain no configuration or stack traces (errors are logged, not returned).
 
@@ -150,21 +140,19 @@ changed here.
 ## 8. Release gates (all open)
 
 Production launch is blocked until every gate below is closed with evidence of the kind in the last column. "Evidence
-today" is what exists at `de13470` plus this branch; nothing was observed on a VPS, in Cloudflare, at a provider or in
-a backup store while preparing this revision. Items marked **[owner]** come from statements recorded in the open PR #27
-documentation, which this revision could not confirm.
+today" means repository and CI evidence current to 2026-10-29, plus historical production observations summarized in the handoff notes. Those historical observations are not fresh live checks. Items marked **[reported]** remain unconfirmed unless a dated command output is cited.
 
 | # | Gate | Evidence today | Closes when |
 | --- | --- | --- | --- |
 | 1 | Real SMS provider and end-to-end OTP test | **[repo]** no provider; production returns `503 otp_delivery_unavailable`; `prod.py` refuses console/in-memory OTP backends. **[test]** failure handling with mocked delivery. Live delivery: **blocked**. | Provider chosen, adapter behind `OTP_DELIVERY_BACKEND`, a real phone completes request, verify and login on a production-like stack; send failures observed. |
 | 2 | Payment integration and unpaid-order behavior | **[repo]** no payment provider (`backend/PAYMENT.md`); every order is `unpaid` and nothing changes that; no cancellation or stock restoration for unpaid orders. | Provider chosen and integrated with verified callbacks, idempotent processing and the owner's unpaid-order policy implemented and tested (or an explicit owner decision that V1 has no online payment, with the order flow stated honestly in the UI). |
-| 3 | Verified Cloudflare real-IP / trusted-proxy chain | **[repo]** `main`'s `nginx/default.conf` appends to `X-Forwarded-For` and does not restore client IPs. **[test]** `get_client_ip` and the local Nginx probe (`scripts/proxy-chain-probe`, PR #29). PR #27 proposes `nginx/prod.conf` (overwrites `X-Forwarded-For`, real-IP include committed empty). **[owner]** a populated server-local file was reported, unconfirmed. **[unverified]** the access log on the host, the value of `AUTH_TRUSTED_PROXY_COUNT` in production, whether the backend is reachable other than through Nginx. | Owner-collected evidence (`nginx -T` real-IP directives, an access-log line with a real client address, no published backend port) matching the chain assumed by `AUTH_TRUSTED_PROXY_COUNT`; until then all users behind one edge address share one per-IP bucket. |
-| 4 | Origin firewall with safe rollback | **[repo]** Compose comments state Docker-published ports bypass UFW; the proposed stack publishes 80/443 on all interfaces. **[unverified]** actual firewall state. | Only Cloudflare ranges (plus owner SSH) reach 80/443, enforced where Docker traffic is filtered, applied with a scheduled automatic revert and provider-console access, then tested from outside. |
-| 5 | Valid origin TLS and verified Full (strict) | **[owner]** a temporary self-signed certificate and Cloudflare mode `Full` were reported, so `Full (strict)` is not in effect. **[unverified]** both, as they cannot be read from the repository. | A valid origin certificate (Cloudflare Origin CA or public) installed and checked with SNI, **then** the mode switched to `Full (strict)` and HTTPS verified through the edge. Never switch first. |
+| 3 | Verified Cloudflare real-IP / trusted-proxy chain | **[repo]** `main`'s `nginx/default.conf` appends to `X-Forwarded-For` and does not restore client IPs. **[test]** `get_client_ip` and the local Nginx probe (`scripts/proxy-chain-probe`, PR #29). The production `nginx/prod.conf` overwrites `X-Forwarded-For`; the committed real-IP include is a placeholder. **[reported]** a populated server-local file was reported historically, but its current contents are unconfirmed. **[unverified]** the access log on the host, the value of `AUTH_TRUSTED_PROXY_COUNT` in production, whether the backend is reachable other than through Nginx. | Owner-collected evidence (`nginx -T` real-IP directives, an access-log line with a real client address, no published backend port) matching the chain assumed by `AUTH_TRUSTED_PROXY_COUNT`; until then all users behind one edge address share one per-IP bucket. |
+| 4 | Origin firewall with safe rollback | **[repo]** Compose comments state Docker-published ports bypass UFW; the production Compose file publishes 80/443 on all interfaces. **[unverified]** actual firewall state. | Only Cloudflare ranges (plus owner SSH) reach 80/443, enforced where Docker traffic is filtered, applied with a scheduled automatic revert and provider-console access, then tested from outside. |
+| 5 | Valid origin TLS and verified Full (strict) | **[reported]** a temporary self-signed certificate and Cloudflare mode `Full` were reported historically, so `Full (strict)` was not in effect at that time; the current settings remain unverified. **[unverified]** both, as they cannot be read from the repository. | A valid origin certificate (Cloudflare Origin CA or public) installed and checked with SNI, **then** the mode switched to `Full (strict)` and HTTPS verified through the edge. Never switch first. |
 | 6 | Off-host automated backups and a successful restore rehearsal | **[repo]** none; the dev VPS dump/restore procedure (`docs/VPS_DEVELOPMENT.md`) keeps files on the same host and was not re-run here. **[unverified]** anything else. | Off-host destination, schedule, retention and RPO/RTO decided; a restore into a disposable database passes row-count and application checks; evidence (date, size, result) recorded. |
-| 7 | Safe deployment, migration and rollback procedure | **[repo]** the template in section 6 and the proposal in PR #27; neither has been rehearsed. | Rehearsed on a non-production copy: backup first, `migrate --plan` reviewed, one-shot migrate, image rollback by SHA, data rollback by restore; result recorded. |
-| 8 | Production health and smoke tests | **[test]** the health/redirect/host contract (this module; local run 2026-10-29, CI on push). **[repo]** PR #27 proposes an offline validator. **[unverified]** any result from a production host. | `/api/health/ready/` returns 200 through the public hostname; storefront and styled `/admin/` load; real OTP sign-in and an order succeed; results recorded with date and method. |
+| 7 | Safe deployment, migration and rollback procedure | **[repo]** the template in section 6 and production Compose topology; the full release/rollback procedure has not been rehearsed. | Rehearsed on a non-production copy: backup first, `migrate --plan` reviewed, one-shot migrate, image rollback by SHA, data rollback by restore; result recorded. |
+| 8 | Production health and smoke tests | **[test]** the health/redirect/host contract (this module; local run 2026-10-29, CI on push). **[repo]** an offline production-stack validator exists. **[unverified]** current results from the production host. | `/api/health/ready/` returns 200 through the public hostname; storefront and styled `/admin/` load; real OTP sign-in and an order succeed; results recorded with date and method. |
 
 Related owner decisions that are not gates but block parts of the above: scheduler for `purge_expired_auth_data` and
-the OTP retention period; Django static-file strategy (section 3; PR #27 proposes WhiteNoise); `DJANGO_HSTS_SECONDS`
+the OTP retention period; Django static-file strategy (section 3; the current production stack uses WhiteNoise); `DJANGO_HSTS_SECONDS`
 stays 0 until HTTPS is verified end to end.
