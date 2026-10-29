@@ -24,7 +24,13 @@ export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     cache: "no-store",
     ...init,
-    headers: { Accept: "application/json", ...init?.headers },
+    headers: {
+      Accept: "application/json",
+      // Production TLS terminates at Nginx; Django needs the original scheme
+      // to avoid redirecting internal HTTP requests back to HTTPS.
+      "X-Forwarded-Proto": "https",
+      ...init?.headers,
+    },
   });
   if (!res.ok) {
     throw new ApiError(path, res.status);
