@@ -95,7 +95,9 @@ no restart policy in the base Compose file.
 Changed in this session: a documentation file, this update, and one test module pinning the proxy/redirect contract.
 No settings, Compose, Nginx or Dockerfile change: each remaining fix depends on an owner decision.
 
-## Update: Agent 6 continuation, session 2 (2026-10-29)
+## Historical snapshot: Agent 6 continuation, session 2 (2026-10-29)
+
+**Historical record only.** The following section describes an earlier repository state before PR #27 and PR #30 were merged. Its statements about the current main branch are superseded by the correction at the end of this file; do not use them as current status.
 
 Re-checked against `main` at `de13470` (merges of PRs #25, #26, #28, #29 since the audit above). Scope unchanged: no
 deployment, no VPS or Cloudflare access, no database. **This update does not declare the project production-ready.**
