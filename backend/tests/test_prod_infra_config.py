@@ -358,3 +358,14 @@ def test_cli_check_fails_the_committed_placeholder_when_population_is_required(c
     else:
         assert code == 0
     assert cf.main(["check", str(REALIP)]) == 0  # without the flag a placeholder is reported, not failed
+
+
+def test_image_build_collects_static_files_under_prod_settings_before_serving():
+    """Root cause of the CI 500s on /admin/login/ (2026-10-29): WhiteNoise's manifest storage raises
+    "Missing staticfiles manifest entry" when `collectstatic` has not run. The image must therefore run it at build
+    time with prod settings, and prod settings must keep using the manifest storage that this step feeds."""
+    dockerfile = (REPO_ROOT / "backend" / "Dockerfile").read_text(encoding="utf-8")
+    prod_settings = (REPO_ROOT / "backend" / "config" / "settings" / "prod.py").read_text(encoding="utf-8")
+    assert re.search(r"DJANGO_SETTINGS_MODULE=config\.settings\.prod[\s\\]+(?:\S+=\S+[\s\\]+)*python manage\.py collectstatic --noinput", dockerfile)
+    assert dockerfile.index("collectstatic") < dockerfile.index("CMD [")
+    assert "whitenoise.storage.CompressedManifestStaticFilesStorage" in prod_settings
