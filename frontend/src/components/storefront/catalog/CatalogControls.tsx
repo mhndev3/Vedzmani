@@ -215,7 +215,7 @@ export function SortLinks({
         {t.catalog.sortLabel}
       </p>
       <ul className="flex flex-wrap gap-1.5">
-        {SORTS.map((s) => {
+        {SORTS.filter((s) => s !== "name_asc" && s !== "name_desc").map((s) => {
           const current = state.sort === s;
           return (
             <li key={s}>
