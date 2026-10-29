@@ -1,9 +1,6 @@
 # Production infrastructure (Agent 1)
 
-Status: prepared for review (PR #27). This document describes the files in this repository and the procedure they
-are meant to be used with. **It is not evidence that anything is running, secure or ready for customers.** Merging
-the PR deploys nothing (this repository never deploys by itself) and does not by itself make production
-launch-ready; section 11 lists what is still open.
+Status: production topology is present in `main`; this is an implementation and operations reference, not deployment authorization. This document describes repository files and their intended use. **It is not evidence that the live stack is currently running, secure or ready for customers.** Merging code does not deploy it; section 11 lists the remaining launch gates.
 
 Files: `docker-compose.prod.yml`, `nginx/prod.conf`, `nginx/cloudflare-realip.conf`, `.env.production.example`,
 `scripts/cloudflare_realip.py`, `scripts/validate_prod_stack.py`, `backend/Dockerfile` (collectstatic at build),
@@ -20,6 +17,8 @@ Every statement about the real world carries one of these labels, so that a plan
 | **Automated test** | Executed by a script or CI job against repository files in a throwaway environment (section 10). Never touches production. |
 | **Reported** | A manual action or observation stated by the owner or by an earlier revision of this document. No logs, command output or screenshots are in the repository, and the author of this revision could not confirm it. |
 | **Production-verified** | Observed directly against the live system, with date and method. |
+
+Revision note (2026-10-29): PR #27 has since been merged, and the listed production files exist in `main`. Historical statements below that refer to a branch or PR describe the original implementation period; they must not be read as the current GitHub state. Production observations remain separate and may be stale.
 
 Current state of the main claims:
 
