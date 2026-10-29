@@ -69,3 +69,49 @@ already pasted into chats or CI settings.
 ## Remaining external decisions
 
 Hosting provider and TLS termination point; static-file strategy; SMS/OTP provider; payment provider; object storage/CDN vendor; production PostgreSQL/Redis and backup/retention policy; owner rotation of any credential ever pasted into chats (none found in the repository).
+
+## Update: Agent 17, session 1 (2026-10-18)
+
+Audited commit: `c9001108656844658486b41b54447f7322588547` (`origin/main`, merge of PR #23). Scope as above: no
+deployment, no real database, no Docker stack. The deployment plan and options are in `docs/PRODUCTION_DEPLOYMENT.md`.
+**This update does not declare the project production-ready.**
+
+| Finding | Status now | Evidence from this session |
+| --- | --- | --- |
+| P1-1 no production topology | Still open (owner decision) | `docker-compose.yml` still sets `config.settings.dev`; no other Compose file besides the dev VPS overlay |
+| P1-2 admin static files | **Now confirmed under prod settings** | `GET /static/admin/css/base.css` with HTTPS forwarded returns 404; `STATIC_ROOT` absent; no WhiteNoise |
+| P1-3 redirect loop | Django half now covered by tests; end-to-end still **not reproduced** | `backend/tests/test_production_proxy_behavior.py`; options A/B in `PRODUCTION_DEPLOYMENT.md` section 2 |
+| P1-4 SMS/payment | Still open (owner decision) | Unchanged |
+| P2-5 placeholder secret key | Resolved by PR #23 | Guard and tests merged |
+| P2-6 `check --deploy` in CI | **Now verified on GitHub Actions** | CI runs #89 (`bb85481`), #90 (PR #23) and #91 (`c900110`) completed successfully; E2E #8 and #9 as well. Step-level logs were not opened |
+| P2-8 health check Host vs `ALLOWED_HOSTS` | **Now confirmed** | Under prod settings with `DJANGO_ALLOWED_HOSTS` = one domain, `Host: localhost:8000` returns 400; an allowed host returns 200 |
+| P2-9 backups | Still open (owner decision) | Dev-only procedure; off-host destination, retention, RPO/RTO undefined |
+
+New observations (no P0/P1): Redis stores only rate-limit counters, so persistence is not required (section 5 of the
+deployment doc); the backend and frontend containers already run as non-root users; `.dockerignore` files exclude
+`.env*`; no secret values were found or printed. Unchanged P3 items: image digests, backend lock file, Gunicorn tuning,
+no restart policy in the base Compose file.
+
+Changed in this session: a documentation file, this update, and one test module pinning the proxy/redirect contract.
+No settings, Compose, Nginx or Dockerfile change: each remaining fix depends on an owner decision.
+
+## Update: Agent 6 continuation, session 2 (2026-10-29)
+
+Re-checked against `main` at `de13470` (merges of PRs #25, #26, #28, #29 since the audit above). Scope unchanged: no
+deployment, no VPS or Cloudflare access, no database. **This update does not declare the project production-ready.**
+The release gates are listed with their evidence in `docs/PRODUCTION_DEPLOYMENT.md` section 8; evidence labels are
+defined at the top of that file.
+
+| Item | Change since the 2026-10-18 update | Evidence |
+| --- | --- | --- |
+| P2-8 health check vs `ALLOWED_HOSTS` | Contract now fully pinned: the HTTPS-redirect exemption covers `/api/health/` and `/api/health/ready/` only; `ALLOWED_HOSTS` is not exempt (400 for `localhost`, `127.0.0.1`, `backend` unless listed); both remediations pass. The earlier version of the test probe took no `Host` argument, so the Host-dependent cases could not be expressed; fixed. | [test] `backend/tests/test_production_proxy_behavior.py`, run locally 2026-10-29 |
+| P1-3 redirect loop | Still open (owner decision). New: only the first `X-Forwarded-Proto` value counts, so the proxy must overwrite the header. PR #27 (open) proposes TLS at Nginx, which would make `$scheme` truthful. | [test]; the proposal is [repo] on an unmerged branch |
+| Postgres exposure | `docker-compose.yml` now binds `127.0.0.1:5433` (PR #25). Earlier statement that the base file publishes it on all interfaces is obsolete. | [repo] |
+| Client-IP / rate-limit chain | `get_client_ip` hardened (valid IP required, IPv6 /64) and locally probed (PR #29). Production chain still unverified. | [test] local only; production [unverified] |
+| Auth data retention | `purge_expired_auth_data` exists but is not scheduled; OTP retention undecided. | [repo] |
+| Admin login | Admin now requires the staff password (OTP-only sessions refused); Nginx throttles `POST /admin/login/`. | [test] / [repo] |
+| P1-1, P1-2, P1-4, P2-9 | Unchanged on `main`. PR #27 (open) proposes a production Compose stack and WhiteNoise; none of it is merged or confirmed running. | [repo] on an unmerged branch |
+
+CI for this branch has not run on the new commits at the time of writing; the earlier CI statements (runs #89 to #91,
+E2E #8 and #9) concern the 2026-10-18 audit commit and are unchanged. No VPS, Cloudflare or backup observation is
+claimed anywhere in this update.
