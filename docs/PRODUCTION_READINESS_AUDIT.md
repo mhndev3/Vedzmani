@@ -94,3 +94,24 @@ no restart policy in the base Compose file.
 
 Changed in this session: a documentation file, this update, and one test module pinning the proxy/redirect contract.
 No settings, Compose, Nginx or Dockerfile change: each remaining fix depends on an owner decision.
+
+## Update: Agent 6 continuation, session 2 (2026-10-29)
+
+Re-checked against `main` at `de13470` (merges of PRs #25, #26, #28, #29 since the audit above). Scope unchanged: no
+deployment, no VPS or Cloudflare access, no database. **This update does not declare the project production-ready.**
+The release gates are listed with their evidence in `docs/PRODUCTION_DEPLOYMENT.md` section 8; evidence labels are
+defined at the top of that file.
+
+| Item | Change since the 2026-10-18 update | Evidence |
+| --- | --- | --- |
+| P2-8 health check vs `ALLOWED_HOSTS` | Contract now fully pinned: the HTTPS-redirect exemption covers `/api/health/` and `/api/health/ready/` only; `ALLOWED_HOSTS` is not exempt (400 for `localhost`, `127.0.0.1`, `backend` unless listed); both remediations pass. The earlier version of the test probe took no `Host` argument, so the Host-dependent cases could not be expressed; fixed. | [test] `backend/tests/test_production_proxy_behavior.py`, run locally 2026-10-29 |
+| P1-3 redirect loop | Still open (owner decision). New: only the first `X-Forwarded-Proto` value counts, so the proxy must overwrite the header. PR #27 (open) proposes TLS at Nginx, which would make `$scheme` truthful. | [test]; the proposal is [repo] on an unmerged branch |
+| Postgres exposure | `docker-compose.yml` now binds `127.0.0.1:5433` (PR #25). Earlier statement that the base file publishes it on all interfaces is obsolete. | [repo] |
+| Client-IP / rate-limit chain | `get_client_ip` hardened (valid IP required, IPv6 /64) and locally probed (PR #29). Production chain still unverified. | [test] local only; production [unverified] |
+| Auth data retention | `purge_expired_auth_data` exists but is not scheduled; OTP retention undecided. | [repo] |
+| Admin login | Admin now requires the staff password (OTP-only sessions refused); Nginx throttles `POST /admin/login/`. | [test] / [repo] |
+| P1-1, P1-2, P1-4, P2-9 | Unchanged on `main`. PR #27 (open) proposes a production Compose stack and WhiteNoise; none of it is merged or confirmed running. | [repo] on an unmerged branch |
+
+CI for this branch has not run on the new commits at the time of writing; the earlier CI statements (runs #89 to #91,
+E2E #8 and #9) concern the 2026-10-18 audit commit and are unchanged. No VPS, Cloudflare or backup observation is
+claimed anywhere in this update.
