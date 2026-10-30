@@ -26,8 +26,11 @@ Category ─< Product >─< Collection        (Product.collections, M2M)
 
 ## Images
 DB stores a **storage key** (relative object path, must end in `.webp`), never a URL or signed URL.
-`apps/catalog/storage.py::public_image_url` builds `MEDIA_CDN_BASE_URL + "/" + key`
-(env `MEDIA_CDN_BASE_URL`, empty by default). Not implemented: upload to S3, WebP/AVIF conversion, credentials.
+In production, binaries live under `MEDIA_ROOT` (default `/app/media`), backed by the host directory
+`PRODUCT_MEDIA_DIR` (default `/home/vzinfra/prod/media`). Backend mounts it read/write; Nginx mounts it
+read-only and serves `/media/<storage_key>` with immutable caching. If `MEDIA_CDN_BASE_URL` is set,
+`public_image_url` returns the CDN URL instead. Upload/import and WebP conversion are performed by the
+separate product-import workflow; the model still stores metadata only.
 
 ## API
 `GET /api/catalog/products/<slug>/` — public, read-only; active product/category/variants/images/sizes only;
