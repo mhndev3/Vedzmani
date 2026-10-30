@@ -5,13 +5,19 @@ App: `backend/apps/catalog`. PostgreSQL is the source of truth.
 ```
 Category ─< Product >─< Collection        (Product.collections, M2M)
               ├─< ProductSizeMeasurement >─ Size       (per-product, per-size measurement rows)
-              └─< ColorVariant ─┬─< VariantImage       (metadata only, WebP)
+              ├─< ProductSizeDescription >─ Size        (shared size-specific description)
+              └─< ColorVariant ─┬─< VariantImage        (metadata only, WebP)
                                 └─< VariantSize >─ Size (color-specific stock by size)
+                                      └─ VariantSizeDescription (optional color + size override)
 ```
 
 - `VariantSize` is the **exact purchasable unit** (product + color + size). Cart/order items FK to it.
   It has a unique `sku` and `stock_quantity` (>= 0); each color owns its own size rows and stock counts.
 - `Product.price` / `sale_price` are owned by the product, so every color has the same product price.
+- `ProductSizeDescription` stores an optional text description by product + size, shared across colors.
+  `VariantSizeDescription` stores an optional override for one exact `VariantSize` (color + size). The API resolves
+  descriptions in this order: color + size override, then product + size, then empty; the general `Product.description`
+  remains separate and is still shown below the purchase controls.
 - `ProductSizeMeasurement` stores flexible table rows by product + size (name, value, optional unit, position).
   They are shared across that product's colors, and a product may have different rows or no measurements at all
   for any size.
@@ -40,7 +46,7 @@ they remain pending the owner's asset filename mapping and sample description fi
 
 ## API
 `GET /api/catalog/products/<slug>/` — public, read-only; active product/category/variants/images/sizes only;
-per-size `stock_quantity` and its derived `in_stock` boolean are exposed for the storefront size selector. Each size also includes its product-specific `measurements[]` rows; the same measurement values are returned for the same size in each color, while stock remains color-specific. Constant query count (tested).
+per-size `stock_quantity` and its derived `in_stock` boolean are exposed for the storefront size selector. Each size includes its product-specific `measurements[]` rows and resolved `size_description`; the latter prefers an exact color + size override, then falls back to the product + size description. The same measurements and fallback description are shared across colors unless an exact override exists, while stock remains color-specific. Constant query count (tested).
 
 ### Listing: `GET /api/catalog/products/` (Agent 6, Session 1)
 Public, read-only, no auth. Only `Product.is_active` products in an active category are returned. Unknown query
@@ -90,4 +96,4 @@ Routes: `/[locale]/products` (listing) and `/[locale]/products/[slug]` (detail, 
 All state is in the URL; filters/search are plain GET forms (`next/form`), sort/pagination/color are links. The listing remains server-rendered; `FilterDrawer`, `AddToCart` and the product-detail `ProductGallery` are client components.
 The product gallery orders the primary image first and slides through the selected color's images. Selecting another color
 keeps URL state and cross-fades to that color's gallery. The size selector shows exact stock quantities; zero-stock sizes
-are red and disabled. After a size is selected, its measurement rows appear in a two-column table and update when the customer changes size; no table is shown when no measurements were entered. All storefront prices are formatted in Toman. E2E fixtures: `e2e/seed_catalog.py` (throwaway DB only).
+are red and disabled. After a size is selected, its resolved size description and measurement rows appear and update when the customer changes size; color + size descriptions override the product + size description, and no empty section/table is shown when no data was entered. All storefront prices are formatted in Toman. E2E fixtures: `e2e/seed_catalog.py` (throwaway DB only).
