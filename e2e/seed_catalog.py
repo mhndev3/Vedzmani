@@ -31,10 +31,12 @@ from apps.catalog.models import (
     Collection,
     ColorVariant,
     Product,
+    ProductSizeDescription,
     ProductSizeMeasurement,
     Size,
     VariantImage,
     VariantSize,
+    VariantSizeDescription,
 )
 
 if not Product.objects.filter(slug="e2e-hoodie-01").exists():
@@ -57,6 +59,12 @@ if not Product.objects.filter(slug="e2e-hoodie-01").exists():
         if label == "Hoodie":
             p.collections.add(winter)
         if p.slug == "e2e-hoodie-01":
+            ProductSizeDescription.objects.create(
+                product=p, size=sizes["m"], description="توضیح مشترک سایز M"
+            )
+            ProductSizeDescription.objects.create(
+                product=p, size=sizes["l"], description="توضیح مشترک سایز L"
+            )
             ProductSizeMeasurement.objects.create(
                 product=p, size=sizes["m"], name="عرض سینه", value="56", unit="سانتی‌متر", position=0
             )
@@ -81,7 +89,14 @@ if not Product.objects.filter(slug="e2e-hoodie-01").exists():
             for code, size in sizes.items():
                 # Hoodie 03 is entirely out of stock; Hoodie 01 white is out of stock only.
                 stock = 0 if (p.slug == "e2e-hoodie-03" or (p.slug == "e2e-hoodie-01" and slug == "white")) else 5
-                VariantSize.objects.create(variant=v, size=size, sku=f"{p.slug}-{slug}-{code}", stock_quantity=stock)
+                variant_size = VariantSize.objects.create(
+                    variant=v, size=size, sku=f"{p.slug}-{slug}-{code}", stock_quantity=stock
+                )
+                if p.slug == "e2e-hoodie-01" and slug == "black" and code == "m":
+                    VariantSizeDescription.objects.create(
+                        variant_size=variant_size,
+                        description="توضیح اختصاصی رنگ مشکی و سایز M",
+                    )
 
     for n in range(1, 16):
         make(n, hoodies, "Hoodie")
