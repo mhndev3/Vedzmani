@@ -7,6 +7,15 @@ import { BrowserApiError, apiRequest } from "@/lib/browser-api";
  */
 export type AuthUser = { id: number; phone: string; is_staff: boolean };
 
+export type CustomerProfile = {
+  id: number; phone: string; first_name: string; last_name: string;
+  address: string; postal_code: string; national_code: string | null; is_complete: boolean;
+};
+
+export type CustomerProfileInput = {
+  first_name: string; last_name: string; address: string; postal_code: string; national_code: string;
+};
+
 const UNEXPECTED = () => new BrowserApiError(200, "unexpected_response");
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -30,6 +39,18 @@ export const authApi = {
   },
 
   /** The signed-in customer, or `null` when Django answers 401. Any other failure throws. */
+  async profile(): Promise<CustomerProfile> {
+    return apiRequest<CustomerProfile>("GET", "/api/auth/profile/");
+  },
+
+  async updateProfile(profile: CustomerProfileInput): Promise<CustomerProfile> {
+    return apiRequest<CustomerProfile>("PATCH", "/api/auth/profile/", profile);
+  },
+
+  async logout(): Promise<void> {
+    await apiRequest<void>("POST", "/api/auth/logout/");
+  },
+
   async me(): Promise<AuthUser | null> {
     try {
       const body = await apiRequest<unknown>("GET", "/api/auth/me/");
