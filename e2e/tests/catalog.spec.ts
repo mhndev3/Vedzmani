@@ -28,7 +28,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     const nav = page.getByRole("navigation", { name: "ناوبری اصلی" });
     await nav.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
     await nav.getByRole("link", { name: "بافت" }).click();
-    await expect(page).toHaveURL(/\\/fa\\/categories\\/knitwear$/);
+    await expect(page).toHaveURL(/\/fa\/categories\/knitwear$/);
     await expect(page.getByRole("heading", { level: 1, name: "بافت" })).toBeVisible();
   });
 
@@ -183,7 +183,7 @@ test.describe("کاتالوگ موبایل", () => {
     const menu = page.getByRole("dialog");
     await menu.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
     await menu.getByRole("link", { name: "بافت" }).click();
-    await expect(page).toHaveURL(/\\/fa\\/categories\\/knitwear$/);
+    await expect(page).toHaveURL(/\/fa\/categories\/knitwear$/);
     await expect(page.getByRole("heading", { level: 1, name: "بافت" })).toBeVisible();
   });
 
