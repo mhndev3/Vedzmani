@@ -134,6 +134,22 @@ class ProductSizeMeasurement(models.Model):
         return f"{self.product_id}:{self.size_id}:{self.name}"
 
 
+class ProductSizeDescription(models.Model):
+    """Optional description for one size of a product, shared by all colors."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="size_descriptions")
+    size = models.ForeignKey(Size, on_delete=models.PROTECT, related_name="product_descriptions")
+    description = models.TextField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["product", "size"], name="product_size_description_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product_id}:{self.size_id}"
+
+
 class ColorVariant(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="color_variants")
     name = models.CharField(max_length=60)
@@ -177,6 +193,18 @@ class VariantSize(models.Model):
 
     def __str__(self) -> str:
         return self.sku
+
+
+class VariantSizeDescription(models.Model):
+    """Optional override for one exact color + size purchasable combination."""
+
+    variant_size = models.OneToOneField(
+        VariantSize, on_delete=models.CASCADE, related_name="description"
+    )
+    description = models.TextField()
+
+    def __str__(self) -> str:
+        return f"{self.variant_size_id}:description"
 
 
 class VariantImage(models.Model):
