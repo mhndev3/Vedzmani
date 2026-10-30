@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getProduct, type ProductDetail } from "@/lib/catalog";
-import { CatalogPicture, Price } from "@/components/storefront/catalog/ProductCard";
+import { Price } from "@/components/storefront/catalog/ProductCard";
 import { AddToCart } from "@/components/storefront/cart/AddToCart";
+import { ProductGallery } from "@/components/storefront/product/ProductGallery";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -90,37 +90,17 @@ export default async function ProductPage({ params, searchParams }: Props) {
       </nav>
 
       <div className="mt-6 grid gap-8 md:grid-cols-2">
-        <section aria-label={t.product.gallery} className="min-w-0">
-          {images.length > 0 ? (
-            <ul className="grid grid-cols-2 gap-3">
-              {images.map((img, i) => (
-                <li key={img.url} className={i === 0 ? "col-span-2" : ""}>
-                  <Image
-                    src={img.url}
-                    alt={img.alt_text || `${product.name}${color ? ` - ${color.name}` : ""}`}
-                    width={img.width}
-                    height={img.height}
-                    sizes={i === 0 ? "(min-width:768px) 50vw, 100vw" : "(min-width:768px) 25vw, 50vw"}
-                    unoptimized
-                    loading={i === 0 ? "eager" : "lazy"}
-                    fetchPriority={i === 0 ? "high" : "auto"}
-                    className="h-auto w-full rounded-lg bg-muted"
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div>
-              <CatalogPicture
-                image={null}
-                fallbackAlt={product.name}
-                sizes="50vw"
-                noImage={t.catalog.noImage}
-              />
-              <p className="mt-2 text-sm text-muted-foreground">{t.product.noImages}</p>
-            </div>
-          )}
-        </section>
+        <ProductGallery
+          images={images}
+          productName={product.name}
+          colorName={color?.name ?? ""}
+          variantKey={color?.slug ?? "none"}
+          labels={{
+            previous: t.product.galleryPrevious,
+            next: t.product.galleryNext,
+            slide: t.product.gallerySlide,
+          }}
+        />
 
         <section className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{product.name}</h1>
@@ -176,7 +156,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               <AddToCart
                 key={color.slug}
                 locale={locale}
-                sizes={color.sizes.map((s) => ({ id: s.id, label: s.label, in_stock: s.in_stock }))}
+                sizes={color.sizes.map((s) => ({ id: s.id, label: s.label, in_stock: s.in_stock, stock_quantity: s.stock_quantity }))}
                 labels={{
                   sizes: t.product.sizes,
                   sizeOutOfStock: t.product.sizeOutOfStock,
