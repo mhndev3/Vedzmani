@@ -6,10 +6,10 @@ import { BrowserApiError } from "@/lib/browser-api";
 import type { Locale } from "@/i18n/config";
 import { authApi, type CustomerProfile, type CustomerProfileInput } from "@/lib/auth/api";
 
-type Props = { initialProfile: CustomerProfile; locale: Locale };
+type Props = { initialProfile: CustomerProfile; locale: Locale; continueTo: string };
 const field = "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base placeholder:text-muted-foreground";
 
-export function ProfileForm({ initialProfile, locale }: Props) {
+export function ProfileForm({ initialProfile, locale, continueTo }: Props) {
   const router = useRouter();
   const [values, setValues] = useState<CustomerProfileInput>({
     first_name: initialProfile.first_name,
@@ -41,7 +41,12 @@ export function ProfileForm({ initialProfile, locale }: Props) {
     try {
       await authApi.updateProfile(values);
       setMessage("اطلاعات حساب با موفقیت ذخیره شد.");
-      router.refresh();
+      if (continueTo !== "/" + locale + "/profile") {
+        router.replace(continueTo);
+        router.refresh();
+      } else {
+        router.refresh();
+      }
     } catch (cause) {
       if (cause instanceof BrowserApiError && cause.code === "validation_error") {
         const code = cause.details?.national_code?.[0]?.code;
