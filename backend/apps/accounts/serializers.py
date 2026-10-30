@@ -61,6 +61,11 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         digits = value.translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"))
         if len(digits) != 10 or not digits.isascii() or not digits.isdigit():
             raise serializers.ValidationError("کد ملی باید دقیقاً ۱۰ رقم باشد.", code="invalid_national_code")
+        duplicate = User.objects.filter(national_code=digits)
+        if self.instance is not None:
+            duplicate = duplicate.exclude(pk=self.instance.pk)
+        if duplicate.exists():
+            raise serializers.ValidationError("این کد ملی قبلاً ثبت شده است.", code="unique")
         return digits
 
     def get_is_complete(self, obj):
