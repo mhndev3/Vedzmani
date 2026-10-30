@@ -145,6 +145,14 @@ test.describe("جریان واقعی کد یک‌بارمصرف", () => {
     await expect(codeInput(page)).toBeVisible();
     await codeInput(page).fill(await readOtp(phone));
     await verifyButton(page).click();
+    await expect(page).toHaveURL(/\/fa\/profile\?next=/);
+    await expect(page.getByRole("heading", { name: "تکمیل اطلاعات حساب کاربری" })).toBeVisible();
+    await page.getByLabel("نام", { exact: true }).fill("کاربر");
+    await page.getByLabel("نام خانوادگی", { exact: true }).fill("آزمایشی");
+    await page.getByLabel("نشانی کامل", { exact: true }).fill("تهران، خیابان نمونه، پلاک ۱");
+    await page.getByLabel("کد پستی", { exact: true }).fill("1234567890");
+    await page.getByLabel("کد ملی", { exact: true }).fill(phone.slice(-10));
+    await page.getByRole("button", { name: "ذخیره اطلاعات" }).click();
     await expect(page).toHaveURL(/\/fa\/checkout$/);
     await expect(page.getByRole("heading", { name: "سبد خرید شما خالی است" })).toBeVisible();
     const me = await (await page.request.get("/api/auth/me/")).json();
