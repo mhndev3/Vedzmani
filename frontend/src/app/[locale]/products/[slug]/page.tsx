@@ -158,7 +158,13 @@ export default async function ProductPage({ params, searchParams }: Props) {
               <AddToCart
                 key={color.slug}
                 locale={locale}
-                sizes={color.sizes.map((s) => ({ id: s.id, label: s.label, in_stock: s.in_stock, stock_quantity: s.stock_quantity }))}
+                sizes={color.sizes.map((s) => ({
+                  id: s.id,
+                  label: s.label,
+                  in_stock: s.in_stock,
+                  stock_quantity: s.stock_quantity,
+                  measurements: s.measurements,
+                }))}
                 labels={{
                   sizes: t.product.sizes,
                   sizeOutOfStock: t.product.sizeOutOfStock,
@@ -167,6 +173,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
                   added: t.product.added,
                   viewCart: t.product.viewCart,
                   sizeRequired: t.product.sizeRequired,
+                  sizeMeasurements: t.product.sizeMeasurements,
                 }}
                 errors={t.cart.errors}
               />
