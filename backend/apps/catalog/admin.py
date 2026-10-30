@@ -17,7 +17,7 @@ from django.forms.models import BaseInlineFormSet
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Category, Collection, ColorVariant, Product, Size, VariantImage, VariantSize
+from .models import Category, Collection, ColorVariant, Product, ProductSizeMeasurement, Size, VariantImage, VariantSize
 
 
 class ProductAdminForm(forms.ModelForm):
@@ -27,10 +27,22 @@ class ProductAdminForm(forms.ModelForm):
         model = Product
         fields = "__all__"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["price"].label = "قیمت (تومان)"
+        self.fields["sale_price"].label = "قیمت با تخفیف (تومان)"
+
 
 
 
 # --- inlines ---------------------------------------------------------------
+class ProductSizeMeasurementInline(admin.TabularInline):
+    model = ProductSizeMeasurement
+    extra = 0
+    autocomplete_fields = ("size",)
+    fields = ("size", "name", "value", "unit", "position")
+
+
 class ColorVariantInline(admin.TabularInline):
     model = ColorVariant
     extra = 0
@@ -143,7 +155,7 @@ class ProductAdmin(admin.ModelAdmin):
     filter_horizontal = ("collections",)
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("current_price", "created_at", "updated_at")
-    inlines = [ColorVariantInline]
+    inlines = [ProductSizeMeasurementInline, ColorVariantInline]
     fieldsets = (
         (None, {"fields": ("product_code", "name", "slug", "category", "collections", "description")}),
         ("Pricing", {"fields": ("price", "sale_price", "current_price")}),
