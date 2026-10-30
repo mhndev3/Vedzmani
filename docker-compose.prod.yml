@@ -53,6 +53,9 @@ services:
       AUTH_TRUSTED_PROXY_COUNT: "1"
       DJANGO_SECURE_SSL_REDIRECT: "true"
       DJANGO_HSTS_SECONDS: ${DJANGO_HSTS_SECONDS:-0}
+    volumes:
+      # Persistent product binaries; Nginx mounts the same host directory read-only.
+      - ${PRODUCT_MEDIA_DIR:-/home/vzinfra/prod/media}:/app/media
     networks: [internal]
     depends_on:
       postgres: { condition: service_healthy }
@@ -95,6 +98,8 @@ services:
       - ./nginx/cloudflare-realip.conf:/etc/nginx/cloudflare-realip.conf:ro
       # Directory holding origin.pem and origin.key, outside the repository and never committed.
       - ${ORIGIN_CERT_DIR:?set ORIGIN_CERT_DIR}:/etc/nginx/certs:ro
+      # Same persistent product-media directory as the backend, but Nginx can only read it.
+      - ${PRODUCT_MEDIA_DIR:-/home/vzinfra/prod/media}:/var/www/vedzmani-media:ro
     networks: [edge, internal]
     depends_on:
       backend: { condition: service_healthy }
