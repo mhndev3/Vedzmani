@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="user",
             name="first_name",
-            field=models.CharField(blank=True, default="", max_length=150),
+            field=models.CharField(blank=True, db_default="", default="", max_length=150),
         ),
         migrations.AddField(
             model_name="user",
@@ -18,12 +18,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="user",
             name="address",
-            field=models.TextField(blank=True, default=""),
+            field=models.TextField(blank=True, db_default="", default=""),
         ),
         migrations.AddField(
             model_name="user",
             name="postal_code",
-            field=models.CharField(blank=True, default="", max_length=20),
+            field=models.CharField(blank=True, db_default="", default="", max_length=20),
         ),
         migrations.AddField(
             model_name="user",
