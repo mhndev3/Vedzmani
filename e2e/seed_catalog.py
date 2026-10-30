@@ -57,15 +57,16 @@ if not Product.objects.filter(slug="e2e-hoodie-01").exists():
             p.collections.add(winter)
         for pos, (slug, name, hexc) in enumerate([("black", "Black", "#111111"), ("white", "White", "#f5f5f5")]):
             v = ColorVariant.objects.create(product=p, name=name, slug=slug, hex_color=hexc, position=pos)
-            VariantImage.objects.create(
-                variant=v,
-                storage_key=f"e2e/{p.slug}-{slug}.webp",
-                alt_text=f"{p.name} {name}",
-                position=0,
-                is_primary=True,
-                width=600,
-                height=800,
-            )
+            for image_position, image_kind in enumerate(("front", "detail")):
+                VariantImage.objects.create(
+                    variant=v,
+                    storage_key=f"e2e/{p.slug}-{slug}-{image_kind}.webp",
+                    alt_text=f"{p.name} {name} {image_kind}",
+                    position=image_position,
+                    is_primary=image_position == 0,
+                    width=600,
+                    height=800,
+                )
             for code, size in sizes.items():
                 # Hoodie 03 is entirely out of stock; Hoodie 01 white is out of stock only.
                 stock = 0 if (p.slug == "e2e-hoodie-03" or (p.slug == "e2e-hoodie-01" and slug == "white")) else 5
