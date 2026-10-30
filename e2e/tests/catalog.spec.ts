@@ -124,12 +124,12 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeEnabled();
     await expect(page.getByRole("radio", { name: "M" })).toBeEnabled();
 
-    await page.getByRole("radio", { name: "M" }).check();
+    await page.locator("label").filter({ has: page.getByRole("radio", { name: "M" }) }).click();
     const mTable = page.getByRole("table", { name: "اندازه‌های سایز M" });
     await expect(mTable).toBeVisible();
     await expect(mTable).toContainText("56 سانتی‌متر");
     await expect(mTable).toContainText("64 سانتی‌متر");
-    await page.getByRole("radio", { name: "L" }).check();
+    await page.locator("label").filter({ has: page.getByRole("radio", { name: "L" }) }).click();
     const lTable = page.getByRole("table", { name: "اندازه‌های سایز L" });
     await expect(lTable).toBeVisible();
     await expect(lTable).toContainText("59 سانتی‌متر");
