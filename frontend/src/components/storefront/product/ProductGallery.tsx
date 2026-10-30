@@ -23,7 +23,7 @@ export function ProductGallery({
   productName: string;
   colorName: string;
   variantKey: string;
-  labels: { previous: string; next: string; slide: string };
+  labels: { gallery: string; previous: string; next: string; slide: string; noImages: string };
 }) {
   const imageKey = variantKey + ":" + images.map((image) => image.url + "|" + image.alt_text).join(";");
   const [displayImages, setDisplayImages] = useState(images);
@@ -70,7 +70,7 @@ export function ProductGallery({
   }
 
   return (
-    <section aria-label="تصاویر محصول" className="min-w-0">
+    <section aria-label={labels.gallery} className="min-w-0">
       {hasImages ? (
         <>
           <div
@@ -138,7 +138,7 @@ export function ProductGallery({
         </>
       ) : (
         <div className="flex aspect-[3/4] items-center justify-center rounded-xl bg-muted text-sm text-muted-foreground">
-          تصاویر این رنگ هنوز ثبت نشده است.
+          {labels.noImages}
         </div>
       )}
     </section>
