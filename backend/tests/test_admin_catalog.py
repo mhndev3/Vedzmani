@@ -24,7 +24,7 @@ def _formset(prefix, total=0, initial=0):
 
 
 def _product_form(category, **over):
-    data = {"name": "Hoodie", "slug": "hoodie", "category": category.pk, "description": "", "price": "1000"}
+    data = {"product_code": "VZ-ADMIN-HOODIE", "name": "Hoodie", "slug": "hoodie", "category": category.pk, "description": "", "price": "1000"}
     data.update(_formset("color_variants"))
     data.update(over)
     return data
@@ -66,6 +66,14 @@ def test_staff_can_search_products_by_sku(su_client, make_variant_size):
 
 
 # --- validation -------------------------------------------------------------------
+def test_product_add_requires_manual_product_code(su_client):
+    category = Category.objects.create(name="C", slug="c")
+    data = _product_form(category)
+    data.pop("product_code")
+    response = su_client.post("/admin/catalog/product/add/", data)
+    assert response.status_code == 200 and not Product.objects.exists()
+
+
 def test_product_add_defaults_to_unpublished(su_client):
     category = Category.objects.create(name="C", slug="c")
     assert su_client.post("/admin/catalog/product/add/", _product_form(category)).status_code == 302

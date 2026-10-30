@@ -73,6 +73,7 @@ class Product(models.Model):
 
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     collections = models.ManyToManyField(Collection, blank=True, related_name="products")
+    product_code = models.CharField(max_length=40, unique=True, null=True, blank=True)
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True)
     description = models.TextField(blank=True)

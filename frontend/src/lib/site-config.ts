@@ -9,7 +9,7 @@ type Localized = Record<Locale, string>;
  * any component.
  */
 export const siteConfig = {
-  name: "Vedzmani",
+  name: "ودزمانی",
   social: {
     instagramUrl: null as string | null,
     whatsappUrl: null as string | null,

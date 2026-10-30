@@ -127,6 +127,7 @@ export type ProductCardData = {
   id: number;
   name: string;
   slug: string;
+  code: string | null;
   price: string;
   sale_price: string | null;
   category: { name: string; slug: string };
@@ -153,6 +154,7 @@ export type ProductDetail = {
   id: number;
   name: string;
   slug: string;
+  code: string | null;
   description: string;
   price: string;
   sale_price: string | null;

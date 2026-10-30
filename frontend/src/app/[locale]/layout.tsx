@@ -40,9 +40,6 @@ export async function generateMetadata({
     metadataBase: siteUrl ? new URL(siteUrl) : undefined,
     title: { default: t.meta.title, template: `%s | ${siteConfig.name}` },
     description: t.meta.description,
-    ...(siteUrl && {
-      alternates: { languages: { fa: "/fa", en: "/en" } },
-    }),
     openGraph: {
       type: "website",
       siteName: siteConfig.name,

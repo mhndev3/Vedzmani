@@ -1,8 +1,8 @@
 /** Persian is the default locale and the source of truth for the dictionary shape. */
 export const fa = {
   meta: {
-    title: "Vedzmani | فروشگاه آنلاین مد",
-    description: "Vedzmani، فروشگاه آنلاین مد.",
+    title: "ودزمانی | فروشگاه آنلاین مد",
+    description: "ودزمانی، فروشگاه آنلاین پوشاک و مد.",
   },
   a11y: {
     skipToContent: "پرش به محتوای اصلی",
@@ -11,17 +11,13 @@ export const fa = {
     openMenu: "باز کردن منو",
     closeMenu: "بستن منو",
     menuTitle: "منو",
-    switchLanguage: "تغییر زبان به English",
     toggleTheme: "حالت تیره",
   },
   nav: {
     home: "خانه",
     about: "درباره ما",
-    contact: "تماس با ما",
-    returns: "بازگشت کالا",
     faq: "سوالات متداول",
     support: "پشتیبانی",
-    profile: "پروفایل",
     products: "محصولات",
     cart: "سبد خرید",
   },
@@ -88,9 +84,9 @@ export const fa = {
     notFoundTitle: "محصول پیدا نشد",
   },
   home: {
-    heroTitle: "به Vedzmani خوش آمدید",
+    heroTitle: "به ودزمانی خوش آمدید",
     heroText:
-      "فروشگاه آنلاین مد. محصولات و مجموعه‌ها پس از آماده شدن در همین صفحه نمایش داده می‌شوند.",
+      "فروشگاه آنلاین پوشاک و مد. محصولات و مجموعه‌ها در همین صفحه نمایش داده می‌شوند.",
     emptySection: "این بخش به‌زودی تکمیل می‌شود.",
     sections: {
       categories: "دسته‌بندی‌ها",
@@ -103,7 +99,6 @@ export const fa = {
     categories: "دسته‌بندی‌ها",
     store: "فروشگاه",
     customerService: "خدمات مشتریان",
-    shoppingGuide: "راهنمای خرید",
     social: "شبکه‌های اجتماعی",
     trust: "اطمینان و مجوزها",
     comingSoon: "به‌زودی",

@@ -270,7 +270,7 @@ export function SignInForm({
             {t.phone.hint}
           </p>
           {fieldError && (
-            <p id="signin-phone-error" className="text-sm text-red-700 dark:text-red-400">
+            <p id="signin-phone-error" role="alert" className="text-sm text-red-700 dark:text-red-400">
               {fieldError}
             </p>
           )}
@@ -313,7 +313,7 @@ export function SignInForm({
             {t.code.hint}
           </p>
           {fieldError && (
-            <p id="signin-code-error" className="text-sm text-red-700 dark:text-red-400">
+            <p id="signin-code-error" role="alert" className="text-sm text-red-700 dark:text-red-400">
               {fieldError}
             </p>
           )}

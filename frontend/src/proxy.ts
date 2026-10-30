@@ -1,23 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { LOCALE_COOKIE, defaultLocale, isLocale } from "@/i18n/config";
+import { defaultLocale, isLocale } from "@/i18n/config";
 
-/**
- * Locale routing: every storefront URL carries its locale (/fa, /en).
- * Unprefixed paths are redirected to the user's last chosen locale
- * (cookie set by the language switcher) or to the default (Persian).
- */
+/** All storefront requests use the Persian locale; legacy English URLs are redirected. */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const url = request.nextUrl.clone();
+
+  if (pathname === "/en" || pathname.startsWith("/en/")) {
+    url.pathname = `/fa${pathname.slice(3)}`;
+    return NextResponse.redirect(url, 308);
+  }
   if (isLocale(pathname.split("/")[1])) return NextResponse.next();
 
-  const cookie = request.cookies.get(LOCALE_COOKIE)?.value;
-  const locale = isLocale(cookie) ? cookie : defaultLocale;
-  const url = request.nextUrl.clone();
-  url.pathname = `/${locale}${pathname === "/" ? "" : pathname}`;
-  return NextResponse.redirect(url);
+  url.pathname = `/${defaultLocale}${pathname === "/" ? "" : pathname}`;
+  return NextResponse.redirect(url, 308);
 }
 
 export const config = {
-  // Skip API (served by Django via Nginx), Next internals, health and files.
   matcher: ["/((?!api|_next|healthz|.*\\..*).*)"],
 };

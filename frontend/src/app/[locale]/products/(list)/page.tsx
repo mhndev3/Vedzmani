@@ -21,7 +21,6 @@ import { FilterDrawer } from "@/components/storefront/catalog/FilterDrawer";
 import {
   FilterForm,
   Pagination,
-  SearchForm,
   SortLinks,
 } from "@/components/storefront/catalog/CatalogControls";
 import { ProductCard } from "@/components/storefront/catalog/ProductCard";
@@ -73,10 +72,6 @@ export default async function ProductsPage({ params, searchParams }: Props) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.catalog.title}</h1>
-
-      <div className="mt-4">
-        <SearchForm locale={locale} t={t} state={state} />
-      </div>
 
       <div className={`mt-6 ${hasFilterOptions ? "lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-8" : ""}`}>
         {hasFilterOptions && options && (

@@ -102,6 +102,7 @@ export function ProductCard({
           noImage={t.catalog.noImage}
         />
         <h3 className="mt-3 line-clamp-2 text-sm font-medium">{product.name}</h3>
+        {product.code && <p className="mt-1 text-xs text-muted-foreground">کد محصول: {product.code}</p>}
         <Price
           price={product.price}
           salePrice={product.sale_price}

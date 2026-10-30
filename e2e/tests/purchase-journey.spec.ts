@@ -21,7 +21,7 @@ import { execSync } from "node:child_process";
 
 const otpLogCommand = process.env.E2E_OTP_LOG_COMMAND;
 const PRODUCT = "e2e-hoodie-10";
-const money = (value: string) => new Intl.NumberFormat("en-US").format(Number(value));
+const money = (value: string) => new Intl.NumberFormat("fa-IR").format(Number(value));
 
 async function readOtp(canonicalPhone: string): Promise<string> {
   const re = new RegExp(`phone=\\${canonicalPhone} purpose=login code=(\\d{6})`, "g");
@@ -38,57 +38,51 @@ test.describe("purchase journey (needs E2E_OTP_LOG_COMMAND)", () => {
   test.skip(!otpLogCommand, "E2E_OTP_LOG_COMMAND not set");
 
   test("browse, add to cart, sign in with OTP, check out, see the order Django created", async ({ page }) => {
-    // Storefront -> product list -> product detail
-    await page.goto("/en");
-    await page.goto("/en/products");
+    await page.goto("/fa");
+    await page.goto("/fa/products");
     await page.locator(`a[href$="/products/${PRODUCT}"]`).first().click();
-    await expect(page).toHaveURL(new RegExp(`/en/products/${PRODUCT}`));
+    await expect(page).toHaveURL(new RegExp(`/fa/products/${PRODUCT}`));
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Hoodie 10");
 
-    // Anonymous add to cart is refused by Django (401) and the UI offers sign-in instead of success.
-    await page.getByRole("radio", { name: "M" }).check({ force: true });
-    await page.getByRole("button", { name: "Add to cart" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "Sign in to use your cart." })).toBeVisible();
-    await expect(page.getByText("Added to your cart.")).toHaveCount(0);
+    await page.locator("label").filter({ has: page.getByRole("radio", { name: "M" }) }).click();
+    await page.getByRole("button", { name: "افزودن به سبد خرید" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "برای استفاده از سبد خرید وارد شوید." })).toBeVisible();
+    await expect(page.getByText("به سبد خرید اضافه شد.")).toHaveCount(0);
 
-    // Real OTP sign-in UI, returning to this product.
     const local = `0912${String(Date.now() % 1_000_000).padStart(6, "0")}7`;
-    await page.goto(`/en/sign-in?next=${encodeURIComponent(`/en/products/${PRODUCT}`)}`);
-    await page.getByLabel("Mobile number").fill(local);
-    await page.getByRole("button", { name: "Send code" }).click();
-    await expect(page.getByLabel("Verification code")).toBeVisible();
-    await page.getByLabel("Verification code").fill(await readOtp(`+98${local.slice(1)}`));
-    await page.getByRole("button", { name: "Verify and sign in" }).click();
-    await expect(page).toHaveURL(new RegExp(`/en/products/${PRODUCT}`));
+    await page.goto(`/fa/sign-in?next=${encodeURIComponent(`/fa/products/${PRODUCT}`)}`);
+    await page.getByLabel("شماره موبایل").fill(local);
+    await page.getByRole("button", { name: "ارسال کد" }).click();
+    await expect(page.getByLabel("کد تأیید")).toBeVisible();
+    await page.getByLabel("کد تأیید").fill(await readOtp(`+98${local.slice(1)}`));
+    await page.getByRole("button", { name: "تأیید و ورود" }).click();
+    await expect(page).toHaveURL(new RegExp(`/fa/products/${PRODUCT}`));
 
-    // Add to cart (real CSRF + session through Nginx), then open the cart.
-    await page.getByRole("radio", { name: "M" }).check({ force: true });
-    await page.getByRole("button", { name: "Add to cart" }).click();
-    await expect(page.getByText("Added to your cart.")).toBeVisible();
-    await page.getByRole("link", { name: "View cart" }).click();
-    await expect(page).toHaveURL(/\/en\/cart$/);
+    await page.locator("label").filter({ has: page.getByRole("radio", { name: "M" }) }).click();
+    await page.getByRole("button", { name: "افزودن به سبد خرید" }).click();
+    await expect(page.getByText("به سبد خرید اضافه شد.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "سبد خرید، ۱ کالا" })).toBeVisible();
+    await page.getByRole("link", { name: "مشاهده سبد خرید" }).click();
+    await expect(page).toHaveURL(/\/fa\/cart$/);
 
-    // The cart shown is exactly what the server returns.
     const cart = await (await page.request.get("/api/cart/")).json();
     expect(cart.items).toHaveLength(1);
     expect(cart.items[0].variant_size.sku).toBe(`${PRODUCT}-black-m`);
     await expect(page.getByTestId("cart-line")).toHaveCount(1);
     await expect(page.getByTestId("cart-total")).toHaveText(money(cart.total));
 
-    // Checkout: five delivery fields, order confirmed only after Django's 201.
-    await page.getByRole("link", { name: "Proceed to checkout" }).click();
-    await expect(page).toHaveURL(/\/en\/checkout$/);
-    await page.getByLabel("Recipient name").fill("Sara Ahmadi");
-    await page.getByLabel("Province").fill("Tehran");
-    await page.getByLabel("City").fill("Tehran");
-    await page.getByLabel("Address").fill("Valiasr St, No. 12");
-    await page.getByLabel("Postal code").fill("1234567890");
+    await page.getByRole("link", { name: "ادامه به ثبت سفارش" }).click();
+    await expect(page).toHaveURL(/\/fa\/checkout$/);
+    await page.getByLabel("نام گیرنده").fill("Sara Ahmadi");
+    await page.getByLabel("استان").fill("Tehran");
+    await page.getByLabel("شهر").fill("Tehran");
+    await page.getByLabel("نشانی").fill("Valiasr St, No. 12");
+    await page.getByLabel("کد پستی").fill("1234567890");
     const posted = page.waitForResponse((r) => r.url().endsWith("/api/orders/") && r.request().method() === "POST");
-    await page.getByRole("button", { name: "Place order" }).click();
+    await page.getByRole("button", { name: "ثبت سفارش" }).click();
     expect((await posted).status()).toBe(201);
-    await expect(page.getByRole("heading", { name: "Order placed" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toBeVisible();
 
-    // Backend state: one order, server-computed total, snapshot lines, cart emptied.
     const orders = await (await page.request.get("/api/orders/")).json();
     expect(orders).toHaveLength(1);
     expect(orders[0].total).toBe(cart.total);

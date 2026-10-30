@@ -39,12 +39,13 @@ from apps.catalog.models import (
 if not Product.objects.filter(slug="e2e-hoodie-01").exists():
     sizes = {c: Size.objects.get_or_create(code=c, defaults={"label": c.upper(), "position": i})[0] for i, c in enumerate(["s", "m", "l"])}
     hoodies = Category.objects.get_or_create(slug="hoodies", defaults={"name": "Hoodies", "position": 1})[0]
-    tees = Category.objects.get_or_create(slug="tees", defaults={"name": "Tees", "position": 2})[0]
+    tees = Category.objects.get_or_create(slug="t-shirts", defaults={"name": "تی شرت", "position": 2})[0]
     winter = Collection.objects.get_or_create(slug="winter", defaults={"name": "Winter"})[0]
 
     def make(n, category, label):
         p = Product.objects.create(
             category=category,
+            product_code=f"E2E-{label.upper()}-{n:02d}",
             name=f"{label} {n:02d}",
             slug=f"e2e-{label.lower()}-{n:02d}",
             description=f"Fixture {label} number {n}.\nSecond line.",

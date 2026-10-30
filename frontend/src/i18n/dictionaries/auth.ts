@@ -1,65 +1,8 @@
 import type { Locale } from "@/i18n/config";
 
-/**
- * Sign-in strings. Own module (like checkout.ts) so this flow does not conflict with other
- * storefront work. Both locales must define every key. Wording never claims SMS delivery works:
- * the provider is not configured yet and Django answers 503 in that case (`errors.otp_delivery_unavailable`).
- */
-const en = {
-  title: "Sign in",
-  intro: "Enter your mobile number and we will send you a one-time code.",
-  signInLink: "Sign in",
-  phone: {
-    label: "Mobile number",
-    hint: "For example 09123456789",
-    submit: "Send code",
-    submitting: "Sending code…",
-  },
-  code: {
-    label: "Verification code",
-    hint: "6 digits",
-    instruction: "Enter the 6-digit code sent to {phone}.",
-    submit: "Verify and sign in",
-    submitting: "Verifying…",
-    change: "Change number",
-    resend: "Resend code",
-    resendIn: "Resend code in {seconds}",
-    resent: "A new code was requested. Use the newest code.",
-  },
-  done: {
-    title: "You are signed in",
-    body: "Taking you back…",
-    continue: "Continue",
-  },
-  required: {
-    phone: "Enter your mobile number.",
-    code: "Enter the verification code.",
-  },
-  errors: {
-    invalid_phone: "Enter a valid Iranian mobile number, for example 09123456789.",
-    invalid_code_format: "Enter the 6-digit code.",
-    otp_invalid: "That code is not correct. Check it and try again.",
-    otp_expired: "This code has expired. Request a new code.",
-    otp_consumed: "This code was already used. Request a new code.",
-    otp_attempts_exceeded: "Too many incorrect attempts. Request a new code.",
-    rate_limited: "Too many requests. Please try again later.",
-    rate_limitedWait: "Too many requests. Try again in {time}.",
-    otp_delivery_unavailable:
-      "We can't send verification codes right now. Please try again later.",
-    account_disabled: "This account is disabled. Please contact support.",
-    csrf: "Your secure session could not be verified. Reload the page and try again.",
-    network: "Could not reach the store. Check your connection and try again.",
-    unexpected: "We got an unexpected response. Please try again.",
-    generic: "Something went wrong. Please try again.",
-    no_session:
-      "Your code was accepted but your browser did not keep the sign-in. Make sure cookies are enabled and try again.",
-  },
-};
-
 type Strings<T> = { [K in keyof T]: T[K] extends string ? string : Strings<T[K]> };
-export type AuthDictionary = Strings<typeof en>;
 
-const fa: AuthDictionary = {
+const fa = {
   title: "ورود",
   intro: "شماره موبایل خود را وارد کنید تا یک کد یک‌بارمصرف برایتان ارسال شود.",
   signInLink: "ورود",
@@ -109,8 +52,8 @@ const fa: AuthDictionary = {
   },
 };
 
-const dictionaries: Record<Locale, AuthDictionary> = { fa, en };
+export type AuthDictionary = Strings<typeof fa>;
 
-export function getAuthDictionary(locale: Locale): AuthDictionary {
-  return dictionaries[locale];
+export function getAuthDictionary(_locale: Locale): AuthDictionary {
+  return fa;
 }

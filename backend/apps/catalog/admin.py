@@ -20,6 +20,16 @@ from django.utils.html import format_html
 from .models import Category, Collection, ColorVariant, Product, Size, VariantImage, VariantSize
 
 
+class ProductAdminForm(forms.ModelForm):
+    product_code = forms.CharField(label="کد محصول", max_length=40, required=True)
+
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+
+
+
 # --- inlines ---------------------------------------------------------------
 class ColorVariantInline(admin.TabularInline):
     model = ColorVariant
@@ -120,13 +130,14 @@ class SizeAdmin(admin.ModelAdmin):
 # --- product ------------------------------------------------------------------
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    form = ProductAdminForm
     list_display = (
-        "name", "category", "is_active", "price", "sale_price", "current_price", "variant_count", "updated_at",
+        "product_code", "name", "category", "is_active", "price", "sale_price", "current_price", "variant_count", "updated_at",
     )
     list_editable = ("is_active",)
     list_filter = ("is_active", "category", "collections")
     list_select_related = ("category",)
-    search_fields = ("name", "slug", "color_variants__sizes__sku")
+    search_fields = ("product_code", "name", "slug", "color_variants__sizes__sku")
     ordering = ("-created_at", "-id")
     autocomplete_fields = ("category",)
     filter_horizontal = ("collections",)
@@ -134,7 +145,7 @@ class ProductAdmin(admin.ModelAdmin):
     readonly_fields = ("current_price", "created_at", "updated_at")
     inlines = [ColorVariantInline]
     fieldsets = (
-        (None, {"fields": ("name", "slug", "category", "collections", "description")}),
+        (None, {"fields": ("product_code", "name", "slug", "category", "collections", "description")}),
         ("Pricing", {"fields": ("price", "sale_price", "current_price")}),
         ("Publication", {"fields": ("is_active",)}),
         ("Timestamps", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),

@@ -1,59 +1,45 @@
 import { expect, test } from "@playwright/test";
 import { defaultDestination, safeRedirectPath, signInHref } from "../../frontend/src/lib/auth/redirect";
 
-/** Pure unit tests (no browser, no server): the `?next=` open-redirect guard. */
+/** Pure unit tests for the Persian-only locale-prefixed open-redirect guard. */
 test.describe("safeRedirectPath", () => {
-  const fallback = defaultDestination("en");
+  const fallback = defaultDestination("fa");
 
-  test("keeps same-origin locale-prefixed paths and queries", () => {
-    expect(safeRedirectPath("/en/checkout", "en")).toBe("/en/checkout");
-    expect(safeRedirectPath("/en/products/some-shirt", "en")).toBe("/en/products/some-shirt");
-    expect(safeRedirectPath("/en/products?color=black&size=m", "en")).toBe("/en/products?color=black&size=m");
-    expect(safeRedirectPath("/en", "en")).toBe("/en");
+  test("keeps same-origin Persian paths and queries", () => {
+    expect(safeRedirectPath("/fa/checkout", "fa")).toBe("/fa/checkout");
+    expect(safeRedirectPath("/fa/products/some-shirt", "fa")).toBe("/fa/products/some-shirt");
+    expect(safeRedirectPath("/fa/products?color=black&size=m", "fa")).toBe("/fa/products?color=black&size=m");
+    expect(safeRedirectPath("/fa", "fa")).toBe("/fa");
   });
 
-  test("re-prefixes with the current locale", () => {
-    expect(safeRedirectPath("/fa/checkout", "en")).toBe("/en/checkout");
-    expect(safeRedirectPath("/en/cart", "fa")).toBe("/fa/cart");
+  test("rejects unsupported locales and re-prefixes only the supported locale", () => {
+    expect(safeRedirectPath("/en/cart", "fa")).toBe(fallback);
+    expect(safeRedirectPath("/de/checkout", "fa")).toBe(fallback);
+    expect(safeRedirectPath("/fa/cart", "fa")).toBe("/fa/cart");
   });
 
   test("drops the hash", () => {
-    expect(safeRedirectPath("/en/cart#x", "en")).toBe("/en/cart");
+    expect(safeRedirectPath("/fa/cart#x", "fa")).toBe("/fa/cart");
   });
 
   for (const bad of [
-    "//evil.com",
-    "//evil.com/en/cart",
-    "/\\evil.com",
-    "/\\/evil.com",
-    "https://evil.com/en/cart",
-    "http://evil.com",
-    "javascript:alert(1)",
-    "data:text/html,x",
-    "evil.com",
-    "checkout",
-    "",
-    "/",
-    "/checkout",
-    "/de/checkout",
-    "/en/../admin/",
-    "/en/%2e%2e/admin/",
-    "/\t/evil.com",
-    "/en/cart\nSet-Cookie: x=1",
-    "/en/sign-in",
-    "/en/sign-in?next=/en/cart",
-    "/en/" + "a".repeat(600),
+    "//evil.com", "//evil.com/fa/cart", "/\\evil.com", "/\\/evil.com",
+    "https://evil.com/fa/cart", "http://evil.com", "javascript:alert(1)",
+    "data:text/html,x", "evil.com", "checkout", "", "/", "/checkout",
+    "/fa/../admin/", "/fa/%2e%2e/admin/", "/\t/evil.com",
+    "/fa/cart\nSet-Cookie: x=1", "/fa/sign-in", "/fa/sign-in?next=/fa/cart",
+    "/fa/" + "a".repeat(600),
   ]) {
     test(`rejects ${JSON.stringify(bad).slice(0, 40)}`, () => {
-      expect(safeRedirectPath(bad, "en")).toBe(fallback);
+      expect(safeRedirectPath(bad, "fa")).toBe(fallback);
     });
   }
 
   test("rejects non-strings and uses the first of repeated params", () => {
-    expect(safeRedirectPath(undefined, "en")).toBe(fallback);
-    expect(safeRedirectPath(42, "en")).toBe(fallback);
-    expect(safeRedirectPath(["/en/cart", "//evil.com"], "en")).toBe("/en/cart");
-    expect(safeRedirectPath(["//evil.com", "/en/cart"], "en")).toBe(fallback);
+    expect(safeRedirectPath(undefined, "fa")).toBe(fallback);
+    expect(safeRedirectPath(42, "fa")).toBe(fallback);
+    expect(safeRedirectPath(["/fa/cart", "//evil.com"], "fa")).toBe("/fa/cart");
+    expect(safeRedirectPath(["//evil.com", "/fa/cart"], "fa")).toBe(fallback);
   });
 
   test("signInHref encodes the destination", () => {

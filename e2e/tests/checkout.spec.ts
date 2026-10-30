@@ -66,21 +66,21 @@ async function addToCart(page: Page, variantSizeId: number, quantity: number) {
 }
 
 const getJson = async (page: Page, url: string) => (await page.request.get(url)).json();
-const money = (value: string) => new Intl.NumberFormat("en-US").format(Number(value));
+const money = (value: string) => new Intl.NumberFormat("fa-IR").format(Number(value));
 
 const DELIVERY = {
-  "Recipient name": "Sara Ahmadi",
-  Province: "Tehran",
-  City: "Tehran",
-  Address: "Valiasr St, No. 12",
-  "Postal code": "1234567890",
+  "نام گیرنده": "Sara Ahmadi",
+  استان: "Tehran",
+  شهر: "Tehran",
+  نشانی: "Valiasr St, No. 12",
+  "کد پستی": "1234567890",
 };
 
 async function fillDelivery(page: Page, values: Record<string, string> = DELIVERY) {
   for (const [label, value] of Object.entries(values)) await page.getByLabel(label).fill(value);
 }
 
-const placeOrder = (page: Page) => page.getByRole("button", { name: "Place order" });
+const placeOrder = (page: Page) => page.getByRole("button", { name: "ثبت سفارش" });
 
 test.describe("checkout", () => {
   test.skip(({}, testInfo) => !backendDir && testInfo.title !== ANON, "E2E_BACKEND_DIR not set");
@@ -89,17 +89,17 @@ test.describe("checkout", () => {
   test(ANON, async ({ page }) => {
     let orderRequests = 0;
     page.on("request", (r) => r.url().includes("/api/orders/") && orderRequests++);
-    await page.goto("/en/checkout");
-    await expect(page.getByRole("heading", { name: "Sign in to continue" })).toBeVisible();
+    await page.goto("/fa/checkout");
+    await expect(page.getByRole("heading", { name: "برای ادامه وارد شوید" })).toBeVisible();
     await expect(placeOrder(page)).toHaveCount(0);
     expect(orderRequests).toBe(0);
   });
 
   test("signed-in customer with an empty cart sees the empty state", async ({ page, baseURL }) => {
     await signIn(page, baseURL!);
-    await page.goto("/en/checkout");
-    await expect(page.getByRole("heading", { name: "Your cart is empty" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Browse products" })).toHaveAttribute("href", "/en/products");
+    await page.goto("/fa/checkout");
+    await expect(page.getByRole("heading", { name: "سبد خرید شما خالی است" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "مشاهده محصولات" })).toHaveAttribute("href", "/fa/products");
     await expect(placeOrder(page)).toHaveCount(0);
   });
 
@@ -109,14 +109,14 @@ test.describe("checkout", () => {
     let posts = 0;
     page.on("request", (r) => r.url().includes("/api/orders/") && r.method() === "POST" && posts++);
 
-    await page.goto("/en/checkout");
+    await page.goto("/fa/checkout");
     await placeOrder(page).click();
-    await expect(page.getByText("This field is required.")).toHaveCount(5);
-    await expect(page.getByLabel("Recipient name")).toBeFocused();
+    await expect(page.getByText("این فیلد الزامی است.")).toHaveCount(5);
+    await expect(page.getByLabel("نام گیرنده")).toBeFocused();
 
-    await fillDelivery(page, { ...DELIVERY, "Postal code": "123" });
+    await fillDelivery(page, { ...DELIVERY, "کد پستی": "123" });
     await placeOrder(page).click();
-    await expect(page.getByText("Enter a 10-digit postal code.")).toBeVisible();
+    await expect(page.getByText("کد پستی ۱۰ رقمی وارد کنید.")).toBeVisible();
     expect(posts).toBe(0);
     expect((await getJson(page, "/api/cart/")).items).toHaveLength(1);
     expect(await getJson(page, "/api/orders/")).toHaveLength(0);
@@ -128,10 +128,10 @@ test.describe("checkout", () => {
     await addToCart(page, s.variantSizeIds["e2e-tee-04-black-m"], 1);
     const cart = await getJson(page, "/api/cart/");
 
-    await page.goto("/en/checkout");
+    await page.goto("/fa/checkout");
     await expect(page.getByTestId("cart-total")).toHaveText(money(cart.total));
 
-    await fillDelivery(page, { ...DELIVERY, "Postal code": "۱۲۳۴۵۶۷۸۹۰" }); // Persian digits
+    await fillDelivery(page, { ...DELIVERY, "کد پستی": "۱۲۳۴۵۶۷۸۹۰" }); // Persian digits
     const posted = page.waitForRequest((r) => r.url().endsWith("/api/orders/") && r.method() === "POST");
     await placeOrder(page).click();
 
@@ -142,14 +142,14 @@ test.describe("checkout", () => {
     );
     expect(request.headers()["x-csrftoken"]).toBeTruthy();
 
-    await expect(page.getByRole("heading", { name: "Order placed" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toBeVisible();
     const orders = await getJson(page, "/api/orders/");
     expect(orders).toHaveLength(1);
     await expect(page.getByTestId("order-id")).toHaveText(String(orders[0].id));
     await expect(page.getByTestId("order-total")).toHaveText(money(orders[0].total));
     expect(orders[0].payment_status).toBe("unpaid");
-    await expect(page.getByText("Not paid. No payment has been taken.")).toBeVisible();
-    await expect(page.getByText("Shipping is not included").first()).toBeVisible();
+    await expect(page.getByText("پرداخت نشده. هیچ مبلغی دریافت نشده است.")).toBeVisible();
+    await expect(page.getByText("هزینه ارسال شامل نمی‌شود").first()).toBeVisible();
     await expect(page.getByText("Sara Ahmadi")).toBeVisible();
     expect((await getJson(page, "/api/cart/")).items).toHaveLength(0); // cleared by Django, not by the UI
   });
@@ -166,11 +166,11 @@ test.describe("checkout", () => {
       await route.continue();
     });
 
-    await page.goto("/en/checkout");
+    await page.goto("/fa/checkout");
     await fillDelivery(page);
     await placeOrder(page).dblclick();
-    await page.getByLabel("Postal code").press("Enter"); // a third attempt while still in flight
-    await expect(page.getByRole("heading", { name: "Order placed" })).toBeVisible();
+    await page.getByLabel("کد پستی").press("Enter"); // a third attempt while still in flight
+    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toBeVisible();
     expect(posts).toBe(1);
     expect(await getJson(page, "/api/orders/")).toHaveLength(1);
   });
@@ -181,7 +181,7 @@ test.describe("checkout", () => {
   }) => {
     const s = await signIn(page, baseURL!);
     await addToCart(page, s.variantSizeIds["e2e-hoodie-05-black-m"], 1);
-    await page.goto("/en/checkout");
+    await page.goto("/fa/checkout");
     await fillDelivery(page);
 
     // The order is placed elsewhere (another tab/device) while this page is still open.
@@ -192,8 +192,8 @@ test.describe("checkout", () => {
     expect(other.status()).toBe(201);
 
     await placeOrder(page).click();
-    await expect(page.getByRole("heading", { name: "Please check before ordering again" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Order placed" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "پیش از سفارش مجدد بررسی کنید" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toHaveCount(0);
     expect(await getJson(page, "/api/orders/")).toHaveLength(1);
   });
 
@@ -204,17 +204,17 @@ test.describe("checkout", () => {
     const s = await signIn(page, baseURL!);
     const sku = "e2e-tee-06-black-m";
     await addToCart(page, s.variantSizeIds[sku], 3);
-    await page.goto("/en/checkout");
+    await page.goto("/fa/checkout");
     await fillDelivery(page);
 
     helper({ E2E_ACTION: "set_stock", E2E_SKU: sku, E2E_STOCK: "1" }); // stock drops after carting
     await placeOrder(page).click();
 
-    await expect(page.getByText("There isn't enough stock for one or more items.")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Order placed" })).toHaveCount(0);
-    await expect(page.getByLabel("Recipient name")).toHaveValue(DELIVERY["Recipient name"]);
-    await expect(page.getByLabel("Address")).toHaveValue(DELIVERY.Address);
-    await expect(page.getByText("Not enough stock").first()).toBeVisible(); // refreshed cart line
+    await expect(page.getByText("موجودی یک یا چند کالا کافی نیست.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toHaveCount(0);
+    await expect(page.getByLabel("نام گیرنده")).toHaveValue(DELIVERY["نام گیرنده"]);
+    await expect(page.getByLabel("نشانی")).toHaveValue(DELIVERY.نشانی);
+    await expect(page.getByText("موجودی کافی نیست").first()).toBeVisible(); // refreshed cart line
     expect(await getJson(page, "/api/orders/")).toHaveLength(0);
     expect((await getJson(page, "/api/cart/")).items).toHaveLength(1);
   });
@@ -238,18 +238,18 @@ test.describe("checkout", () => {
           : route.continue();
       await page.route("**/api/orders/", handler);
 
-      await page.goto("/en/checkout");
+      await page.goto("/fa/checkout");
       await fillDelivery(page);
       await placeOrder(page).click();
 
-      await expect(page.getByText("We couldn't confirm whether your order was placed.")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Order placed" })).toHaveCount(0);
-      await expect(page.getByLabel("City")).toHaveValue("Tehran");
+      await expect(page.getByText("نتوانستیم تأیید کنیم که سفارش ثبت شده است یا نه.")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toHaveCount(0);
+      await expect(page.getByLabel("شهر")).toHaveValue("Tehran");
       await expect(placeOrder(page)).toBeEnabled();
 
       await page.unroute("**/api/orders/", handler); // connection recovers: the customer retries
       await placeOrder(page).click();
-      await expect(page.getByRole("heading", { name: "Order placed" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toBeVisible();
       expect(await getJson(page, "/api/orders/")).toHaveLength(1);
     });
   }

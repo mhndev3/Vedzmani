@@ -34,6 +34,12 @@ export const SunIcon = (p: SVGProps<SVGSVGElement>) => (
 export const MoonIcon = (p: SVGProps<SVGSVGElement>) => (
   <Svg {...p}><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z" /></Svg>
 );
+export const SearchIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Svg {...p}><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 5 5" /></Svg>
+);
+export const BagIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Svg {...p}><path d="M5 8h14l1 13H4L5 8Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></Svg>
+);
 export const GlobeIcon = (p: SVGProps<SVGSVGElement>) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="9" />
