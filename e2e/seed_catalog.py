@@ -31,6 +31,7 @@ from apps.catalog.models import (
     Collection,
     ColorVariant,
     Product,
+    ProductSizeMeasurement,
     Size,
     VariantImage,
     VariantSize,
@@ -55,6 +56,16 @@ if not Product.objects.filter(slug="e2e-hoodie-01").exists():
         )
         if label == "Hoodie":
             p.collections.add(winter)
+        if p.slug == "e2e-hoodie-01":
+            ProductSizeMeasurement.objects.create(
+                product=p, size=sizes["m"], name="عرض سینه", value="56", unit="سانتی‌متر", position=0
+            )
+            ProductSizeMeasurement.objects.create(
+                product=p, size=sizes["m"], name="قد کار", value="64", unit="سانتی‌متر", position=1
+            )
+            ProductSizeMeasurement.objects.create(
+                product=p, size=sizes["l"], name="عرض سینه", value="59", unit="سانتی‌متر", position=0
+            )
         for pos, (slug, name, hexc) in enumerate([("black", "Black", "#111111"), ("white", "White", "#f5f5f5")]):
             v = ColorVariant.objects.create(product=p, name=name, slug=slug, hex_color=hexc, position=pos)
             for image_position, image_kind in enumerate(("front", "detail")):
