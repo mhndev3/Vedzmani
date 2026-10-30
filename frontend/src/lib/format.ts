@@ -9,7 +9,7 @@ import { localeMeta } from "@/i18n/config";
 /** Format a whole number without losing precision for large server-owned Decimal strings. */
 export function formatPrice(value: string | number, locale: Locale): string {
   const raw = String(value).trim();
-  const formattedValue = /^-?\\d+$/.test(raw) ? BigInt(raw) : Number(value);
+  const formattedValue = /^-?\d+$/.test(raw) ? BigInt(raw) : Number(value);
   return new Intl.NumberFormat(localeMeta[locale].numberLocale, {
     maximumFractionDigits: 0,
   }).format(formattedValue);
