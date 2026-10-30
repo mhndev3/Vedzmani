@@ -91,9 +91,10 @@ export function stateToParams(state: CatalogState): URLSearchParams {
   return p;
 }
 
-export function catalogHref(locale: Locale, state: CatalogState): string {
+export function catalogHref(locale: Locale, state: CatalogState, basePath?: string): string {
   const qs = stateToParams(state).toString();
-  return `/${locale}/products${qs ? `?${qs}` : ""}`;
+  const base = basePath ?? "/" + locale + "/products";
+  return base + (qs ? "?" + qs : "");
 }
 
 export const emptyState: CatalogState = {
