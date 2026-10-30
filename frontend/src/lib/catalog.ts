@@ -173,7 +173,7 @@ export type ProductDetail = {
       width: number;
       height: number;
     }[];
-    sizes: { id: number; size: string; label: string; sku: string; in_stock: boolean }[];
+    sizes: { id: number; size: string; label: string; sku: string; in_stock: boolean; stock_quantity: number }[];
   }[];
 };
 
