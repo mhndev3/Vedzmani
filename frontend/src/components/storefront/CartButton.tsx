@@ -41,10 +41,12 @@ export function CartButton({ locale }: { locale: Locale }) {
     };
   }, [pathname]);
 
+  const accessibleCount = new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(count);
+
   return (
     <Link
       href={`/${locale}/cart`}
-      aria-label={count > 0 ? `سبد خرید، ${count} کالا` : "سبد خرید"}
+      aria-label={count > 0 ? `سبد خرید، ${accessibleCount} کالا` : "سبد خرید"}
       className="relative inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted"
     >
       <BagIcon width={19} height={19} />
