@@ -96,9 +96,11 @@ export default async function ProductPage({ params, searchParams }: Props) {
           colorName={color?.name ?? ""}
           variantKey={color?.slug ?? "none"}
           labels={{
+            gallery: t.product.gallery,
             previous: t.product.galleryPrevious,
             next: t.product.galleryNext,
             slide: t.product.gallerySlide,
+            noImages: t.product.noImages,
           }}
         />
 
