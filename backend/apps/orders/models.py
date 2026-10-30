@@ -10,8 +10,7 @@ Delivery details (recipient name, province, city, address, postal code) are snap
 Orders created before delivery details existed keep blank values for these columns (see ORDERS.md).
 
 `payment_status` is server-owned and has the single value `unpaid`; nothing in the code base moves an order out of
-it (no payment provider is integrated, see PAYMENT.md). Status workflow, shipping cost, currency and tax are
-intentionally NOT modelled yet.
+it (no payment provider is integrated, see PAYMENT.md). Status workflow, shipping cost and tax are intentionally NOT modelled yet. All monetary values use Iranian Toman.
 """
 
 from django.conf import settings
