@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
-import { formatCurrency, type CatalogImage, type ProductCardData } from "@/lib/format";
+import { type CatalogImage, type ProductCardData } from "@/lib/catalog";
+import { formatCurrency } from "@/lib/format";
 
 /** Shows real prices only: a struck-through original appears solely when the backend sends a sale_price. */
 export function Price({
