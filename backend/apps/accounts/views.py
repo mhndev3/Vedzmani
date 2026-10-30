@@ -1,6 +1,7 @@
 """Auth API. Django session authentication; CSRF is enforced on every POST."""
 
 from django.conf import settings
+from django.db import IntegrityError, transaction
 from django.contrib.auth import login, logout
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
@@ -10,6 +11,7 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.exceptions import ErrorDetail, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -107,5 +109,13 @@ class ProfileView(APIView):
     def patch(self, request):
         serializer = CustomerProfileSerializer(request.user, data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            # The database unique constraint closes the race between two simultaneous
+            # profile updates that pass the serializer's preflight uniqueness query.
+            raise ValidationError({
+                "national_code": [ErrorDetail("این کد ملی قبلاً ثبت شده است.", code="unique")]
+            }) from None
         return Response(serializer.data)
