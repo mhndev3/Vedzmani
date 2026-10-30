@@ -16,6 +16,7 @@ export type AddToCartLabels = {
   added: string;
   viewCart: string;
   sizeRequired: string;
+  sizeMeasurements: string;
 };
 
 type Status =
@@ -36,7 +37,13 @@ export function AddToCart({
   errors,
 }: {
   locale: Locale;
-  sizes: { id: number; label: string; in_stock: boolean; stock_quantity: number }[];
+  sizes: {
+    id: number;
+    label: string;
+    in_stock: boolean;
+    stock_quantity: number;
+    measurements: { name: string; value: string; unit: string }[];
+  }[];
   labels: AddToCartLabels;
   errors: Record<string, string>;
 }) {
@@ -45,6 +52,7 @@ export function AddToCart({
   const pathname = usePathname();
   const inFlight = useRef(false);
   const anyInStock = sizes.some((s) => s.stock_quantity > 0);
+  const selectedSize = sizes.find((size) => size.id === selected) ?? null;
   const pending = status.kind === "pending";
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -97,6 +105,31 @@ export function AddToCart({
           ))}
         </div>
       </fieldset>
+
+      {selectedSize && selectedSize.measurements.length > 0 && (
+        <section className="mt-6" aria-live="polite" aria-atomic="true">
+          <h2 className="mb-2 text-sm font-semibold">
+            {labels.sizeMeasurements.replace("{size}", selectedSize.label)}
+          </h2>
+          <table
+            className="w-full border-collapse overflow-hidden rounded-lg text-sm"
+            aria-label={labels.sizeMeasurements.replace("{size}", selectedSize.label)}
+          >
+            <tbody>
+              {selectedSize.measurements.map((measurement, index) => (
+                <tr key={`${selectedSize.id}-${index}`} className="border-b border-border last:border-0">
+                  <th scope="row" className="w-1/2 bg-muted/60 px-3 py-2 text-start font-medium">
+                    {measurement.name}
+                  </th>
+                  <td dir="ltr" className="px-3 py-2 text-start">
+                    {measurement.value}{measurement.unit ? ` ${measurement.unit}` : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <div className="mt-8">
         <button
