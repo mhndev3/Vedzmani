@@ -32,8 +32,28 @@ test("hamburger menu contains the requested categories and support links", async
   for (const category of ["دورس", "پیراهن", "تی شرت", "هودی", "کاپشن", "جکت", "شلوار جین", "شلوار پارچه ای", "جاگر", "کتونی", "اکسسوری"]) {
     await expect(dialog.getByRole("link", { name: category })).toBeVisible();
   }
+  for (const name of ["همه محصولات", "درباره ما", "سوالات متداول", "پشتیبانی"]) {
+    await expect(dialog.getByRole("link", { name })).toBeVisible();
+  }
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
+});
+
+test("cart icon badge updates immediately after a successful add-to-cart response", async ({ page }) => {
+  await page.route("**/api/cart/", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ item_count: 0 }) }),
+  );
+  await page.route("**/api/auth/csrf/", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ csrfToken: "e2e-csrf" }) }),
+  );
+  await page.route("**/api/cart/items/", (route) =>
+    route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ item_count: 1 }) }),
+  );
+
+  await page.goto("/fa/products/e2e-hoodie-01");
+  await page.getByRole("radio", { name: "M" }).check();
+  await page.getByRole("button", { name: "افزودن به سبد خرید" }).click();
+  await expect(page.getByRole("link", { name: "سبد خرید، ۱ کالا" })).toBeVisible();
 });
 
 test("header hides while scrolling and returns after scrolling stops", async ({ page }) => {
