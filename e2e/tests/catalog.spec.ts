@@ -138,11 +138,13 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(mTable).toBeVisible();
     await expect(mTable).toContainText("56 سانتی‌متر");
     await expect(mTable).toContainText("64 سانتی‌متر");
+    await expect(page.getByText("توضیح اختصاصی رنگ مشکی و سایز M", { exact: true })).toBeVisible();
     await page.locator("label").filter({ has: page.getByRole("radio", { name: "L" }) }).click();
     const lTable = page.getByRole("table", { name: "اندازه‌های سایز L" });
     await expect(lTable).toBeVisible();
     await expect(lTable).toContainText("59 سانتی‌متر");
     await expect(lTable).not.toContainText("56 سانتی‌متر");
+    await expect(page.getByText("توضیح مشترک سایز L", { exact: true })).toBeVisible();
 
     const gallery = page.getByRole("region", { name: "تصاویر محصول" });
     const mainImage = gallery.getByRole("img");
