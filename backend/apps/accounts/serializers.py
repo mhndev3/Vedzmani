@@ -49,7 +49,7 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(max_length=150, trim_whitespace=True)
     address = serializers.CharField(max_length=1000, trim_whitespace=True)
     postal_code = serializers.CharField(max_length=20, trim_whitespace=True)
-    national_code = serializers.CharField(max_length=10, trim_whitespace=True)
+    national_code = serializers.CharField(max_length=32, trim_whitespace=True)
     is_complete = serializers.SerializerMethodField()
 
     class Meta:
