@@ -19,7 +19,7 @@ test("hero banner uses supplied VZ artwork and is not a link", async ({ page }) 
   await page.goto("/fa");
   const hero = page.locator("section[aria-label='بنر ویژه ودزمانی']");
   await expect(hero).toBeVisible();
-  await expect(hero.locator("img")).toHaveAttribute("src", /vedzmani-banner-vz\\.svg/);
+  await expect(hero.locator("img")).toHaveAttribute("src", /vedzmani-banner-vz\.svg/);
   await expect(hero.locator("a")).toHaveCount(0);
 });
 
