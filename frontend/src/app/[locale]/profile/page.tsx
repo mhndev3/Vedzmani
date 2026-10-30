@@ -47,7 +47,7 @@ export default async function ProfilePage({ params }: Props) {
             <dt className="text-muted-foreground">{t.profile.phone}</dt>
             <dd className="mt-1" dir="ltr" style={{ textAlign: "start" }}>{state.profile.phone}</dd>
           </dl>
-          <ProfileForm initialProfile={state.profile} />
+          <ProfileForm initialProfile={state.profile} locale={locale} />
         </>
       )}
       {state.kind === "anonymous" && (
