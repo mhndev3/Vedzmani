@@ -6,8 +6,9 @@ import { ProfileForm } from "@/components/profile/ProfileForm";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { ApiError, apiGet } from "@/lib/api";
+import { safeRedirectPath } from "@/lib/auth/redirect";
 
-type Props = { params: Promise<{ locale: string }> };
+type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ next?: string | string[] }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
@@ -32,10 +33,12 @@ async function getMe(): Promise<MeState> {
   }
 }
 
-export default async function ProfilePage({ params }: Props) {
+export default async function ProfilePage({ params, searchParams }: Props) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
+  const { next } = await searchParams;
+  const continueTo = safeRedirectPath(next, locale);
   const state = await getMe();
 
   return (
@@ -47,7 +50,7 @@ export default async function ProfilePage({ params }: Props) {
             <dt className="text-muted-foreground">{t.profile.phone}</dt>
             <dd className="mt-1" dir="ltr" style={{ textAlign: "start" }}>{state.profile.phone}</dd>
           </dl>
-          <ProfileForm initialProfile={state.profile} locale={locale} />
+          <ProfileForm initialProfile={state.profile} locale={locale} continueTo={continueTo} />
         </>
       )}
       {state.kind === "anonymous" && (
@@ -55,7 +58,7 @@ export default async function ProfilePage({ params }: Props) {
           <p>{t.profile.signedOut}</p>
           <p className="mt-2 text-muted-foreground">{t.profile.signedOutHint}</p>
           <div className="mt-4">
-            <SignInLink locale={locale} next={`/${locale}/profile`} />
+            <SignInLink locale={locale} next={continueTo} />
           </div>
         </div>
       )}
