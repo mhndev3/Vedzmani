@@ -146,7 +146,9 @@ class SizeAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
     list_display = (
-        "product_code", "name", "category", "is_active", "price", "sale_price", "current_price", "variant_count", "updated_at",
+        "product_code", "name", "category", "is_active",
+        "base_price_toman", "sale_price_toman", "current_price_toman",
+        "variant_count", "updated_at",
     )
     list_editable = ("is_active",)
     list_filter = ("is_active", "category", "collections")
@@ -164,6 +166,18 @@ class ProductAdmin(admin.ModelAdmin):
         ("Publication", {"fields": ("is_active",)}),
         ("Timestamps", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
+
+    @admin.display(description="قیمت پایه (تومان)", ordering="price")
+    def base_price_toman(self, obj):
+        return obj.price
+
+    @admin.display(description="قیمت با تخفیف (تومان)", ordering="sale_price")
+    def sale_price_toman(self, obj):
+        return obj.sale_price if obj.sale_price is not None else "—"
+
+    @admin.display(description="قیمت فعلی (تومان)", ordering="sale_price")
+    def current_price_toman(self, obj):
+        return obj.current_price
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(_variant_count=Count("color_variants", distinct=True))
