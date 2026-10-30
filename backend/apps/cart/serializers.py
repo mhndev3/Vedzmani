@@ -22,7 +22,7 @@ class UpdateItemSerializer(serializers.Serializer):
     validate_quantity = AddItemSerializer.validate_quantity
 
 
-# --- response (money is a whole-unit Decimal rendered as a string, like the catalog) ---
+# --- response (money is a whole-Toman Decimal rendered as a string, like the catalog) ---
 
 _MONEY = dict(max_digits=18, decimal_places=0, read_only=True)
 
