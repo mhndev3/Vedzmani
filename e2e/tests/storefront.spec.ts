@@ -39,20 +39,45 @@ test("hamburger menu contains the requested categories and support links", async
   await expect(dialog).toBeHidden();
 });
 
-test("cart icon badge updates immediately after a successful add-to-cart response", async ({ page }) => {
-  await page.route("**/api/cart/", (route) =>
-    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ item_count: 0 }) }),
-  );
+test("cart icon badge stays current when the initial cart request resolves after add-to-cart", async ({ page }) => {
+  let releaseInitialGet!: () => void;
+  const initialGet = new Promise<void>((resolve) => {
+    releaseInitialGet = resolve;
+  });
+  let initialGetPending = true;
+
+  await page.route("**/api/cart/", async (route) => {
+    if (initialGetPending) {
+      initialGetPending = false;
+      await initialGet;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ item_count: 0 }),
+    });
+  });
   await page.route("**/api/auth/csrf/", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ csrfToken: "e2e-csrf" }) }),
   );
   await page.route("**/api/cart/items/", (route) =>
-    route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ item_count: 1 }) }),
+    route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ item_count: 1 }),
+    }),
   );
 
   await page.goto("/fa/products/e2e-hoodie-01");
+  const cartUpdated = page.evaluate(
+    () => new Promise<void>((resolve) => window.addEventListener("vedzmani:cart-updated", () => resolve(), { once: true })),
+  );
   await page.locator("label").filter({ has: page.getByRole("radio", { name: "M" }) }).click();
   await page.getByRole("button", { name: "افزودن به سبد خرید" }).click();
+  await cartUpdated;
+
+  // Release the stale initial GET only after the successful mutation event reached the header.
+  releaseInitialGet();
   await expect(page.getByRole("link", { name: "سبد خرید، ۱ کالا" })).toBeVisible();
 });
 
