@@ -51,7 +51,7 @@ test("cart icon badge updates immediately after a successful add-to-cart respons
   );
 
   await page.goto("/fa/products/e2e-hoodie-01");
-  await page.getByRole("radio", { name: "M" }).check();
+  await page.locator("label").filter({ has: page.getByRole("radio", { name: "M" }) }).click();
   await page.getByRole("button", { name: "افزودن به سبد خرید" }).click();
   await expect(page.getByRole("link", { name: "سبد خرید، ۱ کالا" })).toBeVisible();
 });
@@ -59,7 +59,7 @@ test("cart icon badge updates immediately after a successful add-to-cart respons
 test("header hides while scrolling and returns after scrolling stops", async ({ page }) => {
   await page.goto("/fa/products");
   const header = page.locator("header").first();
-  await page.evaluate(() => window.scrollTo(0, 500));
+  await page.evaluate(() => window.dispatchEvent(new Event("scroll")));
   await expect(header).toHaveAttribute("aria-hidden", "true");
   await expect(header).toHaveAttribute("aria-hidden", "false", { timeout: 1500 });
 });
