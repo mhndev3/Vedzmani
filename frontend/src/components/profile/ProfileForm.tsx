@@ -3,12 +3,13 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BrowserApiError } from "@/lib/browser-api";
+import type { Locale } from "@/i18n/config";
 import { authApi, type CustomerProfile, type CustomerProfileInput } from "@/lib/auth/api";
 
-type Props = { initialProfile: CustomerProfile };
+type Props = { initialProfile: CustomerProfile; locale: Locale };
 const field = "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base placeholder:text-muted-foreground";
 
-export function ProfileForm({ initialProfile }: Props) {
+export function ProfileForm({ initialProfile, locale }: Props) {
   const router = useRouter();
   const [values, setValues] = useState<CustomerProfileInput>({
     first_name: initialProfile.first_name,
@@ -57,7 +58,7 @@ export function ProfileForm({ initialProfile }: Props) {
     setLoggingOut(true);
     try {
       await authApi.logout();
-      router.replace("/fa");
+      router.replace("/" + locale);
       router.refresh();
     } catch {
       setError("خروج از حساب انجام نشد. دوباره تلاش کنید.");
