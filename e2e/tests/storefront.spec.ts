@@ -58,6 +58,9 @@ test("cart icon badge updates immediately after a successful add-to-cart respons
 
 test("header hides while scrolling and returns after scrolling stops", async ({ page }) => {
   await page.goto("/fa/products");
+  const menuButton = page.getByRole("button", { name: "باز کردن منو" });
+  await menuButton.click();
+  await page.keyboard.press("Escape");
   const header = page.locator("header").first();
   await page.evaluate(() => window.dispatchEvent(new Event("scroll")));
   await expect(header).toHaveAttribute("aria-hidden", "true");
