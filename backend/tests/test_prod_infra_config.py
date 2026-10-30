@@ -15,15 +15,17 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = REPO_ROOT / "docker-compose.prod.yml"
+DEV_COMPOSE = REPO_ROOT / "docker-compose.yml"
 ENV_EXAMPLE = REPO_ROOT / ".env.production.example"
 PROD_CONF = REPO_ROOT / "nginx" / "prod.conf"
+DEV_CONF = REPO_ROOT / "nginx" / "default.conf"
 REALIP = REPO_ROOT / "nginx" / "cloudflare-realip.conf"
 SCRIPT = REPO_ROOT / "scripts" / "cloudflare_realip.py"
 FIXTURE_V4 = REPO_ROOT / "scripts" / "testdata" / "cloudflare-ips-v4.fixture.txt"
 FIXTURE_V6 = REPO_ROOT / "scripts" / "testdata" / "cloudflare-ips-v6.fixture.txt"
 
 pytestmark = pytest.mark.skipif(
-    not all(p.is_file() for p in (COMPOSE, ENV_EXAMPLE, PROD_CONF, REALIP, SCRIPT, FIXTURE_V4, FIXTURE_V6)),
+    not all(p.is_file() for p in (COMPOSE, DEV_COMPOSE, ENV_EXAMPLE, PROD_CONF, DEV_CONF, REALIP, SCRIPT, FIXTURE_V4, FIXTURE_V6)),
     reason="repository root files are not available (backend tests run outside a full checkout)",
 )
 
@@ -109,6 +111,18 @@ def test_product_media_is_shared_with_backend_and_served_by_nginx():
     assert "location ^~ /media/" in conf
     assert "alias /var/www/vedzmani-media/;" in conf
     assert 'MEDIA_ROOT = Path(env("MEDIA_ROOT"' in (REPO_ROOT / "backend/config/settings/base.py").read_text(encoding="utf-8")
+
+
+def test_dev_product_media_is_shared_with_backend_and_served_by_nginx():
+    compose = DEV_COMPOSE.read_text(encoding="utf-8")
+    backend = _without_comments(_service_block(compose, "backend"))
+    nginx = _without_comments(_service_block(compose, "nginx"))
+    conf = _without_comments(DEV_CONF.read_text(encoding="utf-8"))
+
+    assert "product_media:/app/media" in backend
+    assert "product_media:/var/www/vedzmani-media:ro" in nginx
+    assert "location ^~ /media/" in conf
+    assert "alias /var/www/vedzmani-media/;" in conf
 
 
 def test_prod_nginx_never_forwards_client_supplied_addresses():
