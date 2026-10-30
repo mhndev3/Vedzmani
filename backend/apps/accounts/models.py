@@ -61,7 +61,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     phone = models.CharField(max_length=16, unique=True)
     first_name = models.CharField(max_length=150, blank=True, default="", db_default="")
-    last_name = models.CharField(max_length=150, blank=True, default="")
+    last_name = models.CharField(max_length=150, blank=True, default="", db_default="")
     address = models.TextField(blank=True, default="", db_default="")
     postal_code = models.CharField(max_length=20, blank=True, default="", db_default="")
     national_code = models.CharField(max_length=10, null=True, blank=True, unique=True)
