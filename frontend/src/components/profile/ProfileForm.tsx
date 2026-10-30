@@ -19,6 +19,7 @@ export function ProfileForm({ initialProfile, locale, continueTo }: Props) {
     national_code: initialProfile.national_code ?? "",
   });
   const [saving, setSaving] = useState(false);
+  const [isComplete, setIsComplete] = useState(initialProfile.is_complete);
   const [loggingOut, setLoggingOut] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +42,9 @@ export function ProfileForm({ initialProfile, locale, continueTo }: Props) {
     try {
       await authApi.updateProfile(values);
       setMessage("اطلاعات حساب با موفقیت ذخیره شد.");
+      setIsComplete(true);
       if (continueTo !== "/" + locale + "/profile") {
         router.replace(continueTo);
-        router.refresh();
       } else {
         router.refresh();
       }
@@ -86,8 +87,8 @@ export function ProfileForm({ initialProfile, locale, continueTo }: Props) {
   return (
     <section className="mt-8 rounded-2xl border border-border p-5 sm:p-7">
       <div className="mb-6">
-        <h2 className="text-lg font-semibold">{initialProfile.is_complete ? "اطلاعات حساب کاربری" : "تکمیل اطلاعات حساب کاربری"}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{initialProfile.is_complete ? "اطلاعات حساب خود را مشاهده و در صورت نیاز ویرایش کنید." : "برای تکمیل ثبت‌نام، تمام فیلدهای زیر الزامی هستند."}</p>
+        <h2 className="text-lg font-semibold">{isComplete ? "اطلاعات حساب کاربری" : "تکمیل اطلاعات حساب کاربری"}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{isComplete ? "اطلاعات حساب خود را مشاهده و در صورت نیاز ویرایش کنید." : "برای تکمیل ثبت‌نام، تمام فیلدهای زیر الزامی هستند."}</p>
       </div>
       {message && <p role="status" className="mb-4 rounded-lg bg-muted p-3 text-sm">{message}</p>}
       {error && <p role="alert" className="mb-4 rounded-lg border border-destructive/40 p-3 text-sm">{error}</p>}
