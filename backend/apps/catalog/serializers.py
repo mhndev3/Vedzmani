@@ -24,10 +24,11 @@ class VariantSizeSerializer(serializers.ModelSerializer):
     in_stock = serializers.SerializerMethodField()
     stock_quantity = serializers.IntegerField(read_only=True)
     measurements = serializers.SerializerMethodField()
+    size_description = serializers.SerializerMethodField()
 
     class Meta:
         model = VariantSize
-        fields = ["id", "size", "label", "sku", "in_stock", "stock_quantity", "measurements"]
+        fields = ["id", "size", "label", "sku", "in_stock", "stock_quantity", "measurements", "size_description"]
 
     def get_in_stock(self, obj: VariantSize) -> bool:
         return obj.stock_quantity > 0
@@ -37,6 +38,14 @@ class VariantSizeSerializer(serializers.ModelSerializer):
         return ProductSizeMeasurementSerializer(
             measurements_by_size.get(obj.size_id, []), many=True
         ).data
+
+    def get_size_description(self, obj: VariantSize) -> str:
+        # Exact color + size wins; otherwise fall back to the product + size description.
+        specific = getattr(obj, "description", None)
+        if specific and specific.description.strip():
+            return specific.description
+        descriptions_by_size = self.context.get("product_size_descriptions_by_size", {})
+        return descriptions_by_size.get(obj.size_id, "")
 
 
 class ColorVariantSerializer(serializers.ModelSerializer):
@@ -67,9 +76,14 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         measurements_by_size = {}
         for measurement in obj.size_measurements.all():
             measurements_by_size.setdefault(measurement.size_id, []).append(measurement)
+        descriptions_by_size = {
+            description.size_id: description.description
+            for description in obj.size_descriptions.all()
+        }
         nested_context = {
             **self.context,
             "product_measurements_by_size": measurements_by_size,
+            "product_size_descriptions_by_size": descriptions_by_size,
         }
         return ColorVariantSerializer(
             obj.color_variants.all(), many=True, context=nested_context
