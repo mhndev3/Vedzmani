@@ -119,13 +119,22 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Hoodie 01" })).toBeVisible();
     await expect(page.getByText("Fixture Hoodie number 1.")).toBeVisible();
     await expect(page.getByText("موجود", { exact: true })).toBeVisible();
+    await expect(page.getByText("M : 5")).toBeVisible();
     await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeEnabled();
     await expect(page.getByRole("radio", { name: "M" })).toBeEnabled();
 
+    const gallery = page.getByRole("region", { name: "تصاویر محصول" });
+    const mainImage = gallery.getByRole("img");
+    await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 Black front");
+    await gallery.getByRole("button", { name: "تصویر بعدی" }).click();
+    await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 Black detail");
+
     await page.getByRole("link", { name: "White" }).click();
     await expect(page).toHaveURL(/color=white/);
+    await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 White front");
     await expect(page.getByText("ناموجود", { exact: true })).toBeVisible();
-    await expect(page.getByRole("radio", { name: /^M/ })).toBeDisabled();
+    await expect(page.getByText("M : 0")).toHaveClass(/border-red-500/);
+    await expect(page.getByRole("radio", { name: "M" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeDisabled();
     await page.getByRole("link", { name: "بازگشت به محصولات" }).click();
     await expect(page).toHaveURL(/\/fa\/products$/);
