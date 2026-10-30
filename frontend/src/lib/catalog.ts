@@ -10,7 +10,7 @@ import type { Locale } from "@/i18n/config";
  */
 
 export const PAGE_SIZE = 24;
-export const SORTS = ["newest", "price_asc", "price_desc", "name_asc", "name_desc"] as const;
+export const SORTS = ["newest", "price_asc", "price_desc"] as const;
 export type Sort = (typeof SORTS)[number];
 export const DEFAULT_SORT: Sort = "newest";
 
@@ -91,9 +91,10 @@ export function stateToParams(state: CatalogState): URLSearchParams {
   return p;
 }
 
-export function catalogHref(locale: Locale, state: CatalogState): string {
+export function catalogHref(locale: Locale, state: CatalogState, basePath?: string): string {
   const qs = stateToParams(state).toString();
-  return `/${locale}/products${qs ? `?${qs}` : ""}`;
+  const base = basePath ?? "/" + locale + "/products";
+  return base + (qs ? "?" + qs : "");
 }
 
 export const emptyState: CatalogState = {

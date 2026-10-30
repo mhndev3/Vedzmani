@@ -60,6 +60,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff / is_superuser / groups / permissions (no custom RBAC)."""
 
     phone = models.CharField(max_length=16, unique=True)
+    first_name = models.CharField(max_length=150, blank=True, default="", db_default="")
+    last_name = models.CharField(max_length=150, blank=True, default="", db_default="")
+    address = models.TextField(blank=True, default="", db_default="")
+    postal_code = models.CharField(max_length=20, blank=True, default="", db_default="")
+    national_code = models.CharField(max_length=10, null=True, blank=True, unique=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
@@ -74,6 +79,10 @@ class User(AbstractBaseUser, PermissionsMixin):
             models.CheckConstraint(
                 condition=models.Q(phone__regex=CANONICAL_RE),
                 name="accounts_user_phone_canonical",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(national_code__isnull=True) | models.Q(national_code__regex=r"^[0-9]{10}$"),
+                name="accounts_user_national_code_10_digits",
             )
         ]
 

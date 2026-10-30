@@ -204,10 +204,12 @@ export function SortLinks({
   locale,
   t,
   state,
+  basePath,
 }: {
   locale: Locale;
   t: Dictionary;
   state: CatalogState;
+  basePath?: string;
 }) {
   return (
     <nav aria-label={t.catalog.sortLabel}>
@@ -220,7 +222,7 @@ export function SortLinks({
           return (
             <li key={s}>
               <Link
-                href={catalogHref(locale, { ...state, sort: s, page: 1 })}
+                href={catalogHref(locale, { ...state, sort: s, page: 1 }, basePath)}
                 prefetch={false}
                 aria-current={current ? "true" : undefined}
                 className={`inline-flex h-9 items-center rounded-full border px-3 text-sm ${
@@ -246,6 +248,7 @@ export function Pagination({
   count,
   hasNext,
   hasPrevious,
+  basePath,
 }: {
   locale: Locale;
   t: Dictionary;
@@ -253,6 +256,7 @@ export function Pagination({
   count: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  basePath?: string;
 }) {
   const total = totalPages(count);
   if (total <= 1) return null;
@@ -266,7 +270,7 @@ export function Pagination({
         <Link
           rel="prev"
           prefetch={false}
-          href={catalogHref(locale, { ...state, page: state.page - 1 })}
+          href={catalogHref(locale, { ...state, page: state.page - 1 }, basePath)}
           className={linkClass}
         >
           {t.catalog.previous}
@@ -286,7 +290,7 @@ export function Pagination({
         <Link
           rel="next"
           prefetch={false}
-          href={catalogHref(locale, { ...state, page: state.page + 1 })}
+          href={catalogHref(locale, { ...state, page: state.page + 1 }, basePath)}
           className={linkClass}
         >
           {t.catalog.next}

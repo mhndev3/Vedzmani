@@ -56,6 +56,14 @@ test.describe("purchase journey (needs E2E_OTP_LOG_COMMAND)", () => {
     await expect(page.getByLabel("کد تأیید")).toBeVisible();
     await page.getByLabel("کد تأیید").fill(await readOtp(`+98${local.slice(1)}`));
     await page.getByRole("button", { name: "تأیید و ورود" }).click();
+    await expect(page).toHaveURL(/\/fa\/profile\?next=/);
+    await expect(page.getByRole("heading", { name: "تکمیل اطلاعات حساب کاربری" })).toBeVisible();
+    await page.getByLabel("نام", { exact: true }).fill("Sara");
+    await page.getByLabel("نام خانوادگی", { exact: true }).fill("Ahmadi");
+    await page.getByLabel("نشانی کامل", { exact: true }).fill("Valiasr St, No. 12");
+    await page.getByLabel("کد پستی", { exact: true }).fill("1234567890");
+    await page.getByLabel("کد ملی", { exact: true }).fill(local.slice(-10));
+    await page.getByRole("button", { name: "ذخیره اطلاعات" }).click();
     await expect(page).toHaveURL(new RegExp(`/fa/products/${PRODUCT}`));
 
     await page.locator("label").filter({ has: page.getByRole("radio", { name: "M" }) }).click();

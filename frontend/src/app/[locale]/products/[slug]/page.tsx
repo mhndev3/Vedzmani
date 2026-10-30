@@ -82,7 +82,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
       <nav aria-label={t.product.breadcrumb} className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {backLink}
         <Link
-          href={`/${locale}/products?category=${encodeURIComponent(product.category.slug)}`}
+          href={"/" + locale + "/categories/" + encodeURIComponent(product.category.slug)}
           className="rounded-lg text-sm text-muted-foreground hover:text-foreground"
         >
           {product.category.name}

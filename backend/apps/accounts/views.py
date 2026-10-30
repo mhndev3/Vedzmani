@@ -2,6 +2,7 @@
 
 from django.conf import settings
 from django.contrib.auth import login, logout
+from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
@@ -9,6 +10,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET
 from rest_framework import status
+from rest_framework.exceptions import ErrorDetail, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,7 +19,7 @@ from . import services
 from .authentication import OTP_SESSION_FLAG
 from .models import OTPChallenge
 from .ratelimit import get_client_ip
-from .serializers import CurrentUserSerializer, OTPRequestSerializer, OTPVerifySerializer
+from .serializers import CurrentUserSerializer, CustomerProfileSerializer, OTPRequestSerializer, OTPVerifySerializer
 
 BACKEND = "django.contrib.auth.backends.ModelBackend"
 
@@ -95,3 +97,25 @@ class LogoutView(CSRFProtectedAPIView):
     def post(self, request):
         logout(request._request)  # flushes the server-side session row
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@method_decorator(never_cache, name="dispatch")
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(CustomerProfileSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = CustomerProfileSerializer(request.user, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            # The database unique constraint closes the race between two simultaneous
+            # profile updates that pass the serializer's preflight uniqueness query.
+            raise ValidationError({
+                "national_code": [ErrorDetail("این کد ملی قبلاً ثبت شده است.", code="unique")]
+            }) from None
+        return Response(serializer.data)

@@ -12,6 +12,15 @@ test("storefront uses Persian RTL and the header contains only the agreed links"
   for (const removed of ["تماس با ما", "بازگشت کالا", "پروفایل", "سبد خرید"]) {
     await expect(nav.getByRole("link", { name: removed })).toHaveCount(0);
   }
+  await expect(page.getByRole("link", { name: "حساب کاربری" })).toBeVisible();
+});
+
+test("hero banner uses supplied VZ artwork and is not a link", async ({ page }) => {
+  await page.goto("/fa");
+  const hero = page.locator("section[aria-label='بنر ویژه ودزمانی']");
+  await expect(hero).toBeVisible();
+  await expect(hero.locator("img")).toHaveAttribute("src", /vedzmani-banner-vz\.svg/);
+  await expect(hero.locator("a")).toHaveCount(0);
 });
 
 test("theme toggle switches dark mode and persists", async ({ page }) => {
@@ -29,6 +38,7 @@ test("hamburger menu contains the requested categories and support links", async
   await page.getByRole("button", { name: "باز کردن منو" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  await dialog.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
   for (const category of ["دورس", "پیراهن", "تی شرت", "هودی", "کاپشن", "جکت", "شلوار جین", "شلوار پارچه ای", "جاگر", "کتونی", "اکسسوری"]) {
     await expect(dialog.getByRole("link", { name: category })).toBeVisible();
   }

@@ -9,12 +9,20 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
   test("همه محصولات منتشرشده با صفحه‌بندی نمایش داده می‌شوند", async ({ page }) => {
     await page.goto("/fa/products");
-    await expect(page.getByRole("heading", { level: 1, name: "محصولات" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "همه محصولات" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
     await expect(cards(page)).toHaveCount(24);
     await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
   });
 
+  test("منوی کشویی دسته‌بندی دسکتاپ به صفحه همان دسته می‌رود", async ({ page }) => {
+    await page.goto("/fa");
+    const nav = page.getByRole("navigation", { name: "ناوبری اصلی" });
+    await nav.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
+    await nav.getByRole("link", { name: "هودی" }).click();
+    await expect(page).toHaveURL(/\/fa\/categories\/hoodies$/);
+    await expect(page.getByRole("heading", { level: 1, name: "هودی" })).toBeVisible();
+  });
   test("جست‌وجو با کد محصول و نام از آیکون هدر انجام می‌شود", async ({ page }) => {
     await page.goto("/fa/products");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
@@ -46,8 +54,11 @@ test.describe("کاتالوگ دسکتاپ", () => {
   test("دسته‌بندی و فیلتر موجودی نتایج را محدود می‌کنند", async ({ page }) => {
     await page.goto("/fa");
     await page.getByRole("button", { name: "باز کردن منو" }).click();
-    await page.getByRole("dialog").getByRole("link", { name: "تی شرت" }).click();
-    await expect(page).toHaveURL(/category=t-shirts/);
+    const menu = page.getByRole("dialog");
+    await menu.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
+    await menu.getByRole("link", { name: "تی شرت" }).click();
+    await expect(page).toHaveURL(/\/fa\/categories\/t-shirts$/);
+    await expect(page.getByRole("heading", { level: 1, name: "تی شرت" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
 
     await page.goto("/fa/products?category=hoodies");
@@ -66,6 +77,8 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
   test("مرتب‌سازی با لینک‌ها اعمال می‌شود", async ({ page }) => {
     await page.goto("/fa/products");
+    await expect(page.getByRole("link", { name: "نام (الف تا ی)" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "نام (ی تا الف)" })).toHaveCount(0);
     await page.getByRole("link", { name: "ارزان‌ترین" }).click();
     await expect(page).toHaveURL(/sort=price_asc/);
     await expect(cards(page).first().getByRole("heading")).toHaveText("Tee 01");
@@ -76,11 +89,11 @@ test.describe("کاتالوگ دسکتاپ", () => {
   });
 
   test("صفحه‌بندی وضعیت فیلتر را حفظ می‌کند", async ({ page }) => {
-    await page.goto("/fa/products?sort=name_asc");
+    await page.goto("/fa/products?sort=price_asc");
     await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
     await page.getByRole("link", { name: "بعدی" }).click();
     await expect(page).toHaveURL(/page=2/);
-    await expect(page).toHaveURL(/sort=name_asc/);
+    await expect(page).toHaveURL(/sort=price_asc/);
     await expect(page.getByText("صفحه ۲ از ۲")).toBeVisible();
     await expect(cards(page)).toHaveCount(6);
     await page.goBack();
