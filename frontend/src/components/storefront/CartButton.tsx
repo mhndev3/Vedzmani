@@ -13,16 +13,28 @@ export function CartButton({ locale }: { locale: Locale }) {
 
   useEffect(() => {
     let active = true;
+    // Ignore an older GET response if a cart mutation completed while it was in flight.
+    let mutationVersion = 0;
     const refresh = () => {
-      cartApi.get().then((cart) => { if (active) setCount(cart.item_count); })
-        .catch(() => { if (active) setCount(0); });
+      const requestedVersion = mutationVersion;
+      cartApi.get()
+        .then((cart) => {
+          if (active && requestedVersion === mutationVersion) setCount(cart.item_count);
+        })
+        .catch(() => {
+          if (active && requestedVersion === mutationVersion) setCount(0);
+        });
     };
     const updated = (event: Event) => {
       const itemCount = (event as CustomEvent<{ itemCount: number }>).detail?.itemCount;
-      if (Number.isFinite(itemCount)) setCount(Math.max(0, itemCount));
+      if (Number.isFinite(itemCount)) {
+        mutationVersion += 1;
+        setCount(Math.max(0, itemCount));
+      }
     };
-    refresh();
+
     window.addEventListener("vedzmani:cart-updated", updated);
+    refresh();
     return () => {
       active = false;
       window.removeEventListener("vedzmani:cart-updated", updated);
