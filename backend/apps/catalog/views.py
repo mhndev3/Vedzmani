@@ -23,7 +23,10 @@ class ProductDetailView(RetrieveAPIView):
     def get_queryset(self):
         variants = ColorVariant.objects.filter(is_active=True).prefetch_related(
             Prefetch("images", queryset=VariantImage.objects.filter(is_active=True)),
-            Prefetch("sizes", queryset=VariantSize.objects.filter(is_active=True).select_related("size")),
+            Prefetch(
+                "sizes",
+                queryset=VariantSize.objects.filter(is_active=True).select_related("size").prefetch_related("description"),
+            ),
         )
         return (
             Product.objects.filter(is_active=True, category__is_active=True)
@@ -34,6 +37,7 @@ class ProductDetailView(RetrieveAPIView):
                     "size_measurements",
                     queryset=ProductSizeMeasurement.objects.order_by("size__position", "position", "id"),
                 ),
+                "size_descriptions",
             )
         )
 
