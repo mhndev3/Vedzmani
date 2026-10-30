@@ -11,7 +11,7 @@ const canonical = (local: string) => `+98${local.slice(1)}`;
 
 async function readOtp(local: string): Promise<string> {
   if (!otpLogCommand) throw new Error("E2E_OTP_LOG_COMMAND is required");
-  const re = new RegExp(`phone=\\\\${canonical(local)} purpose=login code=(\\\\d{6})`, "g");
+  const re = new RegExp(`phone=\\${canonical(local)} purpose=login code=(\\d{6})`, "g");
   for (let i = 0; i < 20; i++) {
     const log = execSync(otpLogCommand, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
     const matches = [...log.matchAll(re)];
