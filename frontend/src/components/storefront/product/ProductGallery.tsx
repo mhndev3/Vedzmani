@@ -29,23 +29,20 @@ export function ProductGallery({
   const [displayImages, setDisplayImages] = useState(images);
   const [activeIndex, setActiveIndex] = useState(0);
   const [fading, setFading] = useState(false);
-  const latestImages = useRef(images);
   const previousKey = useRef(imageKey);
   const touchStartX = useRef<number | null>(null);
-
-  latestImages.current = images;
 
   useEffect(() => {
     if (previousKey.current === imageKey) return;
     previousKey.current = imageKey;
     setFading(true);
     const timeout = window.setTimeout(() => {
-      setDisplayImages(latestImages.current);
+      setDisplayImages(images);
       setActiveIndex(0);
       window.requestAnimationFrame(() => setFading(false));
     }, 200);
     return () => window.clearTimeout(timeout);
-  }, [imageKey]);
+  }, [imageKey, images]);
 
   const hasImages = displayImages.length > 0;
   const hasMultiple = displayImages.length > 1;
