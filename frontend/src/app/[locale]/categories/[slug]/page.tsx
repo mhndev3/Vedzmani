@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
@@ -46,16 +46,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   } catch (error) {
     if (error instanceof ApiError && error.status === 404 && state.page > 1) outOfRange = true;
   }
-  if (outOfRange) {
-    const firstPage = { ...state, page: 1 };
-    const params = new URLSearchParams();
-    params.set("category", slug);
-    if (firstPage.sort !== "newest") params.set("sort", firstPage.sort);
-    if (firstPage.search) params.set("search", firstPage.search);
-    const suffix = params.toString();
-    const { redirect } = await import("next/navigation");
-    redirect("/" + locale + "/categories/" + slug + (suffix ? "?" + suffix : ""));
-  }
+  if (outOfRange) redirect("/" + locale + "/categories/" + slug);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -72,7 +63,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               <h2 id="category-results-heading" className="text-sm text-muted-foreground" aria-live="polite">
                 {fill(t.catalog.results, { count: formatPrice(products.count, locale) })}
               </h2>
-              <SortLinks locale={locale} t={t} state={state} />
+              <SortLinks locale={locale} t={t} state={state} basePath={"/" + locale + "/categories/" + slug} />
             </div>
             {products.results.length ? (
               <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
@@ -84,7 +75,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
                 <p className="mt-2 text-sm text-muted-foreground">{t.catalog.emptyText}</p>
               </div>
             )}
-            <Pagination locale={locale} t={t} state={state} count={products.count} hasNext={products.next !== null} hasPrevious={products.previous !== null} />
+            <Pagination locale={locale} t={t} state={state} count={products.count} hasNext={products.next !== null} hasPrevious={products.previous !== null} basePath={"/" + locale + "/categories/" + slug} />
           </>
         ) : (
           <div role="alert" className="rounded-lg border border-border bg-muted p-8 text-center">
