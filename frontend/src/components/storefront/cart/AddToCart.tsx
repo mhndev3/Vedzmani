@@ -17,6 +17,7 @@ export type AddToCartLabels = {
   viewCart: string;
   sizeRequired: string;
   sizeMeasurements: string;
+  description: string;
 };
 
 type Status =
@@ -43,6 +44,7 @@ export function AddToCart({
     in_stock: boolean;
     stock_quantity: number;
     measurements: { name: string; value: string; unit: string }[];
+    description: string;
   }[];
   labels: AddToCartLabels;
   errors: Record<string, string>;
@@ -105,6 +107,15 @@ export function AddToCart({
           ))}
         </div>
       </fieldset>
+
+      {selectedSize?.description.trim() && (
+        <section className="mt-6" aria-live="polite" aria-atomic="true">
+          <h2 className="mb-2 text-sm font-semibold">{labels.description}</h2>
+          <p className="whitespace-pre-line text-sm leading-7 text-muted-foreground">
+            {selectedSize.description}
+          </p>
+        </section>
+      )}
 
       {selectedSize && selectedSize.measurements.length > 0 && (
         <section className="mt-6" aria-live="polite" aria-atomic="true">
