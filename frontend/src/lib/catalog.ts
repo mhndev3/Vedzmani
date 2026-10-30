@@ -181,6 +181,7 @@ export type ProductDetail = {
       in_stock: boolean;
       stock_quantity: number;
       measurements: { name: string; value: string; unit: string }[];
+      size_description: string;
     }[];
   }[];
 };
