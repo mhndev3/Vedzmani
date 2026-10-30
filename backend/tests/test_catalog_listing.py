@@ -94,7 +94,7 @@ def test_basic_listing_shape_and_no_private_fields():
     assert item["code"] == "VZ-ALPHA"
     assert item["category"] == {"name": "Hoodie", "slug": "hoodie"}
     assert item["in_stock"] is True
-    assert item["image"] == {"url": "/alpha/b0.webp", "alt_text": "alt", "width": 800, "height": 1000}
+    assert item["image"] == {"url": "/media/alpha/b0.webp", "alt_text": "alt", "width": 800, "height": 1000}
     assert [c["slug"] for c in item["colors"]] == ["black", "white"]
     raw = r.content.decode()
     for secret in ("stock_quantity", "sku", "storage_key", "is_active", "description"):
@@ -113,7 +113,7 @@ def test_representative_image_prefers_first_variant_primary_and_skips_inactive()
     add_image(black, "a/black-1.webp", position=1)
     add_image(black, "a/black-0.webp", position=0, primary=True, active=False)  # inactive primary ignored
     add_image(white, "a/white-0.webp", position=0, primary=True)
-    assert get().json()["results"][0]["image"]["url"] == "/a/black-1.webp"
+    assert get().json()["results"][0]["image"]["url"] == "/media/a/black-1.webp"
     make("no-image")
     assert next(i for i in get().json()["results"] if i["slug"] == "no-image")["image"] is None
 
