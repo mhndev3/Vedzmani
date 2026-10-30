@@ -49,7 +49,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     const menu = page.getByRole("dialog");
     await menu.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
     await menu.getByRole("link", { name: "تی شرت" }).click();
-    await expect(page).toHaveURL(/\\/fa\\/categories\\/t-shirts$/);
+    await expect(page).toHaveURL(/\/fa\/categories\/t-shirts$/);
     await expect(page.getByRole("heading", { level: 1, name: "تی شرت" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
 
