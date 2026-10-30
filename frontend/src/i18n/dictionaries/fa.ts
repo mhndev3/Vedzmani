@@ -22,7 +22,7 @@ export const fa = {
     cart: "سبد خرید",
   },
   catalog: {
-    title: "محصولات",
+    title: "همه محصولات",
     results: "{count} محصول",
     searchLabel: "جستجوی محصول",
     searchPlaceholder: "جستجوی محصول…",
@@ -44,8 +44,6 @@ export const fa = {
       newest: "جدیدترین",
       price_asc: "ارزان‌ترین",
       price_desc: "گران‌ترین",
-      name_asc: "نام (الف تا ی)",
-      name_desc: "نام (ی تا الف)",
     },
     pagination: "صفحه‌بندی",
     previous: "قبلی",
