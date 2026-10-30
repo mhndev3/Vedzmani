@@ -120,8 +120,20 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByText("Fixture Hoodie number 1.")).toBeVisible();
     await expect(page.getByText("موجود", { exact: true })).toBeVisible();
     await expect(page.getByText("M : 5")).toBeVisible();
+    await expect(page.getByText(/تومان/)).toBeVisible();
     await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeEnabled();
     await expect(page.getByRole("radio", { name: "M" })).toBeEnabled();
+
+    await page.getByRole("radio", { name: "M" }).check();
+    const mTable = page.getByRole("table", { name: "اندازه‌های سایز M" });
+    await expect(mTable).toBeVisible();
+    await expect(mTable).toContainText("56 سانتی‌متر");
+    await expect(mTable).toContainText("64 سانتی‌متر");
+    await page.getByRole("radio", { name: "L" }).check();
+    const lTable = page.getByRole("table", { name: "اندازه‌های سایز L" });
+    await expect(lTable).toBeVisible();
+    await expect(lTable).toContainText("59 سانتی‌متر");
+    await expect(lTable).not.toContainText("56 سانتی‌متر");
 
     const gallery = page.getByRole("region", { name: "تصاویر محصول" });
     const mainImage = gallery.getByRole("img");
