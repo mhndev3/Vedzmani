@@ -70,14 +70,19 @@ export function SignInForm({
     // A customer who is already signed in has nothing to do here.
     authApi
       .me()
-      .then((user) => {
-        if (user && alive.current) router.replace(redirectTo);
+      .then(async (user) => {
+        if (!user || !alive.current) return;
+        const profile = await authApi.profile().catch(() => null);
+        if (!alive.current) return;
+        const profilePath = "/" + locale + "/profile";
+        const destination = profile?.is_complete ? redirectTo : profilePath + "?next=" + encodeURIComponent(redirectTo);
+        router.replace(destination);
       })
       .catch(() => {});
     return () => {
       alive.current = false;
     };
-  }, [router, redirectTo]);
+  }, [router, redirectTo, locale]);
 
   useEffect(() => {
     if (cooldownUntil === null) return;
@@ -148,18 +153,22 @@ export function SignInForm({
   }
 
   /** Confirms with Django that the session cookie really works, then leaves. */
-  async function finish(): Promise<void> {
+  async function finish(forceProfile = false): Promise<void> {
+    const profilePath = "/" + locale + "/profile";
+    let destination = redirectTo;
     try {
       if ((await authApi.me()) === null) {
         setBanner(t.errors.no_session);
         return;
       }
+      const profile = await authApi.profile();
+      if (forceProfile || !profile.is_complete) destination = profilePath + "?next=" + encodeURIComponent(redirectTo);
     } catch {
-      // Django already accepted the code; the destination page re-checks the session itself.
+      destination = profilePath + "?next=" + encodeURIComponent(redirectTo);
     }
     if (!alive.current) return;
     setStep("done");
-    router.replace(redirectTo);
+    router.replace(destination);
   }
 
   async function verify() {
@@ -174,8 +183,8 @@ export function SignInForm({
     setBusy("verifying");
     clearMessages();
     try {
-      await authApi.verifyOtp(phone.trim(), code.trim());
-      await finish();
+      const result = await authApi.verifyOtp(phone.trim(), code.trim());
+      await finish(result.isNewUser);
     } catch (e) {
       if (!alive.current) return;
       const c = classifyAuthError(e);
