@@ -31,7 +31,7 @@ DB stores a **storage key** (relative object path, must end in `.webp`), never a
 
 ## API
 `GET /api/catalog/products/<slug>/` — public, read-only; active product/category/variants/images/sizes only;
-stock exposed only as `in_stock` boolean; constant query count (tested).
+per-size `stock_quantity` and its derived `in_stock` boolean are exposed for the storefront size selector; constant query count (tested).
 
 ### Listing: `GET /api/catalog/products/` (Agent 6, Session 1)
 Public, read-only, no auth. Only `Product.is_active` products in an active category are returned. Unknown query
@@ -78,7 +78,7 @@ Fixed cost of 4 queries. Added so the storefront never offers fake filter values
 
 ### Storefront (frontend) notes
 Routes: `/[locale]/products` (listing) and `/[locale]/products/[slug]` (detail, `?color=<slug>` selects a variant).
-All state is in the URL; filters/search are plain GET forms (`next/form`), sort/pagination/color are links. The only client
-component is `FilterDrawer` (native `<dialog>`). Not available because the API does not expose it: stock quantities
-(so no "only N left" warning), collections on the detail response, sale-discount percentages. Add-to-cart is a disabled,
-labelled placeholder until the cart domain exists. E2E fixtures: `e2e/seed_catalog.py` (throwaway DB only).
+All state is in the URL; filters/search are plain GET forms (`next/form`), sort/pagination/color are links. The listing remains server-rendered; `FilterDrawer`, `AddToCart` and the product-detail `ProductGallery` are client components.
+The product gallery orders the primary image first and slides through the selected color's images. Selecting another color
+keeps URL state and cross-fades to that color's gallery. The size selector shows exact stock quantities; zero-stock sizes
+are red and disabled. Collections on the detail response and sale-discount percentages are not exposed. E2E fixtures: `e2e/seed_catalog.py` (throwaway DB only).
