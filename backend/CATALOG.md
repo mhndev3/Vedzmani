@@ -35,8 +35,8 @@ In production, binaries live under `MEDIA_ROOT` (default `/app/media`), backed b
 `PRODUCT_MEDIA_DIR` (default `/home/vzinfra/prod/media`). Backend mounts it read/write; Nginx mounts it
 read-only and serves `/media/<storage_key>` with immutable caching. The local development Compose
 stack uses a persistent `product_media` named volume shared with Nginx read-only. If `MEDIA_CDN_BASE_URL` is set,
-`public_image_url` returns the CDN URL instead. Upload/import and WebP conversion are performed by the
-separate product-import workflow; the model still stores metadata only.
+`public_image_url` returns the CDN URL instead. Upload/import and WebP conversion are not implemented yet;
+they remain pending the owner's asset filename mapping and sample description file. The model stores metadata only.
 
 ## API
 `GET /api/catalog/products/<slug>/` — public, read-only; active product/category/variants/images/sizes only;
