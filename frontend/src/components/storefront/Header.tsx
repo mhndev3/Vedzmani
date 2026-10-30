@@ -9,24 +9,11 @@ import { MobileNav } from "./MobileNav";
 import { ThemeToggle } from "./ThemeToggle";
 import { SearchButton } from "./SearchButton";
 import { CartButton } from "./CartButton";
-
-const categories = [
-  { name: "دورس", slug: "sweatshirts" },
-  { name: "پیراهن", slug: "shirts" },
-  { name: "تی شرت", slug: "t-shirts" },
-  { name: "هودی", slug: "hoodies" },
-  { name: "کاپشن", slug: "coats" },
-  { name: "جکت", slug: "jackets" },
-  { name: "شلوار جین", slug: "jeans" },
-  { name: "شلوار پارچه ای", slug: "trousers" },
-  { name: "جاگر", slug: "joggers" },
-  { name: "کتونی", slug: "sneakers" },
-  { name: "اکسسوری", slug: "accessories" },
-];
+import { categoryHref, STORE_CATEGORIES } from "@/lib/store-categories";
 
 export function navItems(locale: Locale, t: Dictionary) {
   return [
-    { href: `/${locale}/products`, label: "همه محصولات" },
+    { href: `/${locale}/products`, label: t.nav.products },
     { href: `/${locale}/about`, label: t.nav.about },
     { href: `/${locale}/faq`, label: t.nav.faq },
     { href: `/${locale}/support`, label: t.nav.support },
@@ -60,8 +47,8 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
         <MobileNav
           items={items}
-          categories={categories.map((category) => ({
-            href: `/${locale}/products?category=${encodeURIComponent(category.slug)}`,
+          categories={STORE_CATEGORIES.map((category) => ({
+            href: categoryHref(locale, category.slug),
             label: category.name,
           }))}
           labels={{
