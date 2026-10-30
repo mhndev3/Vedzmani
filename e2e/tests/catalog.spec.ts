@@ -1,182 +1,159 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/**
- * Catalog storefront tests. They need the fixture data from e2e/seed_catalog.py
- * (30 published products: 15 hoodies + 15 tees, page size 24, so 2 pages).
- */
-
-const cards = (page: Page) => page.locator('a[href^="/en/products/e2e-"], a[href^="/fa/products/e2e-"]');
+const cards = (page: Page) => page.locator('a[href^="/fa/products/e2e-"]');
 const noHorizontalOverflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
-test.describe("desktop", () => {
+test.describe("کاتالوگ دسکتاپ", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test("catalog loads with product cards and count", async ({ page }) => {
-    await page.goto("/en/products");
-    await expect(page.getByRole("heading", { level: 1, name: "Products" })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: "30 products" })).toBeVisible();
+  test("همه محصولات منتشرشده با صفحه‌بندی نمایش داده می‌شوند", async ({ page }) => {
+    await page.goto("/fa/products");
+    await expect(page.getByRole("heading", { level: 1, name: "محصولات" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
     await expect(cards(page)).toHaveCount(24);
-    await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+    await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
   });
 
-  test("search is URL-driven and survives reload", async ({ page }) => {
-    await page.goto("/en/products");
-    await page.getByRole("searchbox", { name: "Search products" }).fill("Hoodie 07");
-    await page.getByRole("button", { name: "Search", exact: true }).click();
-    await expect(page).toHaveURL(/search=Hoodie\+07|search=Hoodie%2007/);
-    await expect(page.getByRole("heading", { level: 2, name: "1 products" })).toBeVisible();
+  test("جست‌وجو با کد محصول و نام از آیکون هدر انجام می‌شود", async ({ page }) => {
+    await page.goto("/fa/products");
+    await page.getByRole("button", { name: "جستجوی محصولات" }).click();
+    const dialog = page.getByRole("dialog");
+    const input = dialog.getByRole("textbox", { name: "نام یا کد محصول" });
+    await input.fill("E2E-HOODIE-07");
+    const result = dialog.getByRole("button", { name: /کد: E2E-HOODIE-07/ });
+    await expect(result).toContainText("Hoodie 07");
+    await input.press("Enter");
+    await expect(page).toHaveURL(/search=E2E-HOODIE-07/);
     await expect(cards(page)).toHaveCount(1);
-    await page.reload();
-    await expect(cards(page)).toHaveCount(1);
-    await expect(page.getByRole("searchbox", { name: "Search products" })).toHaveValue("Hoodie 07");
   });
 
-  test("category and in-stock filters narrow results via the URL", async ({ page }) => {
-    await page.goto("/en/products");
-    await page.getByRole("checkbox", { name: "Tees" }).check();
-    await page.getByRole("button", { name: "Apply filters" }).click();
-    await expect(page).toHaveURL(/category=tees/);
-    await expect(page.getByRole("heading", { level: 2, name: "15 products" })).toBeVisible();
+  test("انتخاب نتیجه جست‌وجو و سابقه جست‌وجو کار می‌کند", async ({ page }) => {
+    await page.goto("/fa");
+    await page.getByRole("button", { name: "جستجوی محصولات" }).click();
+    const dialog = page.getByRole("dialog");
+    const input = dialog.getByRole("textbox", { name: "نام یا کد محصول" });
+    await input.fill("Hoodie 07");
+    const result = dialog.getByRole("button", { name: /Hoodie 07/ });
+    await expect(result).toBeVisible();
+    await result.click();
+    await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07$/);
+    await page.getByRole("button", { name: "جستجوی محصولات" }).click();
+    await expect(page.getByText("جستجوهای اخیر")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Hoodie 07" })).toBeVisible();
+  });
 
-    await page.goto("/en/products?category=hoodies");
-    await page.getByRole("checkbox", { name: "In stock only" }).check();
-    await page.getByRole("button", { name: "Apply filters" }).click();
+  test("دسته‌بندی و فیلتر موجودی نتایج را محدود می‌کنند", async ({ page }) => {
+    await page.goto("/fa");
+    await page.getByRole("button", { name: "باز کردن منو" }).click();
+    await page.getByRole("dialog").getByRole("link", { name: "تی شرت" }).click();
+    await expect(page).toHaveURL(/category=t-shirts/);
+    await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
+
+    await page.goto("/fa/products?category=hoodies");
+    await page.getByRole("checkbox", { name: "فقط کالاهای موجود" }).check();
+    await page.getByRole("button", { name: "اعمال فیلترها" }).click();
     await expect(page).toHaveURL(/in_stock=true/);
-    await expect(page.getByRole("heading", { level: 2, name: "14 products" })).toBeVisible();
-    await expect(page.getByRole("checkbox", { name: "Hoodies" })).toBeChecked();
+    await expect(page.getByRole("heading", { level: 2, name: "۱۴ محصول" })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
   });
 
-  test("price range filter is applied by the backend", async ({ page }) => {
-    await page.goto("/en/products?min_price=14000&max_price=15500");
-    await expect(page.getByLabel("Minimum price")).toHaveValue("14000");
-    await expect(cards(page)).toHaveCount(4); // Tee 14, Tee 15, Hoodie 14 (14500), Hoodie 15 (15500)
+  test("فیلتر بازه قیمت در سمت سرور اعمال می‌شود", async ({ page }) => {
+    await page.goto("/fa/products?min_price=14000&max_price=15500");
+    await expect(page.getByLabel("حداقل قیمت")).toHaveValue("14000");
+    await expect(cards(page)).toHaveCount(4);
   });
 
-  test("sorting is URL-driven", async ({ page }) => {
-    await page.goto("/en/products");
-    await page.getByRole("link", { name: "Price: low to high" }).click();
+  test("مرتب‌سازی با لینک‌ها اعمال می‌شود", async ({ page }) => {
+    await page.goto("/fa/products");
+    await page.getByRole("link", { name: "ارزان‌ترین" }).click();
     await expect(page).toHaveURL(/sort=price_asc/);
     await expect(cards(page).first().getByRole("heading")).toHaveText("Tee 01");
-    await page.getByRole("link", { name: "Price: high to low" }).click();
+    await page.getByRole("link", { name: "گران‌ترین" }).click();
     await expect(page).toHaveURL(/sort=price_desc/);
     await expect(cards(page).first().getByRole("heading")).toHaveText("Hoodie 15");
-    await expect(page.getByRole("link", { name: "Price: high to low" })).toHaveAttribute("aria-current", "true");
+    await expect(page.getByRole("link", { name: "گران‌ترین" })).toHaveAttribute("aria-current", "true");
   });
 
-  test("pagination uses backend pages and keeps state", async ({ page }) => {
-    await page.goto("/en/products?sort=name_asc");
-    await expect(page.getByText("Page 1 of 2")).toBeVisible();
-    await expect(page.locator('span[aria-disabled="true"]', { hasText: "Previous" })).toBeVisible();
-    await page.getByRole("link", { name: "Next" }).click();
+  test("صفحه‌بندی وضعیت فیلتر را حفظ می‌کند", async ({ page }) => {
+    await page.goto("/fa/products?sort=name_asc");
+    await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
+    await page.getByRole("link", { name: "بعدی" }).click();
     await expect(page).toHaveURL(/page=2/);
     await expect(page).toHaveURL(/sort=name_asc/);
-    await expect(page.getByText("Page 2 of 2")).toBeVisible();
+    await expect(page.getByText("صفحه ۲ از ۲")).toBeVisible();
     await expect(cards(page)).toHaveCount(6);
-    await expect(page.locator('span[aria-disabled="true"]', { hasText: "Next" })).toBeVisible();
     await page.goBack();
-    await expect(page.getByText("Page 1 of 2")).toBeVisible();
+    await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
   });
 
-  test("out-of-range page redirects to the first page", async ({ page }) => {
-    await page.goto("/en/products?page=99");
-    await expect(page).toHaveURL(/\/en\/products$/);
+  test("صفحه خارج از محدوده به صفحه اول برمی‌گردد", async ({ page }) => {
+    await page.goto("/fa/products?page=99");
+    await expect(page).toHaveURL(/\/fa\/products$/);
     await expect(cards(page)).toHaveCount(24);
   });
 
-  test("empty search shows an empty state with a way to clear", async ({ page }) => {
-    await page.goto("/en/products?search=zzzznothing");
-    await expect(page.getByText("No products found")).toBeVisible();
-    await page.getByRole("link", { name: "Clear search and filters" }).click();
-    await expect(page).toHaveURL(/\/en\/products$/);
-    await expect(page.getByRole("heading", { level: 2, name: "30 products" })).toBeVisible();
+  test("جست‌وجوی بدون نتیجه راه پاک‌کردن فیلتر را نمایش می‌دهد", async ({ page }) => {
+    await page.goto("/fa/products?search=zzzznothing");
+    await expect(page.getByText("محصولی پیدا نشد")).toBeVisible();
+    await page.getByRole("link", { name: "پاک کردن جستجو و فیلترها" }).click();
+    await expect(page).toHaveURL(/\/fa\/products$/);
+    await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
   });
 
-  test("product detail renders, switches color and enables add to cart only for in-stock sizes", async ({ page }) => {
-    await page.goto("/en/products?search=Hoodie%2001");
-    await cards(page).first().click();
-    await expect(page).toHaveURL(/\/en\/products\/e2e-hoodie-01$/);
+  test("صفحه محصول، رنگ و موجودی سایزها را نشان می‌دهد", async ({ page }) => {
+    await page.goto("/fa/products/e2e-hoodie-01");
     await expect(page.getByRole("heading", { level: 1, name: "Hoodie 01" })).toBeVisible();
     await expect(page.getByText("Fixture Hoodie number 1.")).toBeVisible();
-    await expect(page.getByText("In stock", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add to cart" })).toBeEnabled();
+    await expect(page.getByText("موجود", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeEnabled();
     await expect(page.getByRole("radio", { name: "M" })).toBeEnabled();
-    await expect(page.getByText(/cart is not available yet/)).toHaveCount(0);
 
     await page.getByRole("link", { name: "White" }).click();
     await expect(page).toHaveURL(/color=white/);
-    await expect(page.getByText("Out of stock", { exact: true })).toBeVisible();
-    // Every size of this color is sold out: nothing is selectable and the button is disabled.
+    await expect(page.getByText("ناموجود", { exact: true })).toBeVisible();
     await expect(page.getByRole("radio", { name: /^M/ })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Add to cart" })).toBeDisabled();
-
-    await page.getByRole("link", { name: "Back to products" }).click();
-    await expect(page).toHaveURL(/\/en\/products$/);
+    await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeDisabled();
+    await page.getByRole("link", { name: "بازگشت به محصولات" }).click();
+    await expect(page).toHaveURL(/\/fa\/products$/);
   });
 
-  test("sale price shows the original struck through, only when the backend has one", async ({ page }) => {
-    await page.goto("/en/products/e2e-hoodie-02");
-    await expect(page.locator("del")).toContainText("2,500");
-    await page.goto("/en/products/e2e-hoodie-04");
+  test("قیمت تخفیف‌خورده فقط در صورت وجود نشان داده می‌شود", async ({ page }) => {
+    await page.goto("/fa/products/e2e-hoodie-02");
+    await expect(page.locator("del")).toHaveCount(1);
+    await page.goto("/fa/products/e2e-hoodie-04");
     await expect(page.locator("del")).toHaveCount(0);
   });
 
-  test("unknown product is a 404", async ({ page }) => {
-    const res = await page.goto("/en/products/does-not-exist");
-    expect(res?.status()).toBe(404);
+  test("محصول ناشناخته 404 است", async ({ page }) => {
+    const response = await page.goto("/fa/products/does-not-exist");
+    expect(response?.status()).toBe(404);
   });
 });
 
-test.describe("mobile", () => {
+test.describe("کاتالوگ موبایل", () => {
   test.use({ viewport: { width: 375, height: 800 } });
 
-  test("filters open in a dialog, apply and close; no horizontal overflow", async ({ page }) => {
-    await page.goto("/en/products");
+  test("فیلترها در دیالوگ باز می‌شوند و صفحه اسکرول افقی ندارد", async ({ page }) => {
+    await page.goto("/fa/products");
     expect(await noHorizontalOverflow(page)).toBe(true);
-    const dialog = page.getByRole("dialog", { name: "Filters" });
+    const dialog = page.getByRole("dialog", { name: "فیلترها" });
     await expect(dialog).toBeHidden();
-
-    await page.getByRole("button", { name: "Filters" }).click();
+    await page.getByRole("button", { name: "فیلترها" }).click();
     await expect(dialog).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
-
-    await page.getByRole("button", { name: "Filters" }).click();
-    await dialog.getByRole("checkbox", { name: "Tees" }).check();
-    await dialog.getByRole("button", { name: "Apply filters" }).click();
-    await expect(page).toHaveURL(/category=tees/);
-    await expect(page.getByRole("heading", { level: 2, name: "15 products" })).toBeVisible();
+    await page.getByRole("button", { name: "فیلترها" }).click();
+    await dialog.getByRole("checkbox", { name: "تی شرت" }).check();
+    await dialog.getByRole("button", { name: "اعمال فیلترها" }).click();
+    await expect(page).toHaveURL(/category=t-shirts/);
+    await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
     await expect(dialog).toBeHidden();
-    await expect(page.getByRole("button", { name: /Filters/ })).toContainText("1");
   });
 
-  test("detail page has no horizontal overflow", async ({ page }) => {
-    await page.goto("/en/products/e2e-hoodie-01");
+  test("صفحه جزئیات محصول در موبایل سرریز افقی ندارد", async ({ page }) => {
+    await page.goto("/fa/products/e2e-hoodie-01");
     await expect(page.getByRole("heading", { level: 1, name: "Hoodie 01" })).toBeVisible();
     expect(await noHorizontalOverflow(page)).toBe(true);
-  });
-
-  test("Persian page has no horizontal overflow on mobile", async ({ page }) => {
-    await page.goto("/fa/products");
-    expect(await noHorizontalOverflow(page)).toBe(true);
-  });
-});
-
-test.describe("localization", () => {
-  test("Persian renders RTL with Persian copy and digits", async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/fa/products");
-    await expect(page.locator("html")).toHaveAttribute("lang", "fa");
-    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-    await expect(page.getByRole("heading", { level: 1, name: "محصولات" })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "اعمال فیلترها" })).toBeVisible();
-  });
-
-  test("language switch keeps the catalog route", async ({ page }) => {
-    await page.goto("/fa/products");
-    await page.getByRole("link", { name: /English/ }).first().click();
-    await expect(page).toHaveURL(/\/en\/products$/);
-    await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
   });
 });

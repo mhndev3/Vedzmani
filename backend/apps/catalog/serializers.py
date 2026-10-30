@@ -43,10 +43,11 @@ class CategorySerializer(serializers.ModelSerializer):
 class ProductDetailSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     colors = ColorVariantSerializer(source="color_variants", many=True, read_only=True)
+    code = serializers.CharField(source="product_code", read_only=True, allow_null=True)
 
     class Meta:
         model = Product
-        fields = ["id", "name", "slug", "description", "price", "sale_price", "category", "colors"]
+        fields = ["id", "name", "slug", "code", "description", "price", "sale_price", "category", "colors"]
 
 
 class ColorSwatchSerializer(serializers.ModelSerializer):
@@ -62,13 +63,14 @@ class ProductListSerializer(serializers.ModelSerializer):
     """
 
     category = CategorySerializer(read_only=True)
+    code = serializers.CharField(source="product_code", read_only=True, allow_null=True)
     in_stock = serializers.BooleanField(read_only=True)
     image = serializers.SerializerMethodField()
     colors = ColorSwatchSerializer(source="active_colors", many=True, read_only=True)
 
     class Meta:
         model = Product
-        fields = ["id", "name", "slug", "price", "sale_price", "category", "in_stock", "image", "colors"]
+        fields = ["id", "name", "slug", "code", "price", "sale_price", "category", "in_stock", "image", "colors"]
 
     def get_image(self, obj: Product):
         if not obj.image_key:

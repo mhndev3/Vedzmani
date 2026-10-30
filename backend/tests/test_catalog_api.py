@@ -10,7 +10,7 @@ pytestmark = pytest.mark.django_db
 
 def build(slug="basic-hoodie", active=True, variants=2):
     cat = Category.objects.get_or_create(slug="hoodie", defaults={"name": "Hoodie"})[0]
-    p = Product.objects.create(category=cat, name="Basic Hoodie", slug=slug, price=Decimal("1000"), is_active=active)
+    p = Product.objects.create(category=cat, product_code=f"VZ-{slug.upper()}", name="Basic Hoodie", slug=slug, price=Decimal("1000"), is_active=active)
     sizes = [Size.objects.get_or_create(code=c, defaults={"label": c.upper(), "position": i})[0] for i, c in enumerate("sml")]
     for n in range(variants):
         v = ColorVariant.objects.create(product=p, name=f"C{n}", slug=f"c{n}", position=n)
@@ -28,6 +28,7 @@ def test_detail_returns_nested_structure():
     r = Client().get("/api/catalog/products/basic-hoodie/")
     assert r.status_code == 200
     body = r.json()
+    assert body["code"] == "VZ-BASIC-HOODIE"
     assert body["category"] == {"name": "Hoodie", "slug": "hoodie"}
     assert [c["slug"] for c in body["colors"]] == ["c0", "c1"]
     first = body["colors"][0]

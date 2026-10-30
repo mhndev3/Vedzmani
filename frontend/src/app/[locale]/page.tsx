@@ -14,7 +14,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <>
       <HomepageHeroSlider locale={locale} />
-      {sections.map((section) => (
+      {sections.filter((section) => section.id !== "categories").map((section) => (
         <HomeSection key={section.id} section={section} t={t} />
       ))}
     </>

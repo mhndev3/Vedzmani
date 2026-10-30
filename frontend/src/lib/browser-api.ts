@@ -78,7 +78,14 @@ export async function apiRequest<T>(method: Method, path: string, body?: unknown
   });
   if (!res.ok) throw await parseError(res);
   try {
-    return (res.status === 204 ? undefined : await res.json()) as T;
+    const data = (res.status === 204 ? undefined : await res.json()) as T;
+    if (method !== "GET" && path.startsWith("/api/cart/") && data && typeof data === "object" && "item_count" in data) {
+      const itemCount = Number((data as { item_count: unknown }).item_count);
+      window.dispatchEvent(new CustomEvent("vedzmani:cart-updated", {
+        detail: { itemCount: Number.isFinite(itemCount) ? itemCount : 0 },
+      }));
+    }
+    return data;
   } catch {
     throw new BrowserApiError(res.status, "network_error");
   }

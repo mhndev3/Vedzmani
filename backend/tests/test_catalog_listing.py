@@ -54,6 +54,7 @@ def make(
     cat = Category.objects.get_or_create(slug=category, defaults={"name": category.title()})[0]
     p = Product.objects.create(
         category=cat,
+        product_code=f"VZ-{slug.upper()}",
         name=name or slug.replace("-", " ").title(),
         slug=slug,
         description=description,
@@ -89,7 +90,8 @@ def test_basic_listing_shape_and_no_private_fields():
     body = r.json()
     assert set(body) == {"count", "next", "previous", "results"} and body["count"] == 1
     item = body["results"][0]
-    assert set(item) == {"id", "name", "slug", "price", "sale_price", "category", "in_stock", "image", "colors"}
+    assert set(item) == {"id", "name", "slug", "code", "price", "sale_price", "category", "in_stock", "image", "colors"}
+    assert item["code"] == "VZ-ALPHA"
     assert item["category"] == {"name": "Hoodie", "slug": "hoodie"}
     assert item["in_stock"] is True
     assert item["image"] == {"url": "/alpha/b0.webp", "alt_text": "alt", "width": 800, "height": 1000}
@@ -160,6 +162,7 @@ def test_search_fields_and_case_insensitivity():
     assert slugs(get(search="outerwear")) == ["red-jacket"]  # category name
     assert slugs(get(search="winter")) == ["red-jacket"]  # collection name
     assert slugs(get(search="red-jacket")) == ["red-jacket"]  # slug
+    assert slugs(get(search="VZ-RED-JACKET")) == ["red-jacket"]  # product code
     assert get(search="nothing-like-this").json()["count"] == 0
 
 

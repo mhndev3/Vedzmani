@@ -73,6 +73,7 @@ def _search_q(term: str) -> Q:
     )
     return (
         Q(name__icontains=term)
+        | Q(product_code__icontains=term)
         | Q(slug__icontains=term)
         | Q(description__icontains=term)
         | Q(category__name__icontains=term)

@@ -24,7 +24,7 @@ def category():
 
 @pytest.fixture
 def product(category):
-    return Product.objects.create(category=category, name="Basic Hoodie", slug="basic-hoodie", price=Decimal("1000000"))
+    return Product.objects.create(category=category, product_code="TEST-HOODIE-001", name="Basic Hoodie", slug="basic-hoodie", price=Decimal("1000000"))
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def test_sale_price_must_be_below_price_in_db(category, sale):
 
 
 def test_current_price_uses_sale_price(category):
-    p = Product.objects.create(category=category, name="X", slug="x", price=Decimal("100"), sale_price=Decimal("80"))
+    p = Product.objects.create(category=category, product_code="TEST-CURRENT-001", name="X", slug="x", price=Decimal("100"), sale_price=Decimal("80"))
     assert p.current_price == Decimal("80")
 
 

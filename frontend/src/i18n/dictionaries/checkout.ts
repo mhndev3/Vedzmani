@@ -1,97 +1,8 @@
 import type { Locale } from "@/i18n/config";
 
-/**
- * Checkout strings. Kept in their own module (not in fa.ts/en.ts) so this flow
- * never conflicts with other storefront work. Both locales must define every key.
- * Wording follows backend/ORDERS.md: totals exclude shipping, payment is "unpaid".
- */
-const en = {
-  title: "Checkout",
-  intro: "Enter your delivery details to place your order. No payment is taken at this step.",
-  loading: "Loading your checkout…",
-  unavailable: {
-    title: "Checkout is temporarily unavailable",
-    body: "We couldn't load your checkout. Please try again.",
-    retry: "Try again",
-  },
-  signIn: {
-    title: "Sign in to continue",
-    body: "You need to be signed in to place an order.",
-    recheck: "I've signed in, check again",
-  },
-  empty: {
-    title: "Your cart is empty",
-    body: "Add items to your cart before checking out.",
-    browse: "Browse products",
-  },
-  maybePlaced: {
-    title: "Please check before ordering again",
-    body: "Your cart is now empty. If you just submitted an order it may already have been placed, so do not order again. Contact support to confirm.",
-    browse: "Browse products",
-  },
-  summary: {
-    title: "Order summary",
-    quantity: "Qty {quantity}",
-    itemsTotal: "Items total",
-    shippingNote:
-      "Shipping is not included. A delivery fee has not been decided yet, so this is not the final delivered price.",
-    paymentNote: "No payment is taken here. Your order will be created as unpaid.",
-    unavailableLine: "No longer available",
-    insufficientLine: "Not enough stock",
-    issues:
-      "Some items in your cart are unavailable or exceed current stock. Update your cart before ordering.",
-  },
-  form: {
-    title: "Delivery details",
-    recipient_name: "Recipient name",
-    province: "Province",
-    city: "City",
-    address: "Address",
-    postal_code: "Postal code",
-    postalHint: "10 digits",
-    phoneNote: "We use the phone number on your account for delivery contact: {phone}",
-    submit: "Place order",
-    submitting: "Placing your order…",
-  },
-  fieldErrors: {
-    required: "This field is required.",
-    too_long: "Must be at most {max} characters.",
-    invalid_postal_code: "Enter a 10-digit postal code.",
-    invalid_characters: "Remove line breaks or control characters.",
-    invalid: "Please check this value.",
-  },
-  errorsTitle: "Please fix the highlighted fields.",
-  banners: {
-    csrf: "Your session expired. Please submit again.",
-    csrfUnavailable: "We couldn't prepare a secure request. Check your connection and try again.",
-    item_unavailable:
-      "One or more items in your cart are no longer available. Your order was not placed. Please update your cart.",
-    insufficient_stock:
-      "There isn't enough stock for one or more items. Your order was not placed. Please update your cart.",
-    ambiguous:
-      "We couldn't confirm whether your order was placed. Please check before submitting again.",
-    server: "Something went wrong and your order was not placed. Please try again.",
-  },
-  confirmation: {
-    title: "Order placed",
-    thanks: "Thank you. Your order has been created.",
-    number: "Order number",
-    status: "Status",
-    payment: "Payment",
-    delivery: "Delivery details",
-    phone: "Contact phone",
-    items: "Items",
-    total: "Items total (excludes shipping)",
-    paymentLabels: { unpaid: "Not paid. No payment has been taken." },
-    statusLabels: { pending: "Pending" },
-    continue: "Continue shopping",
-  },
-};
-
 type Strings<T> = { [K in keyof T]: T[K] extends string ? string : Strings<T[K]> };
-export type CheckoutDictionary = Strings<typeof en>;
 
-const fa: CheckoutDictionary = {
+const fa = {
   title: "تسویه حساب",
   intro: "برای ثبت سفارش، اطلاعات تحویل را وارد کنید. در این مرحله هیچ پرداختی انجام نمی‌شود.",
   loading: "در حال بارگذاری صفحه تسویه حساب…",
@@ -173,10 +84,10 @@ const fa: CheckoutDictionary = {
   },
 };
 
-const dictionaries: Record<Locale, CheckoutDictionary> = { fa, en };
+export type CheckoutDictionary = Strings<typeof fa>;
 
-export function getCheckoutDictionary(locale: Locale): CheckoutDictionary {
-  return dictionaries[locale];
+export function getCheckoutDictionary(_locale: Locale): CheckoutDictionary {
+  return fa;
 }
 
 export function fill(template: string, vars: Record<string, string | number>): string {

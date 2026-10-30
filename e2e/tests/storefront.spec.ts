@@ -1,41 +1,54 @@
 import { expect, test } from "@playwright/test";
 
-test("language switcher keeps the route and flips direction", async ({ page }) => {
+test("storefront uses Persian RTL and the header contains only the agreed links", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/fa/about");
-  await page.getByRole("link", { name: /English/ }).first().click();
-  await expect(page).toHaveURL(/\/en\/about$/);
-  await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
-  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.locator("html")).toHaveAttribute("lang", "fa");
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  const nav = page.getByRole("navigation", { name: "ناوبری اصلی" });
+  for (const name of ["همه محصولات", "درباره ما", "سوالات متداول", "پشتیبانی"]) {
+    await expect(nav.getByRole("link", { name })).toBeVisible();
+  }
+  for (const removed of ["تماس با ما", "بازگشت کالا", "پروفایل", "سبد خرید"]) {
+    await expect(nav.getByRole("link", { name: removed })).toHaveCount(0);
+  }
 });
 
 test("theme toggle switches dark mode and persists", async ({ page }) => {
-  await page.goto("/en");
+  await page.goto("/fa");
   const html = page.locator("html");
-  await page.getByRole("button", { name: "Dark mode" }).click();
+  await page.getByRole("button", { name: "حالت تیره" }).click();
   await expect(html).toHaveClass(/dark/);
   await page.reload();
   await expect(html).toHaveClass(/dark/);
 });
 
-test("desktop navigation exposes the storefront pages", async ({ page }) => {
+test("hamburger menu contains the requested categories and support links", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/en");
-  const nav = page.getByRole("navigation", { name: "Main navigation" });
-  for (const name of ["About", "Contact", "Returns", "FAQ", "Support", "Profile"]) {
-    await expect(nav.getByRole("link", { name })).toBeVisible();
-  }
-});
-
-test("mobile menu opens, navigates and closes", async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 800 });
-  await page.goto("/en");
-  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.goto("/fa");
+  await page.getByRole("button", { name: "باز کردن منو" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  for (const category of ["دورس", "پیراهن", "تی شرت", "هودی", "کاپشن", "جکت", "شلوار جین", "شلوار پارچه ای", "جاگر", "کتونی", "اکسسوری"]) {
+    await expect(dialog.getByRole("link", { name: category })).toBeVisible();
+  }
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await page.getByRole("button", { name: "Open menu" }).click();
-  await dialog.getByRole("link", { name: "FAQ" }).click();
-  await expect(page).toHaveURL(/\/en\/faq$/);
-  await expect(dialog).toBeHidden();
+});
+
+test("header hides while scrolling and returns after scrolling stops", async ({ page }) => {
+  await page.goto("/fa/products");
+  const header = page.locator("header").first();
+  await page.evaluate(() => window.scrollTo(0, 500));
+  await expect(header).toHaveAttribute("aria-hidden", "true");
+  await expect(header).toHaveAttribute("aria-hidden", "false", { timeout: 1500 });
+});
+
+test("header search opens and blank search does not show products", async ({ page }) => {
+  await page.goto("/fa");
+  await page.getByRole("button", { name: "جستجوی محصولات" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("list")).toHaveCount(0);
+  await expect(dialog.getByText("جستجوهای اخیر")).toHaveCount(0);
 });
