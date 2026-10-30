@@ -58,7 +58,7 @@ export function SignInForm({
   const [resent, setResent] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
   const [now, setNow] = useState(0);
-  const inFlight = useRef(false); // synchronous guard against double submits
+  const inFlight = useRef(false);
   const alive = useRef(true);
   const phoneInput = useRef<HTMLInputElement>(null);
   const codeInput = useRef<HTMLInputElement>(null);
@@ -67,7 +67,6 @@ export function SignInForm({
 
   useEffect(() => {
     alive.current = true;
-    // A customer who is already signed in has nothing to do here.
     authApi
       .me()
       .then((user) => {
@@ -147,7 +146,6 @@ export function SignInForm({
     }
   }
 
-  /** Confirms with Django that the session cookie really works, then leaves. */
   async function finish(): Promise<void> {
     try {
       if ((await authApi.me()) === null) {
@@ -180,7 +178,6 @@ export function SignInForm({
       if (!alive.current) return;
       const c = classifyAuthError(e);
       if (c.key === "network" || c.key === "unexpected") {
-        // The outcome is unknown: Django may have created the session before the reply was lost.
         const user = await authApi.me().catch(() => null);
         if (user) return void (await finish());
       }
@@ -270,7 +267,7 @@ export function SignInForm({
             {t.phone.hint}
           </p>
           {fieldError && (
-            <p id="signin-phone-error" className="text-sm text-red-700 dark:text-red-400">
+            <p id="signin-phone-error" role="alert" className="text-sm text-red-700 dark:text-red-400">
               {fieldError}
             </p>
           )}
@@ -313,7 +310,7 @@ export function SignInForm({
             {t.code.hint}
           </p>
           {fieldError && (
-            <p id="signin-code-error" className="text-sm text-red-700 dark:text-red-400">
+            <p id="signin-code-error" role="alert" className="text-sm text-red-700 dark:text-red-400">
               {fieldError}
             </p>
           )}
