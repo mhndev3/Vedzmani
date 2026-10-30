@@ -17,7 +17,7 @@ from django.forms.models import BaseInlineFormSet
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Category, Collection, ColorVariant, Product, ProductSizeMeasurement, Size, VariantImage, VariantSize
+from .models import Category, Collection, ColorVariant, Product, ProductSizeDescription, ProductSizeMeasurement, Size, VariantImage, VariantSize, VariantSizeDescription
 
 
 class ProductAdminForm(forms.ModelForm):
@@ -43,6 +43,13 @@ class ProductSizeMeasurementInline(admin.TabularInline):
     extra = 0
     autocomplete_fields = ("size",)
     fields = ("size", "name", "value", "unit", "position")
+
+
+class ProductSizeDescriptionInline(admin.TabularInline):
+    model = ProductSizeDescription
+    extra = 0
+    autocomplete_fields = ("size",)
+    fields = ("size", "description")
 
 
 class ColorVariantInline(admin.TabularInline):
@@ -159,7 +166,7 @@ class ProductAdmin(admin.ModelAdmin):
     filter_horizontal = ("collections",)
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("current_price", "created_at", "updated_at")
-    inlines = [ProductSizeMeasurementInline, ColorVariantInline]
+    inlines = [ProductSizeMeasurementInline, ProductSizeDescriptionInline, ColorVariantInline]
     fieldsets = (
         (None, {"fields": ("product_code", "name", "slug", "category", "collections", "description")}),
         ("Pricing", {"fields": ("price", "sale_price", "current_price")}),
@@ -233,6 +240,7 @@ class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     autocomplete_fields = ("variant",)
     # stock is changed only through inventory adjustments (apps.inventory), never by editing the column here
     readonly_fields = ("stock_quantity", "created_at", "updated_at")
+    inlines = [VariantSizeDescriptionInline]
 
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)
@@ -244,6 +252,13 @@ class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     def adjust_stock_link(self, obj):
         url = reverse("admin:inventory_inventoryadjustment_add") + "?" + urlencode({"variant_size": obj.pk})
         return format_html('<a href="{}">Adjust stock (add or remove units)</a>', url)
+
+
+class VariantSizeDescriptionInline(admin.TabularInline):
+    model = VariantSizeDescription
+    extra = 0
+    max_num = 1
+    fields = ("description",)
 
 
 @admin.register(VariantImage)
