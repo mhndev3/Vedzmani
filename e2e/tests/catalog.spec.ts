@@ -15,6 +15,14 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
   });
 
+  test("منوی کشویی دسته‌بندی دسکتاپ به صفحه همان دسته می‌رود", async ({ page }) => {
+    await page.goto("/fa");
+    const nav = page.getByRole("navigation", { name: "ناوبری اصلی" });
+    await nav.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
+    await nav.getByRole("link", { name: "هودی" }).click();
+    await expect(page).toHaveURL(/\/fa\/categories\/hoodies$/);
+    await expect(page.getByRole("heading", { level: 1, name: "هودی" })).toBeVisible();
+  });
   test("جست‌وجو با کد محصول و نام از آیکون هدر انجام می‌شود", async ({ page }) => {
     await page.goto("/fa/products");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
@@ -69,6 +77,8 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
   test("مرتب‌سازی با لینک‌ها اعمال می‌شود", async ({ page }) => {
     await page.goto("/fa/products");
+    await expect(page.getByRole("link", { name: "نام (الف تا ی)" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "نام (ی تا الف)" })).toHaveCount(0);
     await page.getByRole("link", { name: "ارزان‌ترین" }).click();
     await expect(page).toHaveURL(/sort=price_asc/);
     await expect(cards(page).first().getByRole("heading")).toHaveText("Tee 01");
