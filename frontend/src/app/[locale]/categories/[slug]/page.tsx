@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Pick<Props, "params">): Promi
   const { locale, slug } = await params;
   if (!isLocale(locale)) return {};
   const data = await categoryData(slug);
-  return { title: data?.category.name ?? getDictionary(locale).catalog.title };
+  return { title: data?.name ?? getDictionary(locale).catalog.title };
 }
 
 export default async function CategoryPage({ params, searchParams }: Props) {
@@ -60,7 +60,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{data.category.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{data.name}</h1>
           <Link href={'/' + locale + '/products'} className="mt-2 inline-flex text-sm text-muted-foreground hover:text-foreground">مشاهده همه محصولات</Link>
         </div>
       </div>
