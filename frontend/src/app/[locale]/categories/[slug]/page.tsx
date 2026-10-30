@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { fill, formatPrice, getFilterOptions, getProducts, parseCatalogState, type CatalogState, type FilterOptions, type Paginated, type ProductCardData } from "@/lib/catalog";
+import { fill, formatPrice, getProducts, parseCatalogState, type CatalogState, type Paginated, type ProductCardData } from "@/lib/catalog";
 import { Pagination, SortLinks } from "@/components/storefront/catalog/CatalogControls";
 import { ProductCard } from "@/components/storefront/catalog/ProductCard";
 
@@ -13,14 +13,22 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-async function categoryData(slug: string): Promise<{ options: FilterOptions; category: { name: string; slug: string } } | null> {
-  try {
-    const options = await getFilterOptions();
-    const category = options.categories.find((item) => item.slug === slug);
-    return category ? { options, category } : null;
-  } catch {
-    return null;
-  }
+const CATEGORIES = [
+  { name: "دورس", slug: "sweatshirts" },
+  { name: "پیراهن", slug: "shirts" },
+  { name: "تی شرت", slug: "t-shirts" },
+  { name: "هودی", slug: "hoodies" },
+  { name: "کاپشن", slug: "coats" },
+  { name: "جکت", slug: "jackets" },
+  { name: "شلوار جین", slug: "jeans" },
+  { name: "شلوار پارچه ای", slug: "trousers" },
+  { name: "جاگر", slug: "joggers" },
+  { name: "کتونی", slug: "sneakers" },
+  { name: "اکسسوری", slug: "accessories" },
+] as const;
+
+function categoryData(slug: string) {
+  return CATEGORIES.find((item) => item.slug === slug) ?? null;
 }
 
 export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
