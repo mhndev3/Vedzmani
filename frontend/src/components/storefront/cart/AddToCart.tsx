@@ -88,7 +88,7 @@ export function AddToCart({
                 }}
               />
               <span
-                className={{"inline-flex h-10 min-w-16 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm transition-colors peer-checked:border-primary peer-checked:ring-1 peer-checked:ring-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring peer-disabled:cursor-not-allowed peer-disabled:hover:bg-transparent "+(size.stock_quantity === 0 ? "border-red-500 text-red-600 dark:border-red-400 dark:text-red-400" : "border-border hover:bg-muted")}}
+                className={`inline-flex h-10 min-w-16 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm transition-colors peer-checked:border-primary peer-checked:ring-1 peer-checked:ring-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring peer-disabled:cursor-not-allowed peer-disabled:hover:bg-transparent ${size.stock_quantity === 0 ? "border-red-500 text-red-600 dark:border-red-400 dark:text-red-400" : "border-border hover:bg-muted"}`}
               >
                 <span dir="ltr" className="whitespace-nowrap">{size.label} : {size.stock_quantity}</span>
                 {size.stock_quantity === 0 && <span className="sr-only"> ({labels.sizeOutOfStock})</span>}
