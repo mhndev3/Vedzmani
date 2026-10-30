@@ -98,6 +98,19 @@ def test_prod_nginx_includes_the_file_that_compose_mounts():
     assert "./nginx/cloudflare-realip.conf:/etc/nginx/cloudflare-realip.conf:ro" in compose
 
 
+def test_product_media_is_shared_with_backend_and_served_by_nginx():
+    compose = COMPOSE.read_text(encoding="utf-8")
+    backend = _without_comments(_service_block(compose, "backend"))
+    nginx = _without_comments(_service_block(compose, "nginx"))
+    conf = _without_comments(PROD_CONF.read_text(encoding="utf-8"))
+
+    assert "${PRODUCT_MEDIA_DIR:-/home/vzinfra/prod/media}:/app/media" in backend
+    assert "${PRODUCT_MEDIA_DIR:-/home/vzinfra/prod/media}:/var/www/vedzmani-media:ro" in nginx
+    assert "location ^~ /media/" in conf
+    assert "alias /var/www/vedzmani-media/;" in conf
+    assert 'MEDIA_ROOT = Path(env("MEDIA_ROOT"' in (REPO_ROOT / "backend/config/settings/base.py").read_text(encoding="utf-8")
+
+
 def test_prod_nginx_never_forwards_client_supplied_addresses():
     conf = _without_comments(PROD_CONF.read_text(encoding="utf-8"))
     # Overwrite, never append: $proxy_add_x_forwarded_for would keep whatever the client sent.
