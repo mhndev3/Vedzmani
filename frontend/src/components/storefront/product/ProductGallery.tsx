@@ -43,7 +43,7 @@ export function ProductGallery({
       setDisplayImages(latestImages.current);
       setActiveIndex(0);
       window.requestAnimationFrame(() => setFading(false));
-    }, 180);
+    }, 200);
     return () => window.clearTimeout(timeout);
   }, [imageKey]);
 
@@ -92,7 +92,7 @@ export function ProductGallery({
               unoptimized
               priority={activeIndex === 0}
               fetchPriority={activeIndex === 0 ? "high" : "auto"}
-              className={`object-contain transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${fading ? "opacity-0" : "opacity-100"}`}
+              className={`object-contain transition-opacity duration-200 ease-in-out motion-reduce:transition-none ${fading ? "opacity-0" : "opacity-100"}`}
             />
 
             {hasMultiple && (
