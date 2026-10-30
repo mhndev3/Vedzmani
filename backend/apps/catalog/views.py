@@ -3,7 +3,7 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Category, Collection, ColorVariant, Product, Size, VariantImage, VariantSize
+from .models import Category, Collection, ColorVariant, Product, ProductSizeMeasurement, Size, VariantImage, VariantSize
 from .filters import CatalogQuerySerializer, active_colors_queryset, build_product_queryset
 from .pagination import CatalogPagination
 from .serializers import ProductDetailSerializer, ProductListSerializer
@@ -28,7 +28,13 @@ class ProductDetailView(RetrieveAPIView):
         return (
             Product.objects.filter(is_active=True, category__is_active=True)
             .select_related("category")
-            .prefetch_related(Prefetch("color_variants", queryset=variants))
+            .prefetch_related(
+                Prefetch("color_variants", queryset=variants),
+                Prefetch(
+                    "size_measurements",
+                    queryset=ProductSizeMeasurement.objects.order_by("size__position", "position", "id"),
+                ),
+            )
         )
 
 class ProductListView(ListAPIView):
