@@ -17,7 +17,7 @@ from . import services
 from .authentication import OTP_SESSION_FLAG
 from .models import OTPChallenge
 from .ratelimit import get_client_ip
-from .serializers import CurrentUserSerializer, OTPRequestSerializer, OTPVerifySerializer
+from .serializers import CurrentUserSerializer, CustomerProfileSerializer, OTPRequestSerializer, OTPVerifySerializer
 
 BACKEND = "django.contrib.auth.backends.ModelBackend"
 
@@ -95,3 +95,17 @@ class LogoutView(CSRFProtectedAPIView):
     def post(self, request):
         logout(request._request)  # flushes the server-side session row
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@method_decorator(never_cache, name="dispatch")
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(CustomerProfileSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = CustomerProfileSerializer(request.user, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
