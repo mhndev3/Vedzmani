@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { fill, formatPrice, getProducts, parseCatalogState, type CatalogState, type Paginated, type ProductCardData } from "@/lib/catalog";
+import { catalogHref, fill, formatPrice, getProducts, parseCatalogState, type CatalogState, type Paginated, type ProductCardData } from "@/lib/catalog";
 import { Pagination, SortLinks } from "@/components/storefront/catalog/CatalogControls";
 import { ProductCard } from "@/components/storefront/catalog/ProductCard";
 
@@ -54,7 +54,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   } catch (error) {
     if (error instanceof ApiError && error.status === 404 && state.page > 1) outOfRange = true;
   }
-  if (outOfRange) redirect("/" + locale + "/categories/" + slug);
+  if (outOfRange) redirect(catalogHref(locale, { ...state, page: 1 }, "/" + locale + "/categories/" + slug));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
