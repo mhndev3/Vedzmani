@@ -53,7 +53,10 @@ def test_current_price_is_shown_read_only_not_stored(su_client, make_variant_siz
     product.sale_price = Decimal("800")
     product.save()
     html = su_client.get("/admin/catalog/product/").content.decode()
-    assert 'field-current_price">800<' in html
+    assert 'field-current_price_toman">800<' in html
+    assert 'column-base_price_toman' in html and "قیمت پایه (تومان)" in html
+    assert 'column-sale_price_toman' in html and "قیمت با تخفیف (تومان)" in html
+    assert 'column-current_price_toman' in html and "قیمت فعلی (تومان)" in html
     assert "current_price" not in {f.name for f in Product._meta.get_fields()}
     change = su_client.get(f"/admin/catalog/product/{product.pk}/change/").content.decode()
     assert "field-current_price" in change and 'name="current_price"' not in change
