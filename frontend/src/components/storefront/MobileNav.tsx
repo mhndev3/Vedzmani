@@ -46,16 +46,20 @@ export function MobileNav({ items, categories, labels }: Props) {
           </button>
         </div>
         <nav aria-label={labels.title} className="max-h-[calc(100dvh-4.5rem)] overflow-y-auto p-3">
-          <h2 className="mb-2 px-3 text-xs font-semibold text-muted-foreground">{labels.categories}</h2>
-          <ul className="grid grid-cols-2 gap-1">
-            {categories.map((item) => (
-              <li key={item.href}>
-                <Link href={item.href} onClick={close} className="block rounded-lg px-3 py-3 text-sm hover:bg-muted">
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-3 text-sm font-semibold hover:bg-muted">
+              {labels.categories}<span aria-hidden="true">⌄</span>
+            </summary>
+            <ul className="grid grid-cols-2 gap-1 px-1 pb-2">
+              {categories.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} onClick={close} className="block rounded-lg px-3 py-3 text-sm hover:bg-muted">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </details>
           <div className="my-3 border-t border-border" />
           <ul className="flex flex-col">
             {items.map((item) => (
