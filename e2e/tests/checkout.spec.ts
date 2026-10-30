@@ -66,7 +66,7 @@ async function addToCart(page: Page, variantSizeId: number, quantity: number) {
 }
 
 const getJson = async (page: Page, url: string) => (await page.request.get(url)).json();
-const money = (value: string) => new Intl.NumberFormat("fa-IR").format(Number(value));
+const money = (value: string) => `${new Intl.NumberFormat("fa-IR").format(Number(value))} تومان`;
 
 const DELIVERY = {
   "نام گیرنده": "Sara Ahmadi",
