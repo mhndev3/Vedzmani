@@ -57,7 +57,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
       inert={!visible}
       className={`sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur transition-transform duration-200 motion-reduce:transition-none ${visible ? "translate-y-0" : "-translate-y-full"}`}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
         <MobileNav
           items={items}
           categories={categories.map((category) => ({
@@ -71,9 +71,16 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
             categories: "دسته‌بندی‌ها",
           }}
         />
-        <Link href={`/${locale}`} aria-label="صفحه اصلی ودزمانی" className="inline-flex items-center rounded-lg">
+        <Link href={`/${locale}`} aria-label="صفحه اصلی ودزمانی" className="inline-flex shrink-0 items-center rounded-lg">
           <Image src="/favicon.ico" alt="نشان ودزمانی" width={36} height={36} unoptimized priority />
         </Link>
+        <nav aria-label={t.a11y.mainNav} className="hidden items-center gap-5 text-sm md:flex">
+          {items.map((item) => (
+            <Link key={item.href} href={item.href} className="rounded py-2 text-muted-foreground transition-colors hover:text-foreground">
+              {item.label}
+            </Link>
+          ))}
+        </nav>
         <div className="ms-auto flex items-center gap-1">
           <SearchButton locale={locale} />
           <CartButton locale={locale} />
