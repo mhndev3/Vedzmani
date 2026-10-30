@@ -1,7 +1,6 @@
 import json
 
 import pytest
-from apps.accounts.models import User
 
 pytestmark = pytest.mark.django_db
 
@@ -64,9 +63,8 @@ def test_national_code_is_unique_across_accounts(api):
     api.login()
     assert patch_profile(api, PROFILE).status_code == 200
 
-    second = User.objects.create_user("09123456780")
-    client = type(api)()
-    client.client.force_login(second)
-    response = patch_profile(client, PROFILE)
+    second_client = type(api)()
+    second_client.login("09123456780")
+    response = patch_profile(second_client, PROFILE)
     assert response.status_code == 400
     assert response.json()["error"]["details"]["national_code"][0]["code"] == "unique"
