@@ -34,8 +34,10 @@ def test_detail_returns_nested_structure():
     first = body["colors"][0]
     assert [s["size"] for s in first["sizes"]] == ["s", "m", "l"]
     assert [i["position"] for i in first["images"]] == [0, 1] and first["images"][0]["is_primary"]
-    assert first["sizes"][0]["in_stock"] is False and body["colors"][1]["sizes"][0]["in_stock"] is True
-    assert "stock_quantity" not in first["sizes"][0] and "storage_key" not in first["images"][0]
+    assert first["sizes"][0]["in_stock"] is False and first["sizes"][0]["stock_quantity"] == 0
+    assert body["colors"][1]["sizes"][0]["in_stock"] is True
+    assert body["colors"][1]["sizes"][0]["stock_quantity"] == 1
+    assert "storage_key" not in first["images"][0]
 
 
 def test_inactive_product_and_inactive_children_hidden():
