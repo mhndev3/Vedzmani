@@ -33,7 +33,8 @@ Category ─< Product >─< Collection        (Product.collections, M2M)
 DB stores a **storage key** (relative object path, must end in `.webp`), never a URL or signed URL.
 In production, binaries live under `MEDIA_ROOT` (default `/app/media`), backed by the host directory
 `PRODUCT_MEDIA_DIR` (default `/home/vzinfra/prod/media`). Backend mounts it read/write; Nginx mounts it
-read-only and serves `/media/<storage_key>` with immutable caching. If `MEDIA_CDN_BASE_URL` is set,
+read-only and serves `/media/<storage_key>` with immutable caching. The local development Compose
+stack uses a persistent `product_media` named volume shared with Nginx read-only. If `MEDIA_CDN_BASE_URL` is set,
 `public_image_url` returns the CDN URL instead. Upload/import and WebP conversion are performed by the
 separate product-import workflow; the model still stores metadata only.
 
