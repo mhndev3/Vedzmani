@@ -189,3 +189,9 @@ Next.js is the frontend/application presentation layer. Django/DRF owns authorit
 - Added `manage.py purge_expired_auth_data` (`apps/accounts/cleanup.py`): dry-run by default, batched with `SKIP LOCKED`, expired sessions always eligible, OTP rows only with an explicit `--otp-retention-days` (owner policy, no default). **It is NOT scheduled: no scheduler exists in any branch; the owner must choose one (cron / compose sidecar / Celery beat).**
 - Hardened `get_client_ip`: the trusted `X-Forwarded-For` entry must be a valid IP; IPv6 keys collapse to /64; IPv4-mapped IPv6 to IPv4. Local proof of the Nginx side: `scripts/proxy-chain-probe/run.ps1`.
 - **Unverified (needs VPS/Cloudflare evidence, see `backend/AUTH.md`):** which Nginx/settings production runs, whether `cloudflare-realip.conf` is populated, whether the backend is reachable only through Nginx.
+
+## Owner Product Decisions (2026-10-30)
+- Product prices and sale prices are entered and stored in **Iranian Toman**, never Rial. The product owns the price, so all color variants of one product share it. Storefront, cart and checkout price labels must identify Toman.
+- Stock is independent for each product + color + size purchasable unit (`catalog.VariantSize`). A size can have different quantities for different colors.
+- Size measurements are optional and flexible per product + size (`catalog.ProductSizeMeasurement`); rows are shared across that product's colors. The storefront shows a two-column measurement table only for the size currently selected by the customer and updates it on size changes. No measurements means no table.
+- These decisions supersede older "currency undecided" notes in historical sections above.
