@@ -396,3 +396,5 @@ def test_image_build_collects_static_files_under_prod_settings_before_serving():
     assert re.search(r"DJANGO_SETTINGS_MODULE=config\.settings\.prod[\s\\]+(?:\S+=\S+[\s\\]+)*python manage\.py collectstatic --noinput", dockerfile)
     assert dockerfile.index("collectstatic") < dockerfile.index("CMD [")
     assert "whitenoise.storage.CompressedManifestStaticFilesStorage" in prod_settings
+    assert "mkdir -p /app/staticfiles /app/media" in dockerfile
+    assert "chown app:app /app/staticfiles /app/media" in dockerfile
