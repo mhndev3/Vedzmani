@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Category, ColorVariant, Product, VariantImage, VariantSize
+from .models import Category, ColorVariant, Product, ProductSizeMeasurement, VariantImage, VariantSize
 from .storage import public_image_url
 
 
@@ -12,18 +12,31 @@ class VariantImageSerializer(serializers.ModelSerializer):
         fields = ["url", "alt_text", "position", "is_primary", "width", "height"]
 
 
+class ProductSizeMeasurementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductSizeMeasurement
+        fields = ["name", "value", "unit"]
+
+
 class VariantSizeSerializer(serializers.ModelSerializer):
     size = serializers.CharField(source="size.code")
     label = serializers.CharField(source="size.label")
     in_stock = serializers.SerializerMethodField()
     stock_quantity = serializers.IntegerField(read_only=True)
+    measurements = serializers.SerializerMethodField()
 
     class Meta:
         model = VariantSize
-        fields = ["id", "size", "label", "sku", "in_stock", "stock_quantity"]
+        fields = ["id", "size", "label", "sku", "in_stock", "stock_quantity", "measurements"]
 
     def get_in_stock(self, obj: VariantSize) -> bool:
         return obj.stock_quantity > 0
+
+    def get_measurements(self, obj: VariantSize):
+        measurements_by_size = self.context.get("product_measurements_by_size", {})
+        return ProductSizeMeasurementSerializer(
+            measurements_by_size.get(obj.size_id, []), many=True
+        ).data
 
 
 class ColorVariantSerializer(serializers.ModelSerializer):
@@ -43,12 +56,24 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductDetailSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
-    colors = ColorVariantSerializer(source="color_variants", many=True, read_only=True)
+    colors = serializers.SerializerMethodField()
     code = serializers.CharField(source="product_code", read_only=True, allow_null=True)
 
     class Meta:
         model = Product
         fields = ["id", "name", "slug", "code", "description", "price", "sale_price", "category", "colors"]
+
+    def get_colors(self, obj: Product):
+        measurements_by_size = {}
+        for measurement in obj.size_measurements.all():
+            measurements_by_size.setdefault(measurement.size_id, []).append(measurement)
+        nested_context = {
+            **self.context,
+            "product_measurements_by_size": measurements_by_size,
+        }
+        return ColorVariantSerializer(
+            obj.color_variants.all(), many=True, context=nested_context
+        ).data
 
 
 class ColorSwatchSerializer(serializers.ModelSerializer):
