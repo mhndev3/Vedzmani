@@ -27,6 +27,7 @@ def _product_form(category, **over):
     data = {"product_code": "VZ-ADMIN-HOODIE", "name": "Hoodie", "slug": "hoodie", "category": category.pk, "description": "", "price": "1000"}
     data.update(_formset("color_variants"))
     data.update(_formset("size_measurements"))
+    data.update(_formset("size_descriptions"))
     data.update(over)
     return data
 
