@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/config";
@@ -20,18 +19,10 @@ export function SearchButton({ locale }: { locale: Locale }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
-      if (Array.isArray(saved)) setHistory(saved.filter((item): item is string => typeof item === "string").slice(0, 8));
-    } catch { setHistory([]); }
-  }, []);
-
-  useEffect(() => {
     const term = query.trim();
-    if (!term) { setResults([]); setLoading(false); return; }
+    if (!term) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
-      setLoading(true);
       try {
         const response = await fetch(`/api/catalog/products/?search=${encodeURIComponent(term)}&page_size=8`, {
           credentials: "same-origin", cache: "no-store", signal: controller.signal,
@@ -40,7 +31,7 @@ export function SearchButton({ locale }: { locale: Locale }) {
         if (!response.ok) throw new Error("search_failed");
         const data = await response.json() as SearchResponse;
         setResults(data.results ?? []);
-      } catch (error) {
+      } catch {
         if (!controller.signal.aborted) setResults([]);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -60,6 +51,15 @@ export function SearchButton({ locale }: { locale: Locale }) {
   function open() {
     setQuery("");
     setResults([]);
+    setLoading(false);
+    try {
+      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
+      setHistory(Array.isArray(saved)
+        ? saved.filter((item): item is string => typeof item === "string").slice(0, 8)
+        : []);
+    } catch {
+      setHistory([]);
+    }
     dialog.current?.showModal();
     window.setTimeout(() => input.current?.focus(), 0);
   }
@@ -95,7 +95,12 @@ export function SearchButton({ locale }: { locale: Locale }) {
             <input
               ref={input}
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                setQuery(value);
+                setResults([]);
+                setLoading(Boolean(value.trim()));
+              }}
               placeholder="نام یا کد محصول را جستجو کنید"
               aria-label="نام یا کد محصول"
               maxLength={100}
@@ -114,7 +119,7 @@ export function SearchButton({ locale }: { locale: Locale }) {
                 <ul className="flex flex-wrap gap-2">
                   {history.map((item) => (
                     <li key={item}>
-                      <button type="button" onClick={() => setQuery(item)} className="rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted">{item}</button>
+                      <button type="button" onClick={() => { setQuery(item); setResults([]); setLoading(true); }} className="rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted">{item}</button>
                     </li>
                   ))}
                 </ul>
