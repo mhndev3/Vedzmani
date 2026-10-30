@@ -133,7 +133,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page).toHaveURL(/color=white/);
     await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 White front");
     await expect(page.getByText("ناموجود", { exact: true })).toBeVisible();
-    await expect(page.getByText("M : 0")).toHaveClass(/border-red-500/);
+    await expect(page.getByText("M : 0").locator("..")).toHaveClass(/border-red-500/);
     await expect(page.getByRole("radio", { name: "M" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeDisabled();
     await page.getByRole("link", { name: "بازگشت به محصولات" }).click();
