@@ -232,7 +232,7 @@ class _VariantColumnsMixin:
 
 class VariantSizeDescriptionInline(admin.TabularInline):
     model = VariantSizeDescription
-    extra = 0
+    extra = 1
     max_num = 1
     fields = ("description",)
 
