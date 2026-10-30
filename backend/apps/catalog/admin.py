@@ -230,6 +230,13 @@ class _VariantColumnsMixin:
         return obj.variant.name
 
 
+class VariantSizeDescriptionInline(admin.TabularInline):
+    model = VariantSizeDescription
+    extra = 0
+    max_num = 1
+    fields = ("description",)
+
+
 @admin.register(VariantSize)
 class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     list_display = ("sku", "product", "color", "size", "stock_quantity", "is_active")
@@ -252,13 +259,6 @@ class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     def adjust_stock_link(self, obj):
         url = reverse("admin:inventory_inventoryadjustment_add") + "?" + urlencode({"variant_size": obj.pk})
         return format_html('<a href="{}">Adjust stock (add or remove units)</a>', url)
-
-
-class VariantSizeDescriptionInline(admin.TabularInline):
-    model = VariantSizeDescription
-    extra = 0
-    max_num = 1
-    fields = ("description",)
 
 
 @admin.register(VariantImage)
