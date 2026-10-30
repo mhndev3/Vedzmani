@@ -5,6 +5,7 @@ import { SignInLink } from "@/components/auth/SignInLink";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import type { Locale } from "@/i18n/config";
 import { fill, type CheckoutDictionary } from "@/i18n/dictionaries/checkout";
+import { formatCurrency } from "@/lib/format";
 import { apiGet, apiPostJson, type ApiDetails } from "@/lib/checkout/api";
 import {
   DELIVERY_FIELDS,
@@ -51,13 +52,6 @@ async function fetchSnapshot(): Promise<Snapshot> {
   return { phase, me: meRes.data };
 }
 
-function formatMoney(value: string, locale: Locale): string {
-  // Display only. Whole-unit Decimal strings come from Django; no arithmetic happens here.
-  if (!/^\d+$/.test(value)) return value; // never the case per contract; show it verbatim rather than guess
-  return new Intl.NumberFormat(locale === "fa" ? "fa-IR" : "en-US", {
-    maximumFractionDigits: 0,
-  }).format(BigInt(value));
-}
 
 function fieldErrorsFromDetails(details: ApiDetails | undefined): FieldErrors {
   const errors: FieldErrors = {};
@@ -360,7 +354,7 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
               </p>
               <p className="mt-1 flex justify-between gap-2">
                 <span>{fill(t.summary.quantity, { quantity: item.quantity })}</span>
-                <span>{formatMoney(item.subtotal, locale)}</span>
+                <span>{formatCurrency(item.subtotal, locale)}</span>
               </p>
               {item.availability === "unavailable" && (
                 <p className="mt-1 text-red-700 dark:text-red-400">{t.summary.unavailableLine}</p>
@@ -373,7 +367,7 @@ export function CheckoutForm({ locale, t }: { locale: Locale; t: CheckoutDiction
         </ul>
         <p className="mt-3 flex justify-between border-t border-border pt-3 font-semibold">
           <span>{t.summary.itemsTotal}</span>
-          <span data-testid="cart-total">{formatMoney(cart.total, locale)}</span>
+          <span data-testid="cart-total">{formatCurrency(cart.total, locale)}</span>
         </p>
         <p className="mt-2 text-xs text-muted-foreground">{t.summary.shippingNote}</p>
       </aside>
@@ -481,13 +475,13 @@ function Confirmation({
             <span>
               {item.product_name} · {item.color_name} · {item.size_label} × {item.quantity}
             </span>
-            <span>{formatMoney(item.subtotal, locale)}</span>
+            <span>{formatCurrency(item.subtotal, locale)}</span>
           </li>
         ))}
       </ul>
       <p className="mt-3 flex justify-between border-t border-border pt-3 font-semibold">
         <span>{c.total}</span>
-        <span data-testid="order-total">{formatMoney(order.total, locale)}</span>
+        <span data-testid="order-total">{formatCurrency(order.total, locale)}</span>
       </p>
       <p className="mt-2 text-xs text-muted-foreground">{t.summary.shippingNote}</p>
       <Link href={`/${locale}/products`} className={`${secondaryButton} mt-5`}>
