@@ -23,6 +23,15 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page).toHaveURL(/\/fa\/categories\/hoodies$/);
     await expect(page.getByRole("heading", { level: 1, name: "هودی" })).toBeVisible();
   });
+  test("دسته‌بندی بافت از منوی دسکتاپ قابل دسترسی است", async ({ page }) => {
+    await page.goto("/fa");
+    const nav = page.getByRole("navigation", { name: "ناوبری اصلی" });
+    await nav.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
+    await nav.getByRole("link", { name: "بافت" }).click();
+    await expect(page).toHaveURL(/\\/fa\\/categories\\/knitwear$/);
+    await expect(page.getByRole("heading", { level: 1, name: "بافت" })).toBeVisible();
+  });
+
   test("جست‌وجو با کد محصول و نام از آیکون هدر انجام می‌شود", async ({ page }) => {
     await page.goto("/fa/products");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
@@ -167,6 +176,16 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
 test.describe("کاتالوگ موبایل", () => {
   test.use({ viewport: { width: 375, height: 800 } });
+
+  test("دسته‌بندی بافت از منوی موبایل قابل دسترسی است", async ({ page }) => {
+    await page.goto("/fa");
+    await page.getByRole("button", { name: "باز کردن منو" }).click();
+    const menu = page.getByRole("dialog");
+    await menu.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
+    await menu.getByRole("link", { name: "بافت" }).click();
+    await expect(page).toHaveURL(/\\/fa\\/categories\\/knitwear$/);
+    await expect(page.getByRole("heading", { level: 1, name: "بافت" })).toBeVisible();
+  });
 
   test("فیلترها در دیالوگ باز می‌شوند و صفحه اسکرول افقی ندارد", async ({ page }) => {
     await page.goto("/fa/products");
