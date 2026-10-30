@@ -93,7 +93,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
           <SearchButton locale={locale} />
           <CartButton locale={locale} />
           <Link href={'/' + locale + '/profile'} aria-label="حساب کاربری" title="حساب کاربری" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8' r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
           </Link>
           <ThemeToggle label={t.a11y.toggleTheme} />
         </div>
