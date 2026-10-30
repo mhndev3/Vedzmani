@@ -42,3 +42,26 @@ class CurrentUserSerializer(serializers.ModelSerializer):
         fields = ["id", "phone", "is_staff"]
         read_only_fields = fields
 
+
+
+class CustomerProfileSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(max_length=150, trim_whitespace=True)
+    last_name = serializers.CharField(max_length=150, trim_whitespace=True)
+    address = serializers.CharField(max_length=1000, trim_whitespace=True)
+    postal_code = serializers.CharField(max_length=20, trim_whitespace=True)
+    national_code = serializers.CharField(max_length=10, trim_whitespace=True)
+    is_complete = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "phone", "first_name", "last_name", "address", "postal_code", "national_code", "is_complete"]
+        read_only_fields = ["id", "phone", "is_complete"]
+
+    def validate_national_code(self, value):
+        digits = value.translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"))
+        if len(digits) != 10 or not digits.isascii() or not digits.isdigit():
+            raise serializers.ValidationError("کد ملی باید دقیقاً ۱۰ رقم باشد.", code="invalid_national_code")
+        return digits
+
+    def get_is_complete(self, obj):
+        return bool(obj.first_name and obj.last_name and obj.address and obj.postal_code and obj.national_code)
