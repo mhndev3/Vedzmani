@@ -31,6 +31,8 @@ class ProductAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["price"].label = "قیمت (تومان)"
         self.fields["sale_price"].label = "قیمت با تخفیف (تومان)"
+        self.fields["price"].help_text = "تمام قیمت‌های محصولات به تومان ثبت می‌شوند."
+        self.fields["sale_price"].help_text = "در صورت ثبت، مبلغ تخفیف‌خورده نیز به تومان است."
 
 
 
