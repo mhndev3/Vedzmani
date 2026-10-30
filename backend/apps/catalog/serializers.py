@@ -16,10 +16,11 @@ class VariantSizeSerializer(serializers.ModelSerializer):
     size = serializers.CharField(source="size.code")
     label = serializers.CharField(source="size.label")
     in_stock = serializers.SerializerMethodField()
+    stock_quantity = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = VariantSize
-        fields = ["id", "size", "label", "sku", "in_stock"]
+        fields = ["id", "size", "label", "sku", "in_stock", "stock_quantity"]
 
     def get_in_stock(self, obj: VariantSize) -> bool:
         return obj.stock_quantity > 0
