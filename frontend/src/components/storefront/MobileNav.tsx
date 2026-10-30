@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { CloseIcon, MenuIcon } from "./icons";
+import { ChevronDownIcon, CloseIcon, MenuIcon } from "./icons";
 
 type MenuLink = { href: string; label: string };
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
 
 export function MobileNav({ items, categories, labels }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const close = () => ref.current?.close();
 
   return (
@@ -46,16 +47,29 @@ export function MobileNav({ items, categories, labels }: Props) {
           </button>
         </div>
         <nav aria-label={labels.title} className="max-h-[calc(100dvh-4.5rem)] overflow-y-auto p-3">
-          <h2 className="mb-2 px-3 text-xs font-semibold text-muted-foreground">{labels.categories}</h2>
-          <ul className="grid grid-cols-2 gap-1">
-            {categories.map((item) => (
-              <li key={item.href}>
-                <Link href={item.href} onClick={close} className="block rounded-lg px-3 py-3 text-sm hover:bg-muted">
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="border-b border-border pb-2">
+            <button
+              type="button"
+              aria-expanded={categoriesOpen}
+              aria-controls="mobile-nav-categories"
+              onClick={() => setCategoriesOpen((open) => !open)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-sm font-semibold hover:bg-muted"
+            >
+              {labels.categories}
+              <ChevronDownIcon className={`transition-transform duration-200 ${categoriesOpen ? "rotate-180" : ""}`} />
+            </button>
+            {categoriesOpen && (
+              <ul id="mobile-nav-categories" className="grid grid-cols-2 gap-1 px-1">
+                {categories.map((item) => (
+                  <li key={item.href}>
+                    <Link href={item.href} onClick={close} className="block rounded-lg px-3 py-3 text-sm hover:bg-muted">
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <div className="my-3 border-t border-border" />
           <ul className="flex flex-col">
             {items.map((item) => (
