@@ -164,6 +164,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
                   in_stock: s.in_stock,
                   stock_quantity: s.stock_quantity,
                   measurements: s.measurements,
+                  description: s.size_description,
                 }))}
                 labels={{
                   sizes: t.product.sizes,
@@ -174,6 +175,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
                   viewCart: t.product.viewCart,
                   sizeRequired: t.product.sizeRequired,
                   sizeMeasurements: t.product.sizeMeasurements,
+                  description: t.product.description,
                 }}
                 errors={t.cart.errors}
               />
