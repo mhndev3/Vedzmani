@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
-import { formatPrice, type CatalogImage, type ProductCardData } from "@/lib/catalog";
+import { type CatalogImage, type ProductCardData } from "@/lib/catalog";
+import { formatCurrency } from "@/lib/format";
 
 /** Shows real prices only: a struck-through original appears solely when the backend sends a sale_price. */
 export function Price({
@@ -24,15 +25,15 @@ export function Price({
         <>
           <span className="font-medium">
             <span className="sr-only">{t.catalog.salePrice}: </span>
-            {formatPrice(salePrice, locale)}
+            {formatCurrency(salePrice, locale)}
           </span>
           <del className="text-sm text-muted-foreground">
             <span className="sr-only">{t.catalog.originalPrice}: </span>
-            {formatPrice(price, locale)}
+            {formatCurrency(price, locale)}
           </del>
         </>
       ) : (
-        <span className="font-medium">{formatPrice(price, locale)}</span>
+        <span className="font-medium">{formatCurrency(price, locale)}</span>
       )}
     </p>
   );

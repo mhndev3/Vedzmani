@@ -122,6 +122,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR / "media")) or BASE_DIR / "media")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Cross-origin / CSRF. Default topology is same-origin behind Nginx, so CORS

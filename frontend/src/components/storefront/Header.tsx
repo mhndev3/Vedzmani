@@ -22,6 +22,7 @@ const categories = [
   { name: "جاگر", slug: "joggers" },
   { name: "کتونی", slug: "sneakers" },
   { name: "اکسسوری", slug: "accessories" },
+  { name: "بافت", slug: "knitwear" },
 ];
 
 export function navItems(locale: Locale, t: Dictionary) {

@@ -48,7 +48,7 @@ Common rules (`backend/API.md`, pinned by `tests/test_api_contract.py`):
 
 Routes to consume:
 - Listing `GET /api/catalog/products/` params `search, category, collection, color, size, min_price, max_price, in_stock, sort, page, page_size`; envelope `{count,next,previous,results}`; item `{id,name,slug,price,sale_price,category,in_stock,image,colors[]}`.
-- Detail `GET /api/catalog/products/<slug>/`: `colors[].sizes[].id` **is the `variant_size_id`** the cart needs; stock is exposed only as `in_stock`.
+- Detail `GET /api/catalog/products/<slug>/`: `colors[].sizes[].id` **is the `variant_size_id`** the cart needs; each size includes `in_stock` and exact `stock_quantity` for the product-page selector.
 - Cart `POST /api/cart/items/ {variant_size_id, quantity?}`; `PATCH /api/cart/items/<item_id>/ {quantity}`; every cart call returns `{items[], item_count, total_quantity, total, has_issues}` with per-line `availability` (`available | insufficient_stock | unavailable`). Limits `CART_MAX_ITEM_QUANTITY=10`, `CART_MAX_LINES=50` are unconfirmed defaults.
 - Order `POST /api/orders/` body `{recipient_name, province, city, address, postal_code}` -> `201` order with `status:"pending"`, `payment_status:"unpaid"`; 409 `item_unavailable` / `insufficient_stock`, 400 `empty_cart` / `validation_error`. `total` excludes shipping and must not be shown as a final price. Reads: `GET /api/orders/` (plain array, not paginated), `GET /api/orders/<id>/` (404 for others' orders).
 - Frontend files that exist: `frontend/src/lib/api.ts` (`apiGet`), `lib/catalog.ts`, `components/storefront/catalog/*`, i18n `en.ts`/`fa.ts`. Cart/checkout/auth UI needs new files plus dictionary keys in both languages.

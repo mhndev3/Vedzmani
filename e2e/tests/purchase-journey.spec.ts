@@ -21,7 +21,7 @@ import { execSync } from "node:child_process";
 
 const otpLogCommand = process.env.E2E_OTP_LOG_COMMAND;
 const PRODUCT = "e2e-hoodie-10";
-const money = (value: string) => new Intl.NumberFormat("fa-IR").format(Number(value));
+const money = (value: string) => `${new Intl.NumberFormat("fa-IR").format(Number(value))} تومان`;
 
 async function readOtp(canonicalPhone: string): Promise<string> {
   const re = new RegExp(`phone=\\${canonicalPhone} purpose=login code=(\\d{6})`, "g");

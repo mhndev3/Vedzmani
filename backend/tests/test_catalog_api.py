@@ -3,7 +3,10 @@ from decimal import Decimal
 import pytest
 from django.test import Client
 
-from apps.catalog.models import Category, ColorVariant, Product, Size, VariantImage, VariantSize
+from apps.catalog.models import (
+    Category, ColorVariant, Product, ProductSizeDescription, ProductSizeMeasurement, Size,
+    VariantImage, VariantSize, VariantSizeDescription,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -24,7 +27,18 @@ def build(slug="basic-hoodie", active=True, variants=2):
 
 
 def test_detail_returns_nested_structure():
-    build()
+    product = build()
+    size_m = Size.objects.get(code="m")
+    size_l = Size.objects.get(code="l")
+    ProductSizeMeasurement.objects.create(
+        product=product, size=size_m, name="عرض سینه", value="56", unit="سانتی‌متر", position=0
+    )
+    ProductSizeMeasurement.objects.create(
+        product=product, size=size_m, name="قد کار", value="64", unit="سانتی‌متر", position=1
+    )
+    ProductSizeMeasurement.objects.create(
+        product=product, size=size_l, name="عرض سینه", value="59", unit="سانتی‌متر", position=0
+    )
     r = Client().get("/api/catalog/products/basic-hoodie/")
     assert r.status_code == 200
     body = r.json()
@@ -34,8 +48,45 @@ def test_detail_returns_nested_structure():
     first = body["colors"][0]
     assert [s["size"] for s in first["sizes"]] == ["s", "m", "l"]
     assert [i["position"] for i in first["images"]] == [0, 1] and first["images"][0]["is_primary"]
-    assert first["sizes"][0]["in_stock"] is False and body["colors"][1]["sizes"][0]["in_stock"] is True
-    assert "stock_quantity" not in first["sizes"][0] and "storage_key" not in first["images"][0]
+    assert first["sizes"][0]["in_stock"] is False and first["sizes"][0]["stock_quantity"] == 0
+    assert first["sizes"][1]["measurements"] == [
+        {"name": "عرض سینه", "value": "56", "unit": "سانتی‌متر"},
+        {"name": "قد کار", "value": "64", "unit": "سانتی‌متر"},
+    ]
+    assert first["sizes"][2]["measurements"] == [
+        {"name": "عرض سینه", "value": "59", "unit": "سانتی‌متر"},
+    ]
+    assert body["colors"][1]["sizes"][1]["measurements"] == first["sizes"][1]["measurements"]
+    assert body["colors"][1]["sizes"][0]["measurements"] == []
+    assert body["colors"][1]["sizes"][0]["in_stock"] is True
+    assert body["colors"][1]["sizes"][0]["stock_quantity"] == 1
+    assert "storage_key" not in first["images"][0]
+
+
+
+def test_size_description_falls_back_and_color_size_override_wins():
+    product = build(slug="described-hoodie")
+    size_m = Size.objects.get(code="m")
+    size_l = Size.objects.get(code="l")
+    ProductSizeDescription.objects.create(
+        product=product, size=size_m, description="توضیح مشترک سایز M"
+    )
+    black = ColorVariant.objects.get(product=product, slug="c0")
+    white = ColorVariant.objects.get(product=product, slug="c1")
+    VariantSizeDescription.objects.create(
+        variant_size=white.sizes.get(size=size_m),
+        description="توضیح اختصاصی رنگ سفید و سایز M",
+    )
+
+    body = Client().get("/api/catalog/products/described-hoodie/").json()
+    black_sizes = {row["size"]: row for row in body["colors"][0]["sizes"]}
+    white_sizes = {row["size"]: row for row in body["colors"][1]["sizes"]}
+
+    assert black_sizes["m"]["size_description"] == "توضیح مشترک سایز M"
+    assert white_sizes["m"]["size_description"] == "توضیح اختصاصی رنگ سفید و سایز M"
+    assert black_sizes["l"]["size_description"] == ""
+    assert white_sizes["l"]["size_description"] == ""
+
 
 
 def test_inactive_product_and_inactive_children_hidden():
@@ -57,7 +108,7 @@ def test_inactive_category_hides_product():
 
 def test_detail_query_count_is_constant(django_assert_max_num_queries):
     build(variants=5)
-    with django_assert_max_num_queries(6):  # product, variants, images, sizes (+ prefetch of size)
+    with django_assert_max_num_queries(9):  # fixed prefetches, including both description scopes
         assert Client().get("/api/catalog/products/basic-hoodie/").status_code == 200
 
 

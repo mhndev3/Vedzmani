@@ -6,11 +6,18 @@ import { localeMeta } from "@/i18n/config";
  * Components can share them (catalog.ts re-exports these for existing callers).
  */
 
-/** Prices are whole currency units; the currency itself is still undecided, so none is shown. */
+/** Format a whole number without losing precision for large server-owned Decimal strings. */
 export function formatPrice(value: string | number, locale: Locale): string {
+  const raw = String(value).trim();
+  const formattedValue = /^-?\d+$/.test(raw) ? BigInt(raw) : Number(value);
   return new Intl.NumberFormat(localeMeta[locale].numberLocale, {
     maximumFractionDigits: 0,
-  }).format(Number(value));
+  }).format(formattedValue);
+}
+
+/** All storefront and checkout prices are denominated in Iranian Toman. */
+export function formatCurrency(value: string | number, locale: Locale): string {
+  return `${formatPrice(value, locale)} تومان`;
 }
 
 export function fill(template: string, values: Record<string, string | number>): string {

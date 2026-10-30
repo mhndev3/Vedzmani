@@ -8,7 +8,7 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries/fa";
 import { BrowserApiError, errorText } from "@/lib/browser-api";
 import { cartApi, type Cart, type CartItem } from "@/lib/cart";
-import { fill, formatPrice } from "@/lib/format";
+import { fill, formatCurrency, formatPrice } from "@/lib/format";
 
 type State =
   | { kind: "loading" }
@@ -167,7 +167,7 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
             <p className="text-lg font-semibold">
               <span>{t.total}</span>{" "}
-              <span data-testid="cart-total">{formatPrice(state.cart.total, locale)}</span>
+              <span data-testid="cart-total">{formatCurrency(state.cart.total, locale)}</span>
             </p>
             {state.cart.has_issues ? (
               <span
@@ -233,7 +233,7 @@ function CartLine({
           {t.colorLabel}: {item.color.name} · {t.sizeLabel}: {item.variant_size.label}
         </p>
         <p className="mt-1 text-sm">
-          {t.unitPrice}: {formatPrice(item.unit_price, locale)}
+          {t.unitPrice}: {formatCurrency(item.unit_price, locale)}
         </p>
 
         {item.availability === "insufficient_stock" && (
@@ -278,7 +278,7 @@ function CartLine({
       </div>
 
       <p className="shrink-0 text-sm font-medium" aria-label={t.subtotal}>
-        {formatPrice(item.subtotal, locale)}
+        {formatCurrency(item.subtotal, locale)}
       </p>
     </li>
   );

@@ -17,7 +17,7 @@ from django.forms.models import BaseInlineFormSet
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Category, Collection, ColorVariant, Product, Size, VariantImage, VariantSize
+from .models import Category, Collection, ColorVariant, Product, ProductSizeDescription, ProductSizeMeasurement, Size, VariantImage, VariantSize, VariantSizeDescription
 
 
 class ProductAdminForm(forms.ModelForm):
@@ -27,10 +27,31 @@ class ProductAdminForm(forms.ModelForm):
         model = Product
         fields = "__all__"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["price"].label = "قیمت (تومان)"
+        self.fields["sale_price"].label = "قیمت با تخفیف (تومان)"
+        self.fields["price"].help_text = "تمام قیمت‌های محصولات به تومان ثبت می‌شوند."
+        self.fields["sale_price"].help_text = "در صورت ثبت، مبلغ تخفیف‌خورده نیز به تومان است."
+
 
 
 
 # --- inlines ---------------------------------------------------------------
+class ProductSizeMeasurementInline(admin.TabularInline):
+    model = ProductSizeMeasurement
+    extra = 0
+    autocomplete_fields = ("size",)
+    fields = ("size", "name", "value", "unit", "position")
+
+
+class ProductSizeDescriptionInline(admin.TabularInline):
+    model = ProductSizeDescription
+    extra = 0
+    autocomplete_fields = ("size",)
+    fields = ("size", "description")
+
+
 class ColorVariantInline(admin.TabularInline):
     model = ColorVariant
     extra = 0
@@ -132,7 +153,9 @@ class SizeAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
     list_display = (
-        "product_code", "name", "category", "is_active", "price", "sale_price", "current_price", "variant_count", "updated_at",
+        "product_code", "name", "category", "is_active",
+        "base_price_toman", "sale_price_toman", "current_price_toman",
+        "variant_count", "updated_at",
     )
     list_editable = ("is_active",)
     list_filter = ("is_active", "category", "collections")
@@ -143,13 +166,25 @@ class ProductAdmin(admin.ModelAdmin):
     filter_horizontal = ("collections",)
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("current_price", "created_at", "updated_at")
-    inlines = [ColorVariantInline]
+    inlines = [ProductSizeMeasurementInline, ProductSizeDescriptionInline, ColorVariantInline]
     fieldsets = (
         (None, {"fields": ("product_code", "name", "slug", "category", "collections", "description")}),
         ("Pricing", {"fields": ("price", "sale_price", "current_price")}),
         ("Publication", {"fields": ("is_active",)}),
         ("Timestamps", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
+
+    @admin.display(description="قیمت پایه (تومان)", ordering="price")
+    def base_price_toman(self, obj):
+        return obj.price
+
+    @admin.display(description="قیمت با تخفیف (تومان)", ordering="sale_price")
+    def sale_price_toman(self, obj):
+        return obj.sale_price if obj.sale_price is not None else "—"
+
+    @admin.display(description="قیمت فعلی (تومان)", ordering="sale_price")
+    def current_price_toman(self, obj):
+        return obj.current_price
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(_variant_count=Count("color_variants", distinct=True))
@@ -195,6 +230,13 @@ class _VariantColumnsMixin:
         return obj.variant.name
 
 
+class VariantSizeDescriptionInline(admin.TabularInline):
+    model = VariantSizeDescription
+    extra = 1
+    max_num = 1
+    fields = ("description",)
+
+
 @admin.register(VariantSize)
 class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     list_display = ("sku", "product", "color", "size", "stock_quantity", "is_active")
@@ -205,6 +247,7 @@ class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     autocomplete_fields = ("variant",)
     # stock is changed only through inventory adjustments (apps.inventory), never by editing the column here
     readonly_fields = ("stock_quantity", "created_at", "updated_at")
+    inlines = [VariantSizeDescriptionInline]
 
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)

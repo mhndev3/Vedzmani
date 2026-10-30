@@ -4,16 +4,27 @@ App: `backend/apps/catalog`. PostgreSQL is the source of truth.
 
 ```
 Category ─< Product >─< Collection        (Product.collections, M2M)
-              └─< ColorVariant ─┬─< VariantImage   (metadata only, WebP)
-                                └─< VariantSize >─ Size   (controlled vocabulary)
+              ├─< ProductSizeMeasurement >─ Size       (per-product, per-size measurement rows)
+              ├─< ProductSizeDescription >─ Size        (shared size-specific description)
+              └─< ColorVariant ─┬─< VariantImage        (metadata only, WebP)
+                                └─< VariantSize >─ Size (color-specific stock by size)
+                                      └─ VariantSizeDescription (optional color + size override)
 ```
 
-- `VariantSize` is the **exact purchasable unit** (product + color + size). Cart/order items should FK to it.
-  It has a unique `sku` and `stock_quantity` (>= 0).
+- `VariantSize` is the **exact purchasable unit** (product + color + size). Cart/order items FK to it.
+  It has a unique `sku` and `stock_quantity` (>= 0); each color owns its own size rows and stock counts.
+- `Product.price` / `sale_price` are owned by the product, so every color has the same product price.
+- `ProductSizeDescription` stores an optional text description by product + size, shared across colors.
+  `VariantSizeDescription` stores an optional override for one exact `VariantSize` (color + size). The API resolves
+  descriptions in this order: color + size override, then product + size, then empty; the general `Product.description`
+  remains separate and is still shown below the purchase controls.
+- `ProductSizeMeasurement` stores flexible table rows by product + size (name, value, optional unit, position).
+  They are shared across that product's colors, and a product may have different rows or no measurements at all
+  for any size.
 - **Inventory boundary:** (stock adjustments, their audit trail and the read-only admin now live in `apps/inventory`, see `INVENTORY.md`.) This session only persisted the column. Decrement, reservation, checkout validation and
   concurrency control belong to the inventory agent (use `select_for_update` / atomic updates on `VariantSize`).
   Redis must never hold stock.
-- Money: `Decimal(14, 0)`; currency/discount rules are undecided (see PROJECT_CONTROL.md). `sale_price`, if set, must be `0 < sale_price < price` (DB check).
+- Money: `Decimal(14, 0)`; one stored unit is **one Iranian Toman** (never Rial). `sale_price`, if set, must be `0 < sale_price < price` (DB check).
 - Products are created **unpublished** (`is_active=False`).
 
 ## Constraints
@@ -26,12 +37,16 @@ Category ─< Product >─< Collection        (Product.collections, M2M)
 
 ## Images
 DB stores a **storage key** (relative object path, must end in `.webp`), never a URL or signed URL.
-`apps/catalog/storage.py::public_image_url` builds `MEDIA_CDN_BASE_URL + "/" + key`
-(env `MEDIA_CDN_BASE_URL`, empty by default). Not implemented: upload to S3, WebP/AVIF conversion, credentials.
+In production, binaries live under `MEDIA_ROOT` (default `/app/media`), backed by the host directory
+`PRODUCT_MEDIA_DIR` (default `/home/vzinfra/prod/media`). Backend mounts it read/write; Nginx mounts it
+read-only and serves `/media/<storage_key>` with immutable caching. The local development Compose
+stack uses a persistent `product_media` named volume shared with Nginx read-only. If `MEDIA_CDN_BASE_URL` is set,
+`public_image_url` returns the CDN URL instead. Upload/import and WebP conversion are not implemented yet;
+they remain pending the owner's asset filename mapping and sample description file. The model stores metadata only.
 
 ## API
 `GET /api/catalog/products/<slug>/` — public, read-only; active product/category/variants/images/sizes only;
-stock exposed only as `in_stock` boolean; constant query count (tested).
+per-size `stock_quantity` and its derived `in_stock` boolean are exposed for the storefront size selector. Each size includes its product-specific `measurements[]` rows and resolved `size_description`; the latter prefers an exact color + size override, then falls back to the product + size description. The same measurements and fallback description are shared across colors unless an exact override exists, while stock remains color-specific. Constant query count (tested).
 
 ### Listing: `GET /api/catalog/products/` (Agent 6, Session 1)
 Public, read-only, no auth. Only `Product.is_active` products in an active category are returned. Unknown query
@@ -78,7 +93,7 @@ Fixed cost of 4 queries. Added so the storefront never offers fake filter values
 
 ### Storefront (frontend) notes
 Routes: `/[locale]/products` (listing) and `/[locale]/products/[slug]` (detail, `?color=<slug>` selects a variant).
-All state is in the URL; filters/search are plain GET forms (`next/form`), sort/pagination/color are links. The only client
-component is `FilterDrawer` (native `<dialog>`). Not available because the API does not expose it: stock quantities
-(so no "only N left" warning), collections on the detail response, sale-discount percentages. Add-to-cart is a disabled,
-labelled placeholder until the cart domain exists. E2E fixtures: `e2e/seed_catalog.py` (throwaway DB only).
+All state is in the URL; filters/search are plain GET forms (`next/form`), sort/pagination/color are links. The listing remains server-rendered; `FilterDrawer`, `AddToCart` and the product-detail `ProductGallery` are client components.
+The product gallery orders the primary image first and slides through the selected color's images. Selecting another color
+keeps URL state and cross-fades to that color's gallery. The size selector shows exact stock quantities; zero-stock sizes
+are red and disabled. After a size is selected, its resolved size description and measurement rows appear and update when the customer changes size; color + size descriptions override the product + size description, and no empty section/table is shown when no data was entered. All storefront prices are formatted in Toman. E2E fixtures: `e2e/seed_catalog.py` (throwaway DB only).

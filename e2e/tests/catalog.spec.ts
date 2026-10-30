@@ -23,6 +23,15 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page).toHaveURL(/\/fa\/categories\/hoodies$/);
     await expect(page.getByRole("heading", { level: 1, name: "هودی" })).toBeVisible();
   });
+  test("دسته‌بندی بافت از منوی دسکتاپ قابل دسترسی است", async ({ page }) => {
+    await page.goto("/fa");
+    const nav = page.getByRole("navigation", { name: "ناوبری اصلی" });
+    await nav.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
+    await nav.getByRole("link", { name: "بافت" }).click();
+    await expect(page).toHaveURL(/\/fa\/categories\/knitwear$/);
+    await expect(page.getByRole("heading", { level: 1, name: "بافت" })).toBeVisible();
+  });
+
   test("جست‌وجو با کد محصول و نام از آیکون هدر انجام می‌شود", async ({ page }) => {
     await page.goto("/fa/products");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
@@ -119,13 +128,36 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Hoodie 01" })).toBeVisible();
     await expect(page.getByText("Fixture Hoodie number 1.")).toBeVisible();
     await expect(page.getByText("موجود", { exact: true })).toBeVisible();
+    await expect(page.getByText("M : 5")).toBeVisible();
+    await expect(page.getByText(/تومان/)).toBeVisible();
     await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeEnabled();
     await expect(page.getByRole("radio", { name: "M" })).toBeEnabled();
 
+    await page.locator("label").filter({ has: page.getByRole("radio", { name: "M" }) }).click();
+    const mTable = page.getByRole("table", { name: "اندازه‌های سایز M" });
+    await expect(mTable).toBeVisible();
+    await expect(mTable).toContainText("56 سانتی‌متر");
+    await expect(mTable).toContainText("64 سانتی‌متر");
+    await expect(page.getByText("توضیح اختصاصی رنگ مشکی و سایز M", { exact: true })).toBeVisible();
+    await page.locator("label").filter({ has: page.getByRole("radio", { name: "L" }) }).click();
+    const lTable = page.getByRole("table", { name: "اندازه‌های سایز L" });
+    await expect(lTable).toBeVisible();
+    await expect(lTable).toContainText("59 سانتی‌متر");
+    await expect(lTable).not.toContainText("56 سانتی‌متر");
+    await expect(page.getByText("توضیح مشترک سایز L", { exact: true })).toBeVisible();
+
+    const gallery = page.getByRole("region", { name: "تصاویر محصول" });
+    const mainImage = gallery.getByRole("img");
+    await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 Black front");
+    await gallery.getByRole("button", { name: "تصویر بعدی" }).click();
+    await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 Black detail");
+
     await page.getByRole("link", { name: "White" }).click();
     await expect(page).toHaveURL(/color=white/);
+    await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 White front");
     await expect(page.getByText("ناموجود", { exact: true })).toBeVisible();
-    await expect(page.getByRole("radio", { name: /^M/ })).toBeDisabled();
+    await expect(page.getByText("M : 0").locator("..")).toHaveClass(/border-red-500/);
+    await expect(page.getByRole("radio", { name: "M" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeDisabled();
     await page.getByRole("link", { name: "بازگشت به محصولات" }).click();
     await expect(page).toHaveURL(/\/fa\/products$/);
@@ -146,6 +178,16 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
 test.describe("کاتالوگ موبایل", () => {
   test.use({ viewport: { width: 375, height: 800 } });
+
+  test("دسته‌بندی بافت از منوی موبایل قابل دسترسی است", async ({ page }) => {
+    await page.goto("/fa");
+    await page.getByRole("button", { name: "باز کردن منو" }).click();
+    const menu = page.getByRole("dialog");
+    await menu.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
+    await menu.getByRole("link", { name: "بافت" }).click();
+    await expect(page).toHaveURL(/\/fa\/categories\/knitwear$/);
+    await expect(page.getByRole("heading", { level: 1, name: "بافت" })).toBeVisible();
+  });
 
   test("فیلترها در دیالوگ باز می‌شوند و صفحه اسکرول افقی ندارد", async ({ page }) => {
     await page.goto("/fa/products");

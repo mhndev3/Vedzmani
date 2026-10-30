@@ -12,7 +12,7 @@ COPY requirements/base.txt requirements/base.txt
 RUN pip install -r requirements/base.txt
 
 COPY --chown=app:app . .
-RUN mkdir -p /app/staticfiles && chown app:app /app/staticfiles
+RUN mkdir -p /app/staticfiles /app/media && chown app:app /app/staticfiles /app/media
 USER app
 
 # Collect Django Admin static files at build time (served by WhiteNoise under config.settings.prod).

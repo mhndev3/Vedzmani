@@ -67,8 +67,8 @@ class Size(models.Model):
 class Product(models.Model):
     """`price` is the base/list price; `sale_price` the optional current price.
 
-    Money is Decimal (never float). Currency is not decided yet, so the column
-    is a whole-unit decimal; real pricing/discount rules come later.
+    All prices are stored as whole Toman units (never Rials or floats).
+    The product owns the price; color variants do not have separate prices.
     """
 
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
@@ -109,6 +109,45 @@ class Product(models.Model):
     @property
     def current_price(self) -> Decimal:
         return self.sale_price if self.sale_price is not None else self.price
+
+
+class ProductSizeMeasurement(models.Model):
+    """One flexible measurement row for a product and a size, shared by its colors."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="size_measurements")
+    size = models.ForeignKey(Size, on_delete=models.PROTECT, related_name="product_measurements")
+    name = models.CharField(max_length=80)
+    value = models.CharField(max_length=80)
+    unit = models.CharField(max_length=30, blank=True)
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["size__position", "position", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "size", "position"],
+                name="product_size_measurement_unique_position",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product_id}:{self.size_id}:{self.name}"
+
+
+class ProductSizeDescription(models.Model):
+    """Optional description for one size of a product, shared by all colors."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="size_descriptions")
+    size = models.ForeignKey(Size, on_delete=models.PROTECT, related_name="product_descriptions")
+    description = models.TextField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["product", "size"], name="product_size_description_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product_id}:{self.size_id}"
 
 
 class ColorVariant(models.Model):
@@ -154,6 +193,18 @@ class VariantSize(models.Model):
 
     def __str__(self) -> str:
         return self.sku
+
+
+class VariantSizeDescription(models.Model):
+    """Optional override for one exact color + size purchasable combination."""
+
+    variant_size = models.OneToOneField(
+        VariantSize, on_delete=models.CASCADE, related_name="description"
+    )
+    description = models.TextField()
+
+    def __str__(self) -> str:
+        return f"{self.variant_size_id}:description"
 
 
 class VariantImage(models.Model):

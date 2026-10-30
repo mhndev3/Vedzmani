@@ -8,7 +8,7 @@ from django.test.utils import CaptureQueriesContext
 
 from apps.accounts.models import User
 from apps.cart.models import Cart, CartItem
-from apps.catalog.models import Category, Collection, Product, VariantImage, VariantSize
+from apps.catalog.models import Category, Collection, Product, ProductSizeMeasurement, Size, VariantImage, VariantSize
 from tests.conftest import new_phone
 
 pytestmark = pytest.mark.django_db
@@ -26,6 +26,8 @@ def _formset(prefix, total=0, initial=0):
 def _product_form(category, **over):
     data = {"product_code": "VZ-ADMIN-HOODIE", "name": "Hoodie", "slug": "hoodie", "category": category.pk, "description": "", "price": "1000"}
     data.update(_formset("color_variants"))
+    data.update(_formset("size_measurements"))
+    data.update(_formset("size_descriptions"))
     data.update(over)
     return data
 
@@ -52,7 +54,10 @@ def test_current_price_is_shown_read_only_not_stored(su_client, make_variant_siz
     product.sale_price = Decimal("800")
     product.save()
     html = su_client.get("/admin/catalog/product/").content.decode()
-    assert 'field-current_price">800<' in html
+    assert 'field-current_price_toman">800<' in html
+    assert 'column-base_price_toman' in html and "قیمت پایه (تومان)" in html
+    assert 'column-sale_price_toman' in html and "قیمت با تخفیف (تومان)" in html
+    assert 'column-current_price_toman' in html and "قیمت فعلی (تومان)" in html
     assert "current_price" not in {f.name for f in Product._meta.get_fields()}
     change = su_client.get(f"/admin/catalog/product/{product.pk}/change/").content.decode()
     assert "field-current_price" in change and 'name="current_price"' not in change
@@ -78,6 +83,42 @@ def test_product_add_defaults_to_unpublished(su_client):
     category = Category.objects.create(name="C", slug="c")
     assert su_client.post("/admin/catalog/product/add/", _product_form(category)).status_code == 302
     assert Product.objects.get(slug="hoodie").is_active is False
+
+
+def test_product_add_saves_measurements_for_selected_sizes(su_client):
+    category = Category.objects.create(name="C", slug="c")
+    size_m = Size.objects.create(code="m", label="M", position=1)
+    size_l = Size.objects.create(code="l", label="L", position=2)
+    data = _product_form(
+        category,
+        **_formset("size_measurements", total=3),
+        **{
+            "size_measurements-0-size": str(size_m.pk),
+            "size_measurements-0-name": "عرض سینه",
+            "size_measurements-0-value": "56",
+            "size_measurements-0-unit": "سانتی‌متر",
+            "size_measurements-0-position": "0",
+            "size_measurements-1-size": str(size_m.pk),
+            "size_measurements-1-name": "قد کار",
+            "size_measurements-1-value": "64",
+            "size_measurements-1-unit": "سانتی‌متر",
+            "size_measurements-1-position": "1",
+            "size_measurements-2-size": str(size_l.pk),
+            "size_measurements-2-name": "عرض سینه",
+            "size_measurements-2-value": "59",
+            "size_measurements-2-unit": "سانتی‌متر",
+            "size_measurements-2-position": "0",
+        },
+    )
+    response = su_client.post("/admin/catalog/product/add/", data)
+    assert response.status_code == 302
+    product = Product.objects.get(slug="hoodie")
+    assert list(
+        product.size_measurements.filter(size=size_m).values_list("name", "value", "unit", "position")
+    ) == [("عرض سینه", "56", "سانتی‌متر", 0), ("قد کار", "64", "سانتی‌متر", 1)]
+    assert list(
+        product.size_measurements.filter(size=size_l).values_list("name", "value", "unit", "position")
+    ) == [("عرض سینه", "59", "سانتی‌متر", 0)]
 
 
 @pytest.mark.parametrize("sale", ["1000", "1500", "0"])

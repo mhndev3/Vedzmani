@@ -11,6 +11,13 @@ pytestmark = pytest.mark.django_db
 URL = "/api/catalog/filters/"
 
 
+def test_knitwear_category_is_seeded():
+    category = Category.objects.get(slug="knitwear")
+    assert category.name == "بافت"
+    assert category.is_active is True
+    assert category.position == 11
+
+
 def test_filter_options_only_include_published_data():
     make("live", category="hoodie", collections=["winter"], variants={"black": {"m": 1, "l": 0}, "white": {"s": 1}})
     make("hidden", category="secret", active=False, collections=["hidden-col"], variants={"red": {"xl": 1}})

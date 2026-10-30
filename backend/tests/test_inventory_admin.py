@@ -260,7 +260,7 @@ def test_adjust_stock_link_is_only_shown_to_staff_who_can_use_it(make_variant_si
 
 def test_posting_stock_to_the_variant_size_page_is_ignored(make_variant_size, su_client):
     vs = make_variant_size(stock=5)
-    data = {"variant": vs.variant_id, "size": vs.size_id, "sku": "RENAMED-2", "stock_quantity": "999"}  # inactive
+    data = {"variant": vs.variant_id, "size": vs.size_id, "sku": "RENAMED-2", "stock_quantity": "999", **_formset("description")}  # inactive
     assert su_client.post(f"/admin/catalog/variantsize/{vs.pk}/change/", data).status_code == 302
     vs.refresh_from_db()
     assert (vs.sku, vs.is_active, vs.stock_quantity) == ("RENAMED-2", False, 5)  # management works, stock untouched
@@ -269,7 +269,7 @@ def test_posting_stock_to_the_variant_size_page_is_ignored(make_variant_size, su
 def test_variant_size_created_on_its_own_page_starts_at_zero_stock(make_variant_size, su_client):
     vs = make_variant_size(stock=5)
     other = Size.objects.create(code="l", label="L")
-    data = {"variant": vs.variant_id, "size": other.pk, "sku": "ADD-PAGE-1", "is_active": "on", "stock_quantity": "50"}
+    data = {"variant": vs.variant_id, "size": other.pk, "sku": "ADD-PAGE-1", "is_active": "on", "stock_quantity": "50", **_formset("description")}
     assert su_client.post("/admin/catalog/variantsize/add/", data).status_code == 302
     assert VariantSize.objects.get(sku="ADD-PAGE-1").stock_quantity == 0
 

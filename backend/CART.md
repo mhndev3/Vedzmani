@@ -33,7 +33,7 @@ Responses are `Cache-Control: max-age=0, no-cache, no-store, must-revalidate, pr
   total,             // sum of subtotals of lines that are not "unavailable"
   has_issues }       // any line is not "available"
 ```
-Money = whole-unit Decimal rendered as a string (same as the catalog; currency still undecided). `unit_price` is
+Money = whole-unit Decimal rendered as a string. One stored/displayed unit is one Iranian Toman. `unit_price` is
 `Product.current_price` (`sale_price` if set, else `price`), read from the catalog on **every** request; nothing is
 copied into the cart, so prices can never be stale or client-controlled. `subtotal = unit_price × quantity` (Decimal).
 `availability`: `available` | `insufficient_stock` (quantity > current stock) | `unavailable` (variant size, color,
@@ -68,5 +68,5 @@ product or category is inactive/unpublished). `unavailable` lines are shown, exc
   (future) must **snapshot** name/SKU/price and use `PROTECT`/no FK to live catalog rows.
 
 ## Not implemented (by design)
-Guest carts / merge on login, checkout/orders (now in `ORDERS.md`), stock deduction or reservation, coupons, shipping, tax, currency,
+Guest carts / merge on login, checkout/orders (now in `ORDERS.md`), stock deduction or reservation, coupons, shipping, tax,
 cart expiry/cleanup job, frontend wiring (Add to Cart is still a placeholder on the storefront), caching.
