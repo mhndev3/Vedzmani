@@ -25,6 +25,7 @@ const CATEGORIES = [
   { name: "جاگر", slug: "joggers" },
   { name: "کتونی", slug: "sneakers" },
   { name: "اکسسوری", slug: "accessories" },
+  { name: "بافت", slug: "knitwear" },
 ] as const;
 
 function categoryData(slug: string) {
