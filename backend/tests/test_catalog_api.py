@@ -3,7 +3,10 @@ from decimal import Decimal
 import pytest
 from django.test import Client
 
-from apps.catalog.models import Category, ColorVariant, Product, ProductSizeMeasurement, Size, VariantImage, VariantSize
+from apps.catalog.models import (
+    Category, ColorVariant, Product, ProductSizeDescription, ProductSizeMeasurement, Size,
+    VariantImage, VariantSize, VariantSizeDescription,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -60,6 +63,32 @@ def test_detail_returns_nested_structure():
     assert "storage_key" not in first["images"][0]
 
 
+
+def test_size_description_falls_back_and_color_size_override_wins():
+    product = build(slug="described-hoodie")
+    size_m = Size.objects.get(code="m")
+    size_l = Size.objects.get(code="l")
+    ProductSizeDescription.objects.create(
+        product=product, size=size_m, description="توضیح مشترک سایز M"
+    )
+    black = ColorVariant.objects.get(product=product, slug="c0")
+    white = ColorVariant.objects.get(product=product, slug="c1")
+    VariantSizeDescription.objects.create(
+        variant_size=white.sizes.get(size=size_m),
+        description="توضیح اختصاصی رنگ سفید و سایز M",
+    )
+
+    body = Client().get("/api/catalog/products/described-hoodie/").json()
+    black_sizes = {row["size"]: row for row in body["colors"][0]["sizes"]}
+    white_sizes = {row["size"]: row for row in body["colors"][1]["sizes"]}
+
+    assert black_sizes["m"]["size_description"] == "توضیح مشترک سایز M"
+    assert white_sizes["m"]["size_description"] == "توضیح اختصاصی رنگ سفید و سایز M"
+    assert black_sizes["l"]["size_description"] == ""
+    assert white_sizes["l"]["size_description"] == ""
+
+
+
 def test_inactive_product_and_inactive_children_hidden():
     build(slug="hidden", active=False)
     assert Client().get("/api/catalog/products/hidden/").status_code == 404
@@ -79,7 +108,7 @@ def test_inactive_category_hides_product():
 
 def test_detail_query_count_is_constant(django_assert_max_num_queries):
     build(variants=5)
-    with django_assert_max_num_queries(7):  # product, variants, images, sizes, size labels and measurement rows
+    with django_assert_max_num_queries(9):  # fixed prefetches, including both description scopes
         assert Client().get("/api/catalog/products/basic-hoodie/").status_code == 200
 
 
