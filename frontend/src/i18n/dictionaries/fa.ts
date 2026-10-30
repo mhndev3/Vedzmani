@@ -36,8 +36,8 @@ export const fa = {
     color: "رنگ",
     size: "سایز",
     price: "قیمت",
-    minPrice: "حداقل قیمت",
-    maxPrice: "حداکثر قیمت",
+    minPrice: "حداقل قیمت (تومان)",
+    maxPrice: "حداکثر قیمت (تومان)",
     inStockOnly: "فقط کالاهای موجود",
     sortLabel: "مرتب‌سازی",
     sort: {
@@ -82,6 +82,7 @@ export const fa = {
     added: "به سبد خرید اضافه شد.",
     viewCart: "مشاهده سبد خرید",
     sizeRequired: "پیش از افزودن به سبد خرید، یک سایز انتخاب کنید.",
+    sizeMeasurements: "اندازه‌های سایز {size}",
     notFoundTitle: "محصول پیدا نشد",
   },
   home: {
