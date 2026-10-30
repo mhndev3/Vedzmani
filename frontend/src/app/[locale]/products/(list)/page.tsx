@@ -24,6 +24,7 @@ import {
   SortLinks,
 } from "@/components/storefront/catalog/CatalogControls";
 import { ProductCard } from "@/components/storefront/catalog/ProductCard";
+import { categoryName } from "@/lib/store-categories";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -53,6 +54,9 @@ export default async function ProductsPage({ params, searchParams }: Props) {
   }
   if (pageOutOfRange) redirect(catalogHref(locale, { ...state, page: 1 }));
   const options = await optionsPromise;
+  const pageTitle = state.category.length
+    ? state.category.map(categoryName).join("، ")
+    : t.catalog.title;
 
   const narrowing = hasActiveNarrowing(state);
   const activeFilterCount =
@@ -71,7 +75,7 @@ export default async function ProductsPage({ params, searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.catalog.title}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{pageTitle}</h1>
 
       <div className={`mt-6 ${hasFilterOptions ? "lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-8" : ""}`}>
         {hasFilterOptions && options && (
