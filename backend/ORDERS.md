@@ -44,7 +44,7 @@ Success `201`:
   items: [{ id, variant_size_id, product_name, color_name, size_label, sku, unit_price, quantity, subtotal }] }
 ```
 `id` is the database id and the only order identifier (no separate public order number yet). Money is a whole-unit
-Decimal rendered as a string, like the catalog and cart (currency still undecided).
+Decimal rendered as a string, like the catalog and cart. One stored/displayed unit is one Iranian Toman.
 
 **`total` excludes shipping.** It is the sum of the line subtotals. No shipping fee, free-shipping rule, courier or
 delivery estimate exists (decision pending with the owner), so `total` is **not** a final delivered price and the UI
@@ -95,7 +95,7 @@ per-line `availability` the client can show.
 3. Revalidate from the locked rows: still purchasable (same rule as the cart, `purchasable_variant_sizes()`) and
    enough stock.
 4. Price every line from the live catalog (`Product.current_price`: `sale_price` if set, else `price`); the cart
-   stores no prices. `subtotal = unit_price × quantity`, `total = Σ subtotal`. No shipping, tax or currency.
+   stores no prices. `subtotal = unit_price × quantity`, `total = Σ subtotal`. No shipping or tax; currency is Toman.
 5. Decrement stock with a guarded update (`stock_quantity >= quantity`), a second line of defence on top of the
    row lock; stock can never go negative (also a DB constraint on the column).
 6. Insert `Order` (status `pending`, `payment_status` `unpaid`, delivery snapshot, `customer_phone` = the user's phone at
@@ -138,7 +138,7 @@ Any exception anywhere rolls all of it back (tested by failing after the stock d
 
 ## Not implemented (by design, so far)
 Guest checkout; status transitions, cancellation, refunds and restocking; any payment processing (only the `unpaid`
-boundary exists); shipping cost/rules, tax, currency; a public order number; idempotency keys; pagination of the order list; customer order list/detail pages in the frontend (sign-in, add-to-cart, cart and
+boundary exists); shipping cost/rules and tax; a public order number; idempotency keys; pagination of the order list; customer order list/detail pages in the frontend (sign-in, add-to-cart, cart and
 checkout pages exist). Staff can inspect orders in a read-only Django admin (`apps/orders/admin.py`, see `ADMIN.md`).
 
 ## Tests
