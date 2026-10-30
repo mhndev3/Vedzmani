@@ -60,6 +60,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff / is_superuser / groups / permissions (no custom RBAC)."""
 
     phone = models.CharField(max_length=16, unique=True)
+    first_name = models.CharField(max_length=150, blank=True, default="")
+    last_name = models.CharField(max_length=150, blank=True, default="")
+    address = models.TextField(blank=True, default="")
+    postal_code = models.CharField(max_length=10, blank=True, default="")
+    # Store a keyed fingerprint, never the full national ID.
+    national_id_hash = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    national_id_last4 = models.CharField(max_length=4, blank=True, default="")
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
@@ -82,6 +89,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         # persist a non-canonical phone (the DB check constraint backs this up).
         self.phone = normalize_phone(self.phone)
         super().save(*args, **kwargs)
+
+    @property
+    def profile_complete(self) -> bool:
+        return bool(
+            self.first_name.strip()
+            and self.last_name.strip()
+            and self.address.strip()
+            and self.postal_code
+            and self.national_id_hash
+        )
 
     def __str__(self) -> str:
         return self.phone
