@@ -47,6 +47,9 @@ def test_responsive_renditions_are_generated_without_changing_original(tmp_path)
         assert original.is_file()
         assert thumbnail.is_file()
         assert display.is_file()
+        import stat
+        assert stat.S_IMODE(thumbnail.stat().st_mode) == 0o644
+        assert stat.S_IMODE(display.stat().st_mode) == 0o644
         assert image.optimization_version == 1
         assert image.file_size == original.stat().st_size
 
