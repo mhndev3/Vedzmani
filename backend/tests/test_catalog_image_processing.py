@@ -91,6 +91,7 @@ def test_optimizer_dry_run_reports_missing_sources_without_writing(tmp_path):
 
     with override_settings(MEDIA_ROOT=tmp_path):
         image = _variant_image(tmp_path, key="products/not-copied-yet.webp")
+        (tmp_path / image.storage_key).unlink()
         image.refresh_from_db()
         assert image.optimization_version == 0
 
