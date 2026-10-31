@@ -39,11 +39,27 @@ test("hamburger menu contains the requested categories and support links", async
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
-  for (const category of ["دورس", "پیراهن", "تی شرت", "هودی", "کاپشن", "جکت", "شلوار جین", "شلوار پارچه ای", "جاگر", "کتونی", "اکسسوری"]) {
-    await expect(dialog.getByRole("link", { name: category })).toBeVisible();
+  const categories = [
+    { name: "دورس", href: "/fa/categories/sweatshirts" },
+    { name: "پیراهن" },
+    { name: "تی شرت" },
+    { name: "هودی" },
+    { name: "کاپشن" },
+    { name: "جکت", href: "/fa/categories/jackets" },
+    { name: "جکت چرم", href: "/fa/categories/leather-jackets" },
+    { name: "شلوار جین" },
+    { name: "شلوار پارچه ای" },
+    { name: "جاگر" },
+    { name: "کتونی" },
+    { name: "اکسسوری" },
+  ];
+  for (const category of categories) {
+    const link = dialog.getByRole("link", { name: category.name, exact: true });
+    await expect(link).toBeVisible();
+    if (category.href) await expect(link).toHaveAttribute("href", category.href);
   }
   for (const name of ["محصولات", "درباره ما", "سوالات متداول", "پشتیبانی"]) {
-    await expect(dialog.getByRole("link", { name })).toBeVisible();
+    await expect(dialog.getByRole("link", { name, exact: true })).toBeVisible();
   }
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
