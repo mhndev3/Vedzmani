@@ -41,6 +41,9 @@ test("homepage shows the requested square categories and newest seven products",
     await expect(link).toHaveClass(/aspect-square/);
     await expect(link).toHaveClass(/rounded-2xl/);
   }
+  const categoryImage = categories.locator("img").first();
+  await expect(categoryImage).toHaveAttribute("src", /\\/media\\//);
+  await expect(categoryImage).not.toHaveAttribute("src", /_next\\/image/);
 
   const newest = page.locator("section[aria-labelledby='home-newest-products']");
   await expect(newest.getByRole("heading", { name: "جدیدترین‌ها" })).toBeVisible();
