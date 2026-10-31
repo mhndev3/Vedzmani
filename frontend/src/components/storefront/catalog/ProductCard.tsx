@@ -40,9 +40,9 @@ export function Price({
 }
 
 /**
- * Catalog media is stored as WebP under the same-origin /media/ path in the
- * production topology. Next Image now generates responsive, resized cached
- * variants instead of transferring the original upload to every viewport.
+ * Product media is served directly by Nginx from the shared /media volume and
+ * is already WebP with immutable cache headers. Keep it unoptimized until the
+ * Next image optimizer has an explicit internal route to that Nginx media path.
  */
 export function CatalogPicture({
   image,
@@ -65,7 +65,7 @@ export function CatalogPicture({
           alt={image.alt_text || fallbackAlt}
           fill
           sizes={sizes}
-          quality={75}
+          unoptimized
           loading={eager ? "eager" : "lazy"}
           fetchPriority={eager ? "high" : "auto"}
           className="object-cover transition-transform duration-200 motion-reduce:transition-none group-hover:scale-[1.02]"
