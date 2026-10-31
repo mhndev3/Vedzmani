@@ -27,7 +27,7 @@ const HOME_CATEGORIES = [
  */
 export async function getHomepageContent(): Promise<HomepageContent> {
   try {
-    const page = await getProducts(emptyState);
+    const page = await getProducts(emptyState, { cache: "force-cache", next: { revalidate: 30 } });
     const products = page.results;
     return {
       categories: HOME_CATEGORIES.map((category) => ({
