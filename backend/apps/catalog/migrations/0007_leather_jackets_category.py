@@ -4,10 +4,12 @@ from django.db import migrations
 def add_leather_jackets_category(apps, schema_editor):
     Category = apps.get_model("catalog", "Category")
     Product = apps.get_model("catalog", "Product")
-    category, _ = Category.objects.get_or_create(
+    category, created = Category.objects.get_or_create(
         slug="leather-jackets",
         defaults={"name": "جکت چرم", "position": 13, "is_active": True},
     )
+    if not created:
+        Category.objects.filter(pk=category.pk).update(name="جکت چرم", is_active=True)
     # Product 09 is the leather bomber jacket in the owner's 13-product catalog.
     Product.objects.filter(product_code="09").update(category=category)
 
