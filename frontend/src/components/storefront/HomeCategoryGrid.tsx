@@ -27,6 +27,7 @@ export function HomeCategoryGrid({
                   src={category.image.thumbnail_url || category.image.url}
                   alt=""
                   fill
+                  unoptimized
                   sizes="(min-width:1024px) 18vw, (min-width:640px) 30vw, 45vw"
                   className="object-cover transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transition-none"
                 />
