@@ -1,5 +1,7 @@
 from django.db import migrations, models
 
+from apps.catalog.validators import validate_storage_key
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -14,7 +16,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 default="",
                 max_length=500,
-                validators=[__import__("apps.catalog.validators", fromlist=["validate_storage_key"]).validate_storage_key],
+                validators=[validate_storage_key],
             ),
         ),
         migrations.AddField(
