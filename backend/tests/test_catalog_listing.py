@@ -94,7 +94,7 @@ def test_basic_listing_shape_and_no_private_fields():
     assert item["code"] == "VZ-ALPHA"
     assert item["category"] == {"name": "Hoodie", "slug": "hoodie"}
     assert item["in_stock"] is True
-    assert item["image"] == {"url": "/media/alpha/b0.webp", "alt_text": "alt", "width": 800, "height": 1000}
+    assert item["image"] == {"url": "/media/alpha/b0.webp", "thumbnail_url": "/media/alpha/b0.webp", "alt_text": "alt", "width": 800, "height": 1000}
     assert [c["slug"] for c in item["colors"]] == ["black", "white"]
     raw = r.content.decode()
     for secret in ("stock_quantity", "sku", "storage_key", "is_active", "description"):
