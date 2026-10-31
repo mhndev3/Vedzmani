@@ -44,7 +44,7 @@ test("homepage shows the requested square categories and newest seven products",
 
   const newest = page.locator("section[aria-labelledby='home-newest-products']");
   await expect(newest.getByRole("heading", { name: "جدیدترین‌ها" })).toBeVisible();
-  await expect(newest.locator("ul > li")).toHaveCount(7);
+  await expect(newest.locator(":scope > ul > li")).toHaveCount(7);
 });
 
 test("theme toggle switches dark mode and persists", async ({ page }) => {
