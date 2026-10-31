@@ -190,10 +190,10 @@ export function totalPages(count: number): number {
   return Math.max(1, Math.ceil(count / PAGE_SIZE));
 }
 
-export async function getProducts(state: CatalogState): Promise<Paginated<ProductCardData>> {
+export async function getProducts(state: CatalogState, init?: RequestInit): Promise<Paginated<ProductCardData>> {
   const p = stateToParams(state);
   p.set("page_size", String(PAGE_SIZE));
-  return apiGet<Paginated<ProductCardData>>(`/api/catalog/products/?${p.toString()}`);
+  return apiGet<Paginated<ProductCardData>>(`/api/catalog/products/?${p.toString()}`, init);
 }
 
 /** Vocabulary changes rarely; a short revalidation window keeps this off the hot path. */
