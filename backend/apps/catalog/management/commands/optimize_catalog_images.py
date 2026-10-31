@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.catalog.image_processing import OPTIMIZATION_VERSION, optimize_variant_image
+from apps.catalog.image_processing import OPTIMIZATION_VERSION, _media_path, optimize_variant_image
 from apps.catalog.models import VariantImage
 
 
@@ -14,7 +14,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Report pending rows and missing files without writing derivatives or database fields.",
+            help="Report pending rows and missing source files without writing derivatives or database fields.",
         )
         parser.add_argument(
             "--force",
@@ -29,12 +29,25 @@ class Command(BaseCommand):
         if not force:
             queryset = queryset.filter(optimization_version__lt=OPTIMIZATION_VERSION)
 
-        processed = missing = failed = 0
         total = queryset.count()
         if dry_run:
-            self.stdout.write(f"Dry run: {total} image row(s) need optimization.")
+            missing = invalid = 0
+            for image in queryset.iterator(chunk_size=50):
+                try:
+                    if not _media_path(image.storage_key).is_file():
+                        missing += 1
+                except ValueError:
+                    invalid += 1
+            self.stdout.write(
+                f"Dry run: pending={total}; missing source files={missing}; invalid storage keys={invalid}."
+            )
+            if missing or invalid:
+                raise CommandError(
+                    f"Dry run incomplete: {missing} source file(s) missing, {invalid} invalid storage key(s)."
+                )
             return
 
+        processed = missing = failed = 0
         for image in queryset.iterator(chunk_size=50):
             try:
                 if optimize_variant_image(image.pk, force=force):
