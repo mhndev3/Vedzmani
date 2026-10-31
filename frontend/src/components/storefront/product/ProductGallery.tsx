@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, type TouchEvent } from "react";
 
 type GalleryImage = {
   url: string;
+  thumbnail_url?: string;
+  display_url?: string;
   alt_text: string;
   position: number;
   is_primary: boolean;
@@ -82,7 +84,7 @@ export function ProductGallery({
           >
             <Image
               key={current.url}
-              src={current.url}
+              src={current.display_url || current.url}
               alt={current.alt_text || (productName + (colorName ? " - " + colorName : ""))}
               fill
               sizes="(min-width:768px) 50vw, 100vw"
