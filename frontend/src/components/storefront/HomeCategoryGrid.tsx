@@ -24,7 +24,7 @@ export function HomeCategoryGrid({
             >
               {category.image && (
                 <Image
-                  src={category.image.url}
+                  src={category.image.thumbnail_url || category.image.url}
                   alt=""
                   fill
                   sizes="(min-width:1024px) 18vw, (min-width:640px) 30vw, 45vw"
