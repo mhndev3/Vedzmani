@@ -80,3 +80,27 @@ def test_new_image_metadata_automatically_schedules_optimization(tmp_path):
         assert image.optimization_version == 1
         assert image.thumbnail_storage_key.startswith("products/automatic.") and image.thumbnail_storage_key.endswith(".w640.webp")
         assert image.display_storage_key.startswith("products/automatic.") and image.display_storage_key.endswith(".w1600.webp")
+
+
+
+def test_optimizer_dry_run_reports_missing_sources_without_writing(tmp_path):
+    from io import StringIO
+
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    with override_settings(MEDIA_ROOT=tmp_path):
+        image = _variant_image(tmp_path, key="products/not-copied-yet.webp")
+        image.refresh_from_db()
+        assert image.optimization_version == 0
+
+        output = StringIO()
+        with pytest.raises(CommandError, match="source file"):
+            call_command("optimize_catalog_images", "--dry-run", stdout=output)
+
+        assert "pending=1" in output.getvalue()
+        assert "missing source files=1" in output.getvalue()
+        image.refresh_from_db()
+        assert image.optimization_version == 0
+        assert image.thumbnail_storage_key == ""
+        assert image.display_storage_key == ""
