@@ -62,6 +62,9 @@ def _write_webp_variant(image: Image.Image, output_path: Path) -> None:
             converted.save(temp_file, format="WEBP", quality=WEBP_QUALITY, method=6)
             temp_file.flush()
             os.fsync(temp_file.fileno())
+        # Nginx runs under a separate, unprivileged UID in production; derivatives
+        # must be readable by the shared read-only media mount.
+        os.chmod(temp_name, 0o644)
         os.replace(temp_name, output_path)
     finally:
         converted.close()
