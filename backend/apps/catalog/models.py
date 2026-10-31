@@ -240,6 +240,10 @@ class VariantImage(models.Model):
 
     variant = models.ForeignKey(ColorVariant, on_delete=models.CASCADE, related_name="images")
     storage_key = models.CharField(max_length=500, unique=True, validators=[validate_storage_key])
+    # Original media is immutable; responsive WebP copies use separate cache-safe storage keys.
+    thumbnail_storage_key = models.CharField(max_length=500, blank=True, default="", validators=[validate_storage_key])
+    display_storage_key = models.CharField(max_length=500, blank=True, default="", validators=[validate_storage_key])
+    optimization_version = models.PositiveSmallIntegerField(default=0)
     alt_text = models.CharField(max_length=200, blank=True)
     position = models.PositiveIntegerField(default=0)
     is_primary = models.BooleanField(default=False)
@@ -267,6 +271,20 @@ class VariantImage(models.Model):
                 condition=Q(content_type__in=ALLOWED_IMAGE_CONTENT_TYPES), name="variantimage_content_type_allowed"
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old_key = type(self).objects.filter(pk=self.pk).values_list("storage_key", flat=True).first()
+            if old_key and old_key != self.storage_key:
+                self.thumbnail_storage_key = ""
+                self.display_storage_key = ""
+                self.optimization_version = 0
+                update_fields = kwargs.get("update_fields")
+                if update_fields is not None:
+                    kwargs["update_fields"] = set(update_fields) | {
+                        "thumbnail_storage_key", "display_storage_key", "optimization_version"
+                    }
+        return super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.storage_key
