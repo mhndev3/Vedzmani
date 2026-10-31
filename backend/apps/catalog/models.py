@@ -207,6 +207,32 @@ class VariantSizeDescription(models.Model):
         return f"{self.variant_size_id}:description"
 
 
+class VariantSizeMeasurement(models.Model):
+    """Measurement row for one exact color + size.
+
+    When a purchasable size has any of these rows they are the measurements shown for that color + size and
+    replace the product-level rows (`ProductSizeMeasurement`), which stay the shared fallback for all colors.
+    """
+
+    variant_size = models.ForeignKey(VariantSize, on_delete=models.CASCADE, related_name="measurements")
+    name = models.CharField(max_length=80)
+    value = models.CharField(max_length=80)
+    unit = models.CharField(max_length=30, blank=True)
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["variant_size", "position"],
+                name="variant_size_measurement_unique_position",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.variant_size_id}:{self.name}"
+
+
 class VariantImage(models.Model):
     """Image metadata only. Binary lives in S3-compatible storage behind a CDN."""
 

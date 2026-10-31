@@ -34,6 +34,10 @@ class VariantSizeSerializer(serializers.ModelSerializer):
         return obj.stock_quantity > 0
 
     def get_measurements(self, obj: VariantSize):
+        # Exact color + size rows win; otherwise fall back to the product + size rows shared by all colors.
+        own = list(obj.measurements.all())
+        if own:
+            return ProductSizeMeasurementSerializer(own, many=True).data
         measurements_by_size = self.context.get("product_measurements_by_size", {})
         return ProductSizeMeasurementSerializer(
             measurements_by_size.get(obj.size_id, []), many=True

@@ -25,7 +25,7 @@ class ProductDetailView(RetrieveAPIView):
             Prefetch("images", queryset=VariantImage.objects.filter(is_active=True)),
             Prefetch(
                 "sizes",
-                queryset=VariantSize.objects.filter(is_active=True).select_related("size").prefetch_related("description"),
+                queryset=VariantSize.objects.filter(is_active=True).select_related("size").prefetch_related("description", "measurements"),
             ),
         )
         return (
