@@ -6,10 +6,18 @@ from .storage import public_image_url
 
 class VariantImageSerializer(serializers.ModelSerializer):
     url = serializers.CharField(read_only=True)
+    thumbnail_url = serializers.SerializerMethodField()
+    display_url = serializers.SerializerMethodField()
 
     class Meta:
         model = VariantImage
-        fields = ["url", "alt_text", "position", "is_primary", "width", "height"]
+        fields = ["url", "thumbnail_url", "display_url", "alt_text", "position", "is_primary", "width", "height"]
+
+    def get_thumbnail_url(self, obj: VariantImage) -> str:
+        return public_image_url(obj.thumbnail_storage_key or obj.storage_key)
+
+    def get_display_url(self, obj: VariantImage) -> str:
+        return public_image_url(obj.display_storage_key or obj.storage_key)
 
 
 class ProductSizeMeasurementSerializer(serializers.ModelSerializer):
@@ -119,8 +127,10 @@ class ProductListSerializer(serializers.ModelSerializer):
     def get_image(self, obj: Product):
         if not obj.image_key:
             return None
+        image_key = obj.image_key
         return {
-            "url": public_image_url(obj.image_key),
+            "url": public_image_url(image_key),
+            "thumbnail_url": public_image_url(obj.image_thumbnail_key or image_key),
             "alt_text": obj.image_alt,
             "width": obj.image_width,
             "height": obj.image_height,
