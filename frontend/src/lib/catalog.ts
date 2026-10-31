@@ -121,7 +121,14 @@ export function hasActiveNarrowing(state: CatalogState): boolean {
   );
 }
 
-export type CatalogImage = { url: string; alt_text: string; width: number; height: number };
+export type CatalogImage = {
+  url: string;
+  thumbnail_url?: string;
+  display_url?: string;
+  alt_text: string;
+  width: number;
+  height: number;
+};
 export type Swatch = { name: string; slug: string; hex_color: string };
 
 export type ProductCardData = {
@@ -167,6 +174,8 @@ export type ProductDetail = {
     hex_color: string;
     images: {
       url: string;
+      thumbnail_url?: string;
+      display_url?: string;
       alt_text: string;
       position: number;
       is_primary: boolean;
@@ -190,10 +199,10 @@ export function totalPages(count: number): number {
   return Math.max(1, Math.ceil(count / PAGE_SIZE));
 }
 
-export async function getProducts(state: CatalogState): Promise<Paginated<ProductCardData>> {
+export async function getProducts(state: CatalogState, init?: RequestInit): Promise<Paginated<ProductCardData>> {
   const p = stateToParams(state);
   p.set("page_size", String(PAGE_SIZE));
-  return apiGet<Paginated<ProductCardData>>(`/api/catalog/products/?${p.toString()}`);
+  return apiGet<Paginated<ProductCardData>>(`/api/catalog/products/?${p.toString()}`, init);
 }
 
 /** Vocabulary changes rarely; a short revalidation window keeps this off the hot path. */

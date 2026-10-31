@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { MobileNav } from "./MobileNav";
@@ -23,36 +23,44 @@ const categories = [
   { name: "کتونی", slug: "sneakers" },
   { name: "اکسسوری", slug: "accessories" },
   { name: "بافت", slug: "knitwear" },
+  { name: "جکت چرم", slug: "leather-jackets" },
 ];
 
 export function navItems(locale: Locale, t: Dictionary) {
   return [
-    { href: `/${locale}/products`, label: "محصولات" },
-    { href: `/${locale}/about`, label: t.nav.about },
-    { href: `/${locale}/faq`, label: t.nav.faq },
-    { href: `/${locale}/support`, label: t.nav.support },
+    { href: "/" + locale + "/products", label: "محصولات" },
+    { href: "/" + locale + "/about", label: t.nav.about },
+    { href: "/" + locale + "/faq", label: t.nav.faq },
+    { href: "/" + locale + "/support", label: t.nav.support },
   ];
 }
 
 export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   const [visible, setVisible] = useState(true);
+  const hideTimer = useRef<number | undefined>(undefined);
   const items = navItems(locale, t);
   const categoryItems = categories.map((category) => ({
-    href: `/${locale}/categories/${encodeURIComponent(category.slug)}`,
+    href: "/" + locale + "/categories/" + encodeURIComponent(category.slug),
     label: category.name,
   }));
 
   useEffect(() => {
-    let timer: number | undefined;
+    let frame = 0;
     const onScroll = () => {
-      setVisible(false);
-      if (timer !== undefined) window.clearTimeout(timer);
-      timer = window.setTimeout(() => setVisible(true), 220);
+      if (!frame) {
+        frame = window.requestAnimationFrame(() => {
+          setVisible((current) => (current ? false : current));
+          frame = 0;
+        });
+      }
+      if (hideTimer.current !== undefined) window.clearTimeout(hideTimer.current);
+      hideTimer.current = window.setTimeout(() => setVisible(true), 120);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
-      if (timer !== undefined) window.clearTimeout(timer);
+      if (frame) window.cancelAnimationFrame(frame);
+      if (hideTimer.current !== undefined) window.clearTimeout(hideTimer.current);
     };
   }, []);
 
@@ -60,7 +68,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
     <header
       aria-hidden={!visible}
       inert={!visible}
-      className={`sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur transition-transform duration-200 motion-reduce:transition-none ${visible ? "translate-y-0" : "-translate-y-full"}`}
+      className={"sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur transition-transform duration-150 motion-reduce:transition-none " + (visible ? "translate-y-0" : "-translate-y-full")}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
         <MobileNav
@@ -73,8 +81,15 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
             categories: "دسته‌بندی‌ها",
           }}
         />
-        <Link href={`/${locale}`} aria-label="صفحه اصلی ودزمانی" className="inline-flex shrink-0 items-center rounded-lg">
-          <Image src="/favicon.ico" alt="نشان ودزمانی" width={36} height={36} unoptimized priority />
+        <Link href={"/" + locale} aria-label="صفحه اصلی ودزمانی" className="inline-flex shrink-0 items-center rounded-lg">
+          <Image
+            src="/images/vedzmani-banner-vz.svg"
+            alt="نشان ودزمانی"
+            width={112}
+            height={41}
+            priority
+            className="h-9 w-auto object-contain"
+          />
         </Link>
         <nav aria-label={t.a11y.mainNav} className="hidden flex-1 items-center justify-center gap-5 text-sm md:flex">
           <Link href={items[0].href} className="rounded py-2 text-muted-foreground transition-colors hover:text-foreground">
@@ -83,18 +98,13 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
           <details className="group relative">
             <summary className="flex cursor-pointer list-none items-center gap-1 rounded py-2 text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
               دسته‌بندی‌ها
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 16 16"
-                className="size-3.5 transition-transform duration-200 ease-out group-open:rotate-90 motion-reduce:transition-none"
-                fill="none"
-              >
+              <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5 transition-transform duration-150 ease-out group-open:rotate-90 motion-reduce:transition-none" fill="none">
                 <path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </summary>
             <div className="absolute end-0 top-full z-50 mt-2 grid min-w-64 grid-cols-2 gap-1 rounded-xl border border-border bg-background p-2 shadow-xl">
               {categories.map((category) => (
-                <Link key={category.slug} href={'/' + locale + '/categories/' + encodeURIComponent(category.slug)} className="rounded-lg px-3 py-2.5 text-sm hover:bg-muted">{category.name}</Link>
+                <Link key={category.slug} href={"/" + locale + "/categories/" + encodeURIComponent(category.slug)} className="rounded-lg px-3 py-2.5 text-sm hover:bg-muted">{category.name}</Link>
               ))}
             </div>
           </details>
@@ -107,7 +117,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
         <div className="ms-auto flex shrink-0 items-center gap-1">
           <SearchButton locale={locale} />
           <CartButton locale={locale} />
-          <Link href={'/' + locale + '/profile'} aria-label="حساب کاربری" title="حساب کاربری" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
+          <Link href={"/" + locale + "/profile"} aria-label="حساب کاربری" title="حساب کاربری" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
           </Link>
           <ThemeToggle label={t.a11y.toggleTheme} />

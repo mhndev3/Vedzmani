@@ -20,7 +20,7 @@ export function Price({
   className?: string;
 }) {
   return (
-    <p className={`flex flex-wrap items-baseline gap-x-2 ${className}`}>
+    <p className={"flex flex-wrap items-baseline gap-x-2 " + className}>
       {salePrice ? (
         <>
           <span className="font-medium">
@@ -40,8 +40,9 @@ export function Price({
 }
 
 /**
- * Images are already WebP on the CDN boundary, so Next's optimizer is bypassed
- * (`unoptimized`); the 3:4 box is reserved up front (no CLS).
+ * Product media is served directly by Nginx from the shared /media volume and
+ * is already WebP with immutable cache headers. Keep it unoptimized until the
+ * Next image optimizer has an explicit internal route to that Nginx media path.
  */
 export function CatalogPicture({
   image,
@@ -60,14 +61,14 @@ export function CatalogPicture({
     <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted">
       {image ? (
         <Image
-          src={image.url}
+          src={image.thumbnail_url || image.url}
           alt={image.alt_text || fallbackAlt}
           fill
           sizes={sizes}
           unoptimized
           loading={eager ? "eager" : "lazy"}
           fetchPriority={eager ? "high" : "auto"}
-          className="object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-[1.02]"
+          className="object-cover transition-transform duration-200 motion-reduce:transition-none group-hover:scale-[1.02]"
         />
       ) : (
         <span className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
@@ -92,7 +93,7 @@ export function ProductCard({
   return (
     <li>
       <Link
-        href={`/${locale}/products/${product.slug}`}
+        href={"/" + locale + "/products/" + product.slug}
         className="group block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
       >
         <CatalogPicture
@@ -111,9 +112,7 @@ export function ProductCard({
           t={t}
           className="mt-1 text-sm"
         />
-        <p
-          className={`mt-1 text-xs ${product.in_stock ? "text-muted-foreground" : "font-medium text-foreground"}`}
-        >
+        <p className={"mt-1 text-xs " + (product.in_stock ? "text-muted-foreground" : "font-medium text-foreground")}>
           {product.in_stock ? t.catalog.inStock : t.catalog.outOfStock}
         </p>
         {product.colors.length > 0 && (
