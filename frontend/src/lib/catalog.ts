@@ -121,7 +121,14 @@ export function hasActiveNarrowing(state: CatalogState): boolean {
   );
 }
 
-export type CatalogImage = { url: string; alt_text: string; width: number; height: number };
+export type CatalogImage = {
+  url: string;
+  thumbnail_url?: string;
+  display_url?: string;
+  alt_text: string;
+  width: number;
+  height: number;
+};
 export type Swatch = { name: string; slug: string; hex_color: string };
 
 export type ProductCardData = {
@@ -167,6 +174,8 @@ export type ProductDetail = {
     hex_color: string;
     images: {
       url: string;
+      thumbnail_url?: string;
+      display_url?: string;
       alt_text: string;
       position: number;
       is_primary: boolean;
