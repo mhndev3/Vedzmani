@@ -86,7 +86,7 @@ export function ProductGallery({
               alt={current.alt_text || (productName + (colorName ? " - " + colorName : ""))}
               fill
               sizes="(min-width:768px) 50vw, 100vw"
-              quality={80}
+              quality={75}
               priority={activeIndex === 0}
               fetchPriority={activeIndex === 0 ? "high" : "auto"}
               className={"object-contain transition-opacity duration-150 ease-in-out motion-reduce:transition-none " + (fading ? "opacity-0" : "opacity-100")}
