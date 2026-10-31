@@ -5,6 +5,7 @@ Nginx/CDN's long-lived immutable cache remains correct and rollback is trivial.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import tempfile
@@ -37,6 +38,14 @@ def _media_path(storage_key: str) -> Path:
     except ValueError as exc:
         raise ValueError("Image storage key escapes MEDIA_ROOT.") from exc
     return target
+
+
+def _source_fingerprint(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()[:12]
 
 
 def _write_webp_variant(image: Image.Image, output_path: Path) -> None:
@@ -87,16 +96,17 @@ def optimize_variant_image(image_id: int, *, force: bool = False) -> bool:
                 raise ValueError(f"Image has invalid dimensions: {image.storage_key}")
 
             generated_keys: dict[int, str] = {}
+            fingerprint = _source_fingerprint(source_path)
             for max_edge in (THUMBNAIL_MAX_EDGE, DISPLAY_MAX_EDGE):
                 if max(original_width, original_height) <= max_edge:
                     generated_keys[max_edge] = ""
                     continue
 
-                output_key = str(
-                    PurePosixPath(image.storage_key).with_name(
-                        f"{PurePosixPath(image.storage_key).stem}.w{max_edge}.webp"
-                    )
-                )
+                source_key = PurePosixPath(image.storage_key)
+                suffix = f".{fingerprint}.w{max_edge}.webp"
+                parent = "" if str(source_key.parent) == "." else source_key.parent.as_posix() + "/"
+                available_stem = max(1, 500 - len(parent) - len(suffix))
+                output_key = parent + source_key.stem[:available_stem] + suffix
                 output_path = _media_path(output_key)
                 rendition = oriented.copy()
                 try:
