@@ -23,6 +23,30 @@ test("hero banner uses supplied VZ artwork and is not a link", async ({ page }) 
   await expect(hero.locator("a")).toHaveCount(0);
 });
 
+test("homepage shows the requested square categories and newest seven products", async ({ page }) => {
+  await page.goto("/fa");
+
+  const categories = page.locator("section[aria-labelledby='home-categories']");
+  await expect(categories.getByRole("link")).toHaveCount(5);
+  const expectedCategories = [
+    { name: "دورس", href: "/fa/categories/sweatshirts" },
+    { name: "بافت", href: "/fa/categories/knitwear" },
+    { name: "شلوار جین", href: "/fa/categories/jeans" },
+    { name: "جکت چرم", href: "/fa/categories/leather-jackets" },
+    { name: "هودی", href: "/fa/categories/hoodies" },
+  ];
+  for (const category of expectedCategories) {
+    const link = categories.getByRole("link", { name: category.name, exact: true });
+    await expect(link).toHaveAttribute("href", category.href);
+    await expect(link).toHaveClass(/aspect-square/);
+    await expect(link).toHaveClass(/rounded-2xl/);
+  }
+
+  const newest = page.locator("section[aria-labelledby='home-newest-products']");
+  await expect(newest.getByRole("heading", { name: "جدیدترین‌ها" })).toBeVisible();
+  await expect(newest.locator("ul > li")).toHaveCount(7);
+});
+
 test("theme toggle switches dark mode and persists", async ({ page }) => {
   await page.goto("/fa");
   const html = page.locator("html");
