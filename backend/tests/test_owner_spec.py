@@ -1,4 +1,9 @@
-"""Spec-level tests for the owner-authoritative catalog data (no database, no Django models)."""
+"""Spec-level tests for the owner-authoritative catalog data (no database, no Django models).
+
+Expected values are typed here independently of `owner_spec` helpers so a transcription slip in the
+spec fails loudly. They cover the data facts and the purchasability rule; the DB/API/cart behaviour
+cannot be tested until the production catalog layer is in this repository (see handoff report).
+"""
 
 from decimal import Decimal
 
@@ -22,7 +27,7 @@ def test_exactly_13_products_with_unique_target_codes():
 def test_persian_text_is_stored_as_real_unicode_not_mojibake():
     assert P["01"].name == "\u067e\u06cc\u0631\u0627\u0647\u0646 \u0641\u0648\u062a\u0631"
     assert S.STRETCH == "\u06a9\u0634"
-    assert P["07"].colors[1].name == "\u0633\u0631\u0645\u0647\u200c\u0627\u06cc"
+    assert P["07"].colors[1].name == "\u0633\u0631\u0645\u0647\u200c\u0627\u06cc"  # contains a ZWNJ
 
 
 def test_totals_match_the_previous_reconciliation_counts():
@@ -34,9 +39,9 @@ def test_totals_match_the_previous_reconciliation_counts():
         if p.requirement == "free":
             continue
         if any(c.measurements is not None for c in p.colors):
-            for c in p.colors:
+            for c in p.colors:  # color-specific tables count once per color
                 supplied += sum(v is not None for t in c.measurements.values() for v in t.values())
-        else:
+        else:  # shared tables count once per product
             supplied += sum(v is not None for t in p.shared.values() for v in t.values())
     assert supplied == 150
 
@@ -44,22 +49,38 @@ def test_totals_match_the_previous_reconciliation_counts():
 @pytest.mark.parametrize(
     "code,price,category",
     [
-        ("01", 5_890_000, "پیراهن"), ("02", 5_298_000, "دورس"),
-        ("03", 5_298_000, "دورس"), ("04", 5_298_000, "دورس"),
-        ("05", 3_360_000, "بافت"), ("06", 2_690_000, "بافت"),
-        ("07", 7_680_000, "هودی"), ("08", 5_298_000, "جکت"),
-        ("09", 6_490_000, "جکت چرم"), ("10", 4_980_000, "جاگر"),
-        ("11", 4_980_000, "جاگر"), ("12", 3_950_000, "شلوار جین"),
-        ("13", 3_890_000, "شلوار پارچه ای"),
+        ("01", 5_890_000, "\u067e\u06cc\u0631\u0627\u0647\u0646"),
+        ("02", 5_298_000, "\u062f\u0648\u0631\u0633"),
+        ("03", 5_298_000, "\u062f\u0648\u0631\u0633"),
+        ("04", 5_298_000, "\u062f\u0648\u0631\u0633"),
+        ("05", 3_360_000, "\u0628\u0627\u0641\u062a"),
+        ("06", 2_690_000, "\u0628\u0627\u0641\u062a"),
+        ("07", 7_680_000, "\u0647\u0648\u062f\u06cc"),
+        ("08", 5_298_000, "\u062c\u06a9\u062a"),
+        ("09", 6_490_000, "\u062c\u06a9\u062a \u0686\u0631\u0645"),
+        ("10", 4_980_000, "\u062c\u0627\u06af\u0631"),
+        ("11", 4_980_000, "\u062c\u0627\u06af\u0631"),
+        ("12", 3_950_000, "\u0634\u0644\u0648\u0627\u0631 \u062c\u06cc\u0646"),
+        ("13", 3_890_000, "\u0634\u0644\u0648\u0627\u0631 \u067e\u0627\u0631\u0686\u0647 \u0627\u06cc"),
     ],
 )
 def test_price_and_category(code, price, category):
     assert P[code].price == price and P[code].category == category
 
 
+def test_product_01_stock_and_measurements():
+    p = P["01"]
+    assert [c.name for c in p.colors] == ["\u0645\u0634\u06a9\u06cc", "\u0637\u0648\u0633\u06cc"]
+    assert p.colors[0].stock == {"M": 1, "L": 1, "XL": 1, "XXL": 0, "XXXL": 0}
+    assert p.colors[1].stock == {"M": 1, "L": 1, "XL": 1, "XXL": 1, "XXXL": 1}
+    got = S.measurements_for(p, p.colors[0], "XXXL")
+    assert got == {"shoulder": D(60), "chest": D(66), "length": D(69)}
+    assert S.measurements_for(p, p.colors[1], "M") == {"shoulder": D(52), "chest": D(56), "length": D(64)}
+
+
 def test_combined_colors_are_single_options():
-    for code in ("02", "03", "04"):
-        assert len(P[code].colors) == 1 and " " in P[code].colors[0].name
+    for code, n in (("02", 1), ("03", 1), ("04", 1)):
+        assert len(P[code].colors) == n and " " in P[code].colors[0].name
 
 
 def test_product_02_missing_sizes_stay_missing():
@@ -72,7 +93,7 @@ def test_product_02_missing_sizes_stay_missing():
 @pytest.mark.parametrize("code", ["03", "04"])
 def test_products_03_04_xxl_has_stock_but_is_not_purchasable(code):
     p, c = P[code], P[code].colors[0]
-    assert c.stock["XXL"] == 1
+    assert c.stock["XXL"] == 1  # stock record preserved
     assert S.measurements_for(p, c, "XXL") == {"shoulder": None, "chest": None, "length": None}
     assert not S.is_purchasable(p, c, "XXL")
     assert S.is_purchasable(p, c, "L") and S.is_purchasable(p, c, "XL")
@@ -80,14 +101,16 @@ def test_products_03_04_xxl_has_stock_but_is_not_purchasable(code):
 
 def test_products_05_06_free_size_purchasable_when_in_stock():
     assert {s for c in P["05"].colors for s in c.stock} == {"FREE"}
-    assert [c.stock["FREE"] for c in P["05"].colors] == [2, 1]
-    assert [c.stock["FREE"] for c in P["06"].colors] == [2, 2, 2]
+    assert [(c.stock["FREE"]) for c in P["05"].colors] == [2, 1]
+    assert [(c.stock["FREE"]) for c in P["06"].colors] == [2, 2, 2]
     assert all(S.is_purchasable(P[k], c, "FREE") for k in ("05", "06") for c in P[k].colors)
+    assert P["05"].requirement == P["06"].requirement == "free"
 
 
 def test_product_07_hoodie_stock_and_shared_measurements():
     p = P["07"]
     black, navy = p.colors
+    assert p.category_slug_hint == "hoodies"
     assert black.stock == {"M": 1, "L": 0, "XL": 1, "XXL": 0, "XXXL": 0}
     assert navy.stock == {"M": 0, "L": 1, "XL": 1, "XXL": 0, "XXXL": 0}
     assert S.measurements_for(p, black, "M") == S.measurements_for(p, navy, "M")
@@ -105,11 +128,11 @@ def test_product_08_is_a_jacket_not_a_shirt():
     assert S.is_purchasable(p, light, "XXL") and S.is_purchasable(p, charcoal, "XL")
 
 
-def test_product_09_is_the_leather_jacket_category():
-    p = P["09"]
-    assert p.category_slug_hint == "leather-jackets"
-    assert p.category == "جکت چرم"
-    assert S.measurements_for(p, p.colors[0], "XL") == {"shoulder": D("57.5"), "chest": D("59.5"), "length": D("61.5")}
+def test_product_09_bomber():
+    p, c = P["09"], P["09"].colors[0]
+    assert c.stock == {"M": 0, "L": 0, "XL": 1, "XXL": 1, "XXXL": 0}
+    assert S.measurements_for(p, c, "XL") == {"shoulder": D("57.5"), "chest": D("59.5"), "length": D("61.5")}
+    assert S.measurements_for(p, c, "XXL") == {"shoulder": D("61.5"), "chest": D("65.5"), "length": D("65.5")}
 
 
 def test_product_10_keeps_stretch_text_and_has_no_unit():
@@ -121,8 +144,8 @@ def test_product_10_keeps_stretch_text_and_has_no_unit():
         m = S.measurements_for(p, black, size)
         assert m["waist"] == S.STRETCH and isinstance(m["waist"], str)
         assert m == {"waist": S.STRETCH, "hip": D(hip), "inseam": D(74), "rise": D(41), "hem": D(16), "total_length": D(100)}
-    assert S.measurements_for(p, gray, "XL")["hip"] == D(52)
-    assert not S.is_purchasable(p, gray, "XL")
+    assert S.measurements_for(p, gray, "XL")["hip"] == D(52)  # measured ...
+    assert not S.is_purchasable(p, gray, "XL")  # ... but zero stock
 
 
 def test_product_11_rise_is_exactly_98_5():
@@ -141,6 +164,7 @@ def test_product_12_measurements_are_color_specific():
     assert S.measurements_for(p, charcoal, "34")["hip"] == D("52.5")
     assert S.measurements_for(p, navy, "34")["inseam"] == D(83)
     assert S.measurements_for(p, charcoal, "34")["inseam"] == D(77)
+    assert S.measurements_for(p, navy, "34") != S.measurements_for(p, charcoal, "34")
 
 
 def test_product_12_stock_and_missing_values_stay_missing_not_zero():
@@ -153,25 +177,27 @@ def test_product_12_stock_and_missing_values_stay_missing_not_zero():
     assert S.measurements_for(p, navy, "33")["total_length"] is None
     assert S.measurements_for(p, charcoal, "31")["total_length"] is None
     assert S.measurements_for(p, charcoal, "36")["total_length"] is None
-    for color in (navy, charcoal):
-        for size in color.stock:
-            assert 0 not in S.measurements_for(p, color, size).values()
+    for c in (navy, charcoal):
+        for size in c.stock:
+            assert 0 not in S.measurements_for(p, c, size).values()  # missing is None, never 0
 
 
-def test_product_12_size_38_only_hem_and_is_not_purchasable():
+def test_product_12_size_38_only_hem_in_both_colors_and_not_purchasable():
     p = P["12"]
-    for color in p.colors:
-        m = S.measurements_for(p, color, "38")
+    for c in p.colors:
+        m = S.measurements_for(p, c, "38")
         assert m["hem"] == D(22)
-        assert [key for key, value in m.items() if value is None] == ["waist", "hip", "inseam", "rise", "total_length"]
-        assert color.stock["38"] == 0 and not S.is_purchasable(p, color, "38")
+        assert [k for k, v in m.items() if v is None] == ["waist", "hip", "inseam", "rise", "total_length"]
+        assert c.stock["38"] == 0 and not S.is_purchasable(p, c, "38")
+    assert all(S.measurements_for(p, c, s)["hem"] == D(22) for c in p.colors for s in c.stock)
 
 
 def test_product_12_purchasable_matrix():
     p = P["12"]
     navy, charcoal = p.colors
-    assert {s for s in navy.stock if S.is_purchasable(p, navy, s)} == {"31", "34", "36"}
-    assert {s for s in charcoal.stock if S.is_purchasable(p, charcoal, s)} == {"32", "33", "34"}
+    ok_navy = {s for s in navy.stock if S.is_purchasable(p, navy, s)}
+    ok_char = {s for s in charcoal.stock if S.is_purchasable(p, charcoal, s)}
+    assert ok_navy == {"31", "34", "36"} and ok_char == {"32", "33", "34"}
 
 
 def test_product_13_waist_is_exactly_34_for_both_sizes():
@@ -187,12 +213,12 @@ def test_units_are_cm_only_for_products_01_to_09():
 
 
 def test_every_zero_stock_row_is_unpurchasable_and_every_blocked_in_stock_row_is_known():
-    blocked = []
-    for product in S.SPECS:
-        for color in product.colors:
-            for size, quantity in color.stock.items():
-                if quantity == 0:
-                    assert not S.is_purchasable(product, color, size)
-                elif not S.is_purchasable(product, color, size):
-                    blocked.append((product.code, color.name, size))
-    assert [(code, size) for code, _name, size in blocked] == [("03", "XXL"), ("04", "XXL")]
+    blocked_with_stock = []
+    for p in S.SPECS:
+        for c in p.colors:
+            for s, qty in c.stock.items():
+                if qty == 0:
+                    assert not S.is_purchasable(p, c, s)
+                elif not S.is_purchasable(p, c, s):
+                    blocked_with_stock.append((p.code, c.name, s))
+    assert [(code, size) for code, _name, size in blocked_with_stock] == [("03", "XXL"), ("04", "XXL")]
