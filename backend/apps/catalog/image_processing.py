@@ -105,7 +105,9 @@ def optimize_variant_image(image_id: int, *, force: bool = False) -> bool:
                 source_key = PurePosixPath(image.storage_key)
                 suffix = f".{fingerprint}.w{max_edge}.webp"
                 parent = "" if str(source_key.parent) == "." else source_key.parent.as_posix() + "/"
-                available_stem = max(1, 500 - len(parent) - len(suffix))
+                available_stem = 500 - len(parent) - len(suffix)
+                if available_stem < 1:
+                    raise ValueError(f"Image storage path is too long for renditions: {image.storage_key}")
                 output_key = parent + source_key.stem[:available_stem] + suffix
                 output_path = _media_path(output_key)
                 rendition = oriented.copy()
