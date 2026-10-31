@@ -1,8 +1,12 @@
 """Responsive media generation keeps original WebP files intact and serves bounded renditions."""
 
+import stat
+from io import StringIO
 from pathlib import Path
 
 import pytest
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import override_settings
 from PIL import Image
 
@@ -42,12 +46,13 @@ def test_responsive_renditions_are_generated_without_changing_original(tmp_path)
         thumbnail = tmp_path / image.thumbnail_storage_key
         display = tmp_path / image.display_storage_key
 
-        assert image.thumbnail_storage_key.startswith("products/hoodie.") and image.thumbnail_storage_key.endswith(".w640.webp")
-        assert image.display_storage_key.startswith("products/hoodie.") and image.display_storage_key.endswith(".w1600.webp")
+        assert image.thumbnail_storage_key.startswith("products/hoodie.")
+        assert image.thumbnail_storage_key.endswith(".w640.webp")
+        assert image.display_storage_key.startswith("products/hoodie.")
+        assert image.display_storage_key.endswith(".w1600.webp")
         assert original.is_file()
         assert thumbnail.is_file()
         assert display.is_file()
-        import stat
         assert stat.S_IMODE(thumbnail.stat().st_mode) == 0o644
         assert stat.S_IMODE(display.stat().st_mode) == 0o644
         assert image.optimization_version == 1
@@ -81,16 +86,13 @@ def test_new_image_metadata_automatically_schedules_optimization(tmp_path):
         image.refresh_from_db()
 
         assert image.optimization_version == 1
-        assert image.thumbnail_storage_key.startswith("products/automatic.") and image.thumbnail_storage_key.endswith(".w640.webp")
-        assert image.display_storage_key.startswith("products/automatic.") and image.display_storage_key.endswith(".w1600.webp")
-
+        assert image.thumbnail_storage_key.startswith("products/automatic.")
+        assert image.thumbnail_storage_key.endswith(".w640.webp")
+        assert image.display_storage_key.startswith("products/automatic.")
+        assert image.display_storage_key.endswith(".w1600.webp")
 
 
 def test_optimizer_dry_run_reports_missing_sources_without_writing(tmp_path):
-    from io import StringIO
-
-    from django.core.management import call_command
-    from django.core.management.base import CommandError
 
     with override_settings(MEDIA_ROOT=tmp_path):
         image = _variant_image(tmp_path, key="products/not-copied-yet.webp")
