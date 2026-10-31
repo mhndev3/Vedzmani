@@ -61,7 +61,7 @@ export function CatalogPicture({
     <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted">
       {image ? (
         <Image
-          src={image.url}
+          src={image.thumbnail_url || image.url}
           alt={image.alt_text || fallbackAlt}
           fill
           sizes={sizes}
