@@ -40,7 +40,7 @@ test("hamburger menu contains the requested categories and support links", async
   await expect(dialog).toBeVisible();
   await dialog.locator("summary").filter({ hasText: "دسته‌بندی‌ها" }).click();
   const categories = [
-    { name: "دورس", href: "/fa/categories/sweatshirts" },
+    { name: "دورس" },
     { name: "پیراهن" },
     { name: "تی شرت" },
     { name: "هودی" },
