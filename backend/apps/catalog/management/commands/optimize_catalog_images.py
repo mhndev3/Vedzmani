@@ -48,5 +48,7 @@ class Command(BaseCommand):
         self.stdout.write(
             f"Processed: {processed}; missing source files: {missing}; failed: {failed}; examined: {total}."
         )
-        if failed:
-            raise CommandError(f"{failed} catalog image(s) could not be optimized.")
+        if failed or missing:
+            raise CommandError(
+                f"Optimization incomplete: {failed} failed image(s), {missing} missing source file(s)."
+            )
