@@ -120,17 +120,21 @@ test.describe("ورود با شماره موبایل", () => {
 });
 
 test.describe("دسترسی مهمان", () => {
-  for (const path of ["/fa/cart", "/fa/checkout", "/fa/profile"]) {
-    test(`${path} مسیر ورود را حفظ می‌کند`, async ({ page }) => {
-      await page.goto(path);
-      const link = page.getByRole("link", { name: "ورود / ساخت حساب", exact: true }).last();
-      await expect(link).toHaveAttribute("href", `/fa/sign-in?next=${encodeURIComponent(path)}`);
-    });
-  }
+  test("سبد خالی مهمان بدون اجبار به ورود قابل مشاهده است", async ({ page }) => {
+    await page.goto("/fa/cart");
+    await expect(page.getByRole("heading", { name: "سبد خرید شما خالی است" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "مشاهده محصولات" })).toHaveAttribute("href", "/fa/products");
+  });
 
-  test("تسویه حساب مهمان را به ورود هدایت می‌کند", async ({ page }) => {
+  test("checkout مسیر بازگشت به خرید را در لینک ورود نگه می‌دارد", async ({ page }) => {
     await page.goto("/fa/checkout");
     await expect(page.getByRole("heading", { name: "برای ادامه وارد شوید یا حساب بسازید" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "ورود / ساخت حساب" })).toHaveAttribute("href", "/fa/sign-in?next=%2Ffa%2Fcheckout");
+  });
+
+  test("پروفایل مهمان مسیر بازگشت امن را حفظ می‌کند", async ({ page }) => {
+    await page.goto("/fa/profile");
+    await expect(page.getByRole("link", { name: "ورود / ساخت حساب" })).toHaveAttribute("href", "/fa/sign-in?next=%2Ffa%2Fprofile");
   });
 });
 
