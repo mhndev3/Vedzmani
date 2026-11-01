@@ -13,8 +13,9 @@ async function readOtp(canonicalPhone: string): Promise<string> {
   const re = new RegExp(`phone=\\\\${canonicalPhone} purpose=login code=(\\\\d{6})`, "g");
   for (let i = 0; i < 20; i++) {
     const log = execSync(otpLogCommand!, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-    const matches = [...log.matchAll(re)];
-    if (matches.length > 0) return matches[matches.length - 1][1];
+    const line = log.split(/\\r?\\n/).filter((entry) => entry.includes(prefix)).at(-1);
+    const match = line?.match(/code=(\\d{6})/);
+    if (match) return match[1];
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error("OTP not found in backend log");
