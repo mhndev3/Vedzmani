@@ -96,7 +96,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.getByRole("link", { name: "حذف همه فیلترها" }).click();
     await expect(page).toHaveURL("/fa/products");
     await expect(page.getByRole("checkbox", { name: "هودی" })).not.toBeChecked();
-    await expect(page.getByRole("link", { name: "ارزان‌ترین" })).toHaveAttribute("aria-current", undefined);
+    await expect(page.getByRole("link", { name: "ارزان‌ترین" })).not.toHaveAttribute("aria-current", "true");
   });
 
   test("فیلتر بازه قیمت در سمت سرور اعمال می‌شود", async ({ page }) => {
