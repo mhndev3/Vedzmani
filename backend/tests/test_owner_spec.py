@@ -123,7 +123,7 @@ def test_product_08_is_a_jacket_not_a_shirt():
     assert p.category_slug_hint == "jackets" and p.category_slug_hint != "shirts"
     light, charcoal = p.colors
     assert light.stock["XXL"] == 2 and charcoal.stock["XL"] == 1
-    assert sum(light.stock.values()) == 1 and sum(charcoal.stock.values()) == 1
+    assert sum(light.stock.values()) == 2 and sum(charcoal.stock.values()) == 1
     assert S.measurements_for(p, charcoal, "XL") == {"shoulder": D(56), "chest": D(62), "length": D(64)}
     assert S.is_purchasable(p, light, "XXL") and S.is_purchasable(p, charcoal, "XL")
 
