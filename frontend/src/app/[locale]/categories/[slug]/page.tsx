@@ -20,6 +20,7 @@ const CATEGORIES = [
   { name: "هودی", slug: "hoodies" },
   { name: "کاپشن", slug: "coats" },
   { name: "جکت", slug: "jackets" },
+  { name: "جکت چرم", slug: "leather-jackets" },
   { name: "شلوار جین", slug: "jeans" },
   { name: "شلوار پارچه ای", slug: "trousers" },
   { name: "شلوار جاگر", slug: "joggers" },
