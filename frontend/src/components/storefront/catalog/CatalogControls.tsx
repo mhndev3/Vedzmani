@@ -95,7 +95,7 @@ function CheckGroup({
               {swatch && (
                 <span
                   aria-hidden="true"
-                  className="size-3.5 shrink-0 rounded-full border border-border"
+                  className="size-3.5 shrink-0 rounded-[3px] border border-border"
                   style={item.hex ? { backgroundColor: item.hex } : undefined}
                 />
               )}
