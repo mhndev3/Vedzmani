@@ -113,7 +113,7 @@ SPECS = (
     ProductSpec(
         "08", "وست جین", "جکت", "jackets", 5_298_000, "top", "cm",
         (
-            ColorSpec("آبی روشن", _stock(M=0, L=0, XL=0, XXL=1, XXXL=0)),
+            ColorSpec("آبی روشن", _stock(M=0, L=0, XL=0, XXL=2, XXXL=0)),
             ColorSpec("ذغالی", _stock(M=0, L=0, XL=1, XXL=0, XXXL=0)),
         ),
         shared=_top(XL=(56, 62, 64), XXL=(57, 64, 67)),
