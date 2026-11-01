@@ -24,7 +24,7 @@ function emptyCart(): StoredGuestCart {
 
 function emit(items: GuestCartLine[]) {
   window.dispatchEvent(new CustomEvent("vedzmani:cart-updated", {
-    detail: { itemCount: items.reduce((sum, item) => sum + item.quantity, 0) },
+    detail: { itemCount: items.length },
   }));
 }
 

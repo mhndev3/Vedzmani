@@ -26,7 +26,7 @@ export function CartButton({ locale }: { locale: Locale }) {
         .catch((error: unknown) => {
           if (active && requestedVersion === mutationVersion) {
             const guestCount = error instanceof BrowserApiError && error.status === 401
-              ? readGuestCart().items.reduce((sum, item) => sum + item.quantity, 0)
+              ? readGuestCart().items.length
               : 0;
             setCount(guestCount);
           }
