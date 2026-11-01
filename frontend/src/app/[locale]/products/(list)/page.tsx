@@ -7,8 +7,6 @@ import { ApiError } from "@/lib/api";
 import {
   catalogHref,
   emptyState,
-  fill,
-  formatPrice,
   getFilterOptions,
   getProducts,
   hasActiveNarrowing,
@@ -22,7 +20,7 @@ import { CategoryFilterAutoSubmit } from "@/components/storefront/catalog/Catego
 import {
   FilterForm,
   Pagination,
-  SortLinks,
+  CatalogToolbar,
 } from "@/components/storefront/catalog/CatalogControls";
 import { ProductCard } from "@/components/storefront/catalog/ProductCard";
 
@@ -91,12 +89,12 @@ export default async function ProductsPage({ params, searchParams }: Props) {
         <section aria-labelledby="results-heading" className="min-w-0">
           {data ? (
             <>
-              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                <h2 id="results-heading" className="text-sm font-semibold" aria-live="polite">
-                  {fill(t.catalog.results, { count: formatPrice(data.count, locale) })}
-                </h2>
-                <SortLinks locale={locale} t={t} state={state} />
-              </div>
+              <CatalogToolbar
+                locale={locale}
+                t={t}
+                state={state}
+                count={data.count}
+              />
 
               {data.results.length > 0 ? (
                 <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
