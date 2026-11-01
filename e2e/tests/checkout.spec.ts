@@ -51,6 +51,21 @@ async function setGuestCart(page: Page, variantSizeId: number) {
 }
 
 test.describe("guest cart and payment-safe checkout", () => {
+  test("guest can add a product from its detail page without an account", async ({ page }) => {
+    test.skip(!backendDir, "E2E_BACKEND_DIR not set");
+    await page.goto("/fa/products/e2e-tee-02");
+    await page.getByRole("radio", { name: "M" }).check();
+    await page.getByRole("button", { name: "افزودن به سبد خرید" }).click();
+    await expect(page.getByText("به سبد خرید اضافه شد.")).toBeVisible();
+    const guestLine = await page.evaluate(() => {
+      const cart = JSON.parse(localStorage.getItem("vedzmani.guest-cart.v1") || "{}");
+      return cart.items?.[0];
+    });
+    expect(guestLine.quantity).toBe(1);
+    expect(guestLine.variant_size.sku).toBe("e2e-tee-02-black-m");
+    await expect(page.getByRole("link", { name: "سبد خرید، ۱ کالا" })).toBeVisible();
+  });
+
   test("anonymous direct checkout asks for sign-in or account creation and never posts an order", async ({ page }) => {
     let orderPosts = 0;
     page.on("request", (request) => {
