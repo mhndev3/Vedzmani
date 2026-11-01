@@ -4,8 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { catalogHref, fill, formatPrice, getProducts, parseCatalogState, type CatalogState, type Paginated, type ProductCardData } from "@/lib/catalog";
-import { Pagination, SortLinks } from "@/components/storefront/catalog/CatalogControls";
+import { catalogHref, getProducts, parseCatalogState, type CatalogState, type Paginated, type ProductCardData } from "@/lib/catalog";
+import { CatalogToolbar, Pagination } from "@/components/storefront/catalog/CatalogControls";
 import { ProductCard } from "@/components/storefront/catalog/ProductCard";
 
 type Props = {
@@ -69,12 +69,13 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       <section aria-labelledby="category-results-heading" className="mt-6 min-w-0">
         {products ? (
           <>
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <h2 id="category-results-heading" className="text-sm text-muted-foreground" aria-live="polite">
-                {fill(t.catalog.results, { count: formatPrice(products.count, locale) })}
-              </h2>
-              <SortLinks locale={locale} t={t} state={state} basePath={"/" + locale + "/categories/" + slug} />
-            </div>
+            <CatalogToolbar
+              locale={locale}
+              t={t}
+              state={state}
+              count={products.count}
+              basePath={"/" + locale + "/categories/" + slug}
+            />
             {products.results.length ? (
               <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
                 {products.results.map((product, index) => <ProductCard key={product.id} product={product} locale={locale} t={t} eager={index < 4} />)}
