@@ -115,3 +115,38 @@ def test_detail_query_count_is_constant(django_assert_max_num_queries):
 def test_write_methods_not_allowed():
     build()
     assert Client().post("/api/catalog/products/basic-hoodie/").status_code == 405
+
+
+
+def test_detail_orders_primary_image_before_lower_position_images():
+    product = build(slug="primary-image-order")
+    variant = ColorVariant.objects.get(product=product, slug="c0")
+    VariantImage.objects.filter(variant=variant, position=0).update(is_primary=False)
+    VariantImage.objects.filter(variant=variant, position=1).update(
+        is_primary=True,
+        thumbnail_storage_key="primary-image-order/0/1.w640.webp",
+        display_storage_key="primary-image-order/0/1.w1600.webp",
+    )
+
+    response = Client().get("/api/catalog/products/primary-image-order/")
+    assert response.status_code == 200
+    images = response.json()["colors"][0]["images"]
+    assert [image["position"] for image in images] == [1, 0]
+    assert images[0]["is_primary"] is True
+    assert images[0]["url"] == "/media/primary-image-order/0/1.webp"
+    assert images[0]["thumbnail_url"] == "/media/primary-image-order/0/1.w640.webp"
+    assert images[0]["display_url"] == "/media/primary-image-order/0/1.w1600.webp"
+
+
+def test_product_listing_uses_thumbnail_image_when_a_rendition_exists():
+    product = build(slug="listing-thumbnail")
+    variant = ColorVariant.objects.get(product=product, slug="c0")
+    VariantImage.objects.filter(variant=variant, position=0).update(
+        thumbnail_storage_key="listing-thumbnail/0/0.w640.webp"
+    )
+
+    response = Client().get("/api/catalog/products/")
+    assert response.status_code == 200
+    item = next(row for row in response.json()["results"] if row["slug"] == "listing-thumbnail")
+    assert item["image"]["url"] == "/media/listing-thumbnail/0/0.webp"
+    assert item["image"]["thumbnail_url"] == "/media/listing-thumbnail/0/0.w640.webp"

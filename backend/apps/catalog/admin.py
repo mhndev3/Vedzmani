@@ -17,7 +17,7 @@ from django.forms.models import BaseInlineFormSet
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Category, Collection, ColorVariant, Product, ProductSizeDescription, ProductSizeMeasurement, Size, VariantImage, VariantSize, VariantSizeDescription
+from .models import Category, Collection, ColorVariant, Product, ProductSizeDescription, ProductSizeMeasurement, Size, VariantImage, VariantSize, VariantSizeDescription, VariantSizeMeasurement
 
 
 class ProductAdminForm(forms.ModelForm):
@@ -237,6 +237,12 @@ class VariantSizeDescriptionInline(admin.TabularInline):
     fields = ("description",)
 
 
+class VariantSizeMeasurementInline(admin.TabularInline):
+    model = VariantSizeMeasurement
+    extra = 0
+    fields = ("name", "value", "unit", "position")
+
+
 @admin.register(VariantSize)
 class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     list_display = ("sku", "product", "color", "size", "stock_quantity", "is_active")
@@ -247,7 +253,7 @@ class VariantSizeAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     autocomplete_fields = ("variant",)
     # stock is changed only through inventory adjustments (apps.inventory), never by editing the column here
     readonly_fields = ("stock_quantity", "created_at", "updated_at")
-    inlines = [VariantSizeDescriptionInline]
+    inlines = [VariantSizeDescriptionInline, VariantSizeMeasurementInline]
 
     def get_readonly_fields(self, request, obj=None):
         fields = super().get_readonly_fields(request, obj)

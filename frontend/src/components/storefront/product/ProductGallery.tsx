@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, type TouchEvent } from "react";
 
 type GalleryImage = {
   url: string;
+  thumbnail_url?: string;
+  display_url?: string;
   alt_text: string;
   position: number;
   is_primary: boolean;
@@ -40,7 +42,7 @@ export function ProductGallery({
       setDisplayImages(images);
       setActiveIndex(0);
       window.requestAnimationFrame(() => setFading(false));
-    }, 200);
+    }, 150);
     return () => window.clearTimeout(timeout);
   }, [imageKey, images]);
 
@@ -82,14 +84,14 @@ export function ProductGallery({
           >
             <Image
               key={current.url}
-              src={current.url}
-              alt={current.alt_text || `${productName}${colorName ? " - " + colorName : ""}`}
+              src={current.display_url || current.url}
+              alt={current.alt_text || (productName + (colorName ? " - " + colorName : ""))}
               fill
               sizes="(min-width:768px) 50vw, 100vw"
               unoptimized
               priority={activeIndex === 0}
               fetchPriority={activeIndex === 0 ? "high" : "auto"}
-              className={`object-contain transition-opacity duration-200 ease-in-out motion-reduce:transition-none ${fading ? "opacity-0" : "opacity-100"}`}
+              className={"object-contain transition-opacity duration-150 ease-in-out motion-reduce:transition-none " + (fading ? "opacity-0" : "opacity-100")}
             />
 
             {hasMultiple && (
@@ -123,7 +125,7 @@ export function ProductGallery({
                   onClick={() => setActiveIndex(index)}
                   aria-label={labels.slide.replace("{index}", String(index + 1))}
                   aria-current={activeIndex === index ? "true" : undefined}
-                  className={`h-2.5 rounded-full transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${activeIndex === index ? "w-7 bg-primary" : "w-2.5 bg-muted-foreground/40 hover:bg-muted-foreground/70"}`}
+                  className={"h-2.5 rounded-full transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring " + (activeIndex === index ? "w-7 bg-primary" : "w-2.5 bg-muted-foreground/40 hover:bg-muted-foreground/70")}
                 />
               ))}
             </div>

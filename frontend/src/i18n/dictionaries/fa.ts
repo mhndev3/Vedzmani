@@ -92,7 +92,7 @@ export const fa = {
     emptySection: "این بخش به‌زودی تکمیل می‌شود.",
     sections: {
       categories: "دسته‌بندی‌ها",
-      featuredProducts: "محصولات منتخب",
+      newestProducts: "جدیدترین‌ها",
       collections: "کالکشن‌ها و ست‌ها",
       promotions: "تخفیف‌ها و پیشنهادها",
     },

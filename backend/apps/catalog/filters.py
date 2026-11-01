@@ -102,6 +102,7 @@ def build_product_queryset(params: dict):
         effective_price=Coalesce("sale_price", "price", output_field=DecimalField(max_digits=14, decimal_places=0)),
         in_stock=Exists(purchasable.filter(stock_quantity__gt=0)),
         image_key=_representative_image("storage_key"),
+        image_thumbnail_key=_representative_image("thumbnail_storage_key"),
         image_alt=_representative_image("alt_text"),
         image_width=_representative_image("width"),
         image_height=_representative_image("height"),

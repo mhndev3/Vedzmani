@@ -1,31 +1,45 @@
 import "server-only";
+import { emptyState, getProducts, type CatalogImage, type ProductCardData } from "./catalog";
+
+export type HomepageCategory = {
+  name: string;
+  slug: string;
+  image: CatalogImage | null;
+};
+
+export type HomepageContent = {
+  categories: HomepageCategory[];
+  newestProducts: ProductCardData[];
+};
+
+const HOME_CATEGORIES = [
+  { name: "دورس", slug: "sweatshirts" },
+  { name: "بافت", slug: "knitwear" },
+  { name: "شلوار جین", slug: "jeans" },
+  { name: "جکت چرم", slug: "leather-jackets" },
+  { name: "هودی", slug: "hoodies" },
+] as const;
 
 /**
- * Homepage data boundary: Homepage -> sections (data) -> presentation.
- *
- * The backend currently exposes only /api/catalog/products/<slug>/ (no list
- * endpoints), so there is no real data for these sections yet. Items stay
- * empty and the UI shows an honest empty state, no fake products, prices or
- * discounts. When Agent 6 / Agent 8 expose list or homepage-config
- * endpoints, only this function changes.
+ * Fetch the newest catalog page once and derive both homepage sections from it.
+ * The API's default ordering is newest-first; one request avoids five category
+ * round-trips and keeps the homepage data path small.
  */
-export type HomepageItem = { id: string; title: string; href: string };
-
-export type HomepageSectionId =
-  | "categories"
-  | "featuredProducts"
-  | "collections"
-  | "promotions";
-
-export type HomepageSection = { id: HomepageSectionId; items: HomepageItem[] };
-
-const SECTION_ORDER: HomepageSectionId[] = [
-  "categories",
-  "featuredProducts",
-  "collections",
-  "promotions",
-];
-
-export async function getHomepageSections(): Promise<HomepageSection[]> {
-  return SECTION_ORDER.map((id) => ({ id, items: [] }));
+export async function getHomepageContent(): Promise<HomepageContent> {
+  try {
+    const page = await getProducts(emptyState, { cache: "force-cache", next: { revalidate: 30 } });
+    const products = page.results;
+    return {
+      categories: HOME_CATEGORIES.map((category) => ({
+        ...category,
+        image: products.find((product) => product.category.slug === category.slug)?.image ?? null,
+      })),
+      newestProducts: products.slice(0, 7),
+    };
+  } catch {
+    return {
+      categories: HOME_CATEGORIES.map((category) => ({ ...category, image: null })),
+      newestProducts: [],
+    };
+  }
 }

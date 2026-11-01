@@ -36,13 +36,25 @@ Category ─< Product >─< Collection        (Product.collections, M2M)
 - index: `Product(category, is_active, -created_at)` for the future category listing
 
 ## Images
-DB stores a **storage key** (relative object path, must end in `.webp`), never a URL or signed URL.
-In production, binaries live under `MEDIA_ROOT` (default `/app/media`), backed by the host directory
-`PRODUCT_MEDIA_DIR` (default `/home/vzinfra/prod/media`). Backend mounts it read/write; Nginx mounts it
-read-only and serves `/media/<storage_key>` with immutable caching. The local development Compose
-stack uses a persistent `product_media` named volume shared with Nginx read-only. If `MEDIA_CDN_BASE_URL` is set,
-`public_image_url` returns the CDN URL instead. Upload/import and WebP conversion are not implemented yet;
-they remain pending the owner's asset filename mapping and sample description file. The model stores metadata only.
+DB stores **relative WebP storage keys**, never public URLs or signed URLs. In production, originals live under
+`MEDIA_ROOT` (default `/app/media`), backed by `PRODUCT_MEDIA_DIR` (default `/home/vzinfra/prod/media`).
+The backend mounts the directory read/write; Nginx mounts it read-only and serves `/media/<storage_key>` with
+immutable caching. The local development Compose stack uses a persistent `product_media` volume shared with Nginx
+read-only. If `MEDIA_CDN_BASE_URL` is set, `public_image_url` returns the CDN URL instead.
+
+Original files are never modified. When a `VariantImage` row is saved after its source file has been copied into
+`MEDIA_ROOT`, an after-commit hook generates content-addressed WebP renditions: a 640px maximum-edge thumbnail
+for product cards/category tiles and a 1600px maximum-edge display image for the product gallery. The source
+fingerprint is part of each rendition key, so changed source bytes get a new cache URL; existing original URLs
+and cached files remain valid. Small originals are reused without redundant copies. The API returns
+`thumbnail_url` and `display_url` with a safe fallback to the original `url` until a rendition exists.
+
+For media copied after the image metadata was created, run from the backend container:
+`python manage.py optimize_catalog_images --dry-run`, inspect the count, then
+`python manage.py optimize_catalog_images`. The command is repeatable, leaves originals untouched, reports missing
+sources and exits unsuccessfully if any row cannot be processed. `--force` regenerates derivatives without
+changing their content-addressed URLs for unchanged source files. A manual file-copy/import step is still required;
+there is no browser upload endpoint in V1 yet.
 
 ## API
 `GET /api/catalog/products/<slug>/` — public, read-only; active product/category/variants/images/sizes only;
@@ -69,7 +81,7 @@ params are ignored; invalid values return `400` with the standard `{"error": {..
 
 Result item (card data only): `id, name, slug, price, sale_price, category{name,slug}, in_stock, image, colors[]`.
 `image` is one representative image (first active variant by position, its primary image first, else lowest
-position; `null` if none) as `{url, alt_text, width, height}` built via the CDN helper. `colors[]` are
+position; `null` if none) as `{url, thumbnail_url, alt_text, width, height}` built via the CDN helper. `colors[]` are
 `{name, slug, hex_color}` swatches of active variants. No sizes, SKUs, stock quantities, storage keys or descriptions.
 
 Performance: filtering, search, price and ordering are SQL. Collections/variants/sizes are `Exists` sub-queries (no
@@ -83,8 +95,9 @@ still undecided; only the raw `sale_price` exists), relevance ranking, typo tole
 filtering by arbitrary fields, `in_stock=false` meaning "out of stock only".
 
 ## Not implemented (for later agents)
-write APIs, full admin (only bare `admin.site.register`), reviews, favorites,
-orders, inventory logic, pricing/discount engine, image upload/conversion, caching.
+write APIs for customer-facing catalog changes, a browser-based media upload/import UI, reviews, favorites,
+orders, inventory logic, pricing/discount engine, caching. Image resizing/conversion for already-copied WebP
+media is now handled by `image_processing.py` and `optimize_catalog_images`.
 
 ### Filter vocabulary: `GET /api/catalog/filters/` (Agent 6, Session 2)
 Public, read-only. Returns `{categories[{name,slug}], collections[{name,slug}], colors[{name,slug,hex_color}], sizes[{code,label}]}`
