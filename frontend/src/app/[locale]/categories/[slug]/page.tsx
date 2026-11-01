@@ -63,7 +63,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{data.name}</h1>
-          <Link href={'/' + locale + '/products'} className="mt-2 inline-flex text-sm text-muted-foreground hover:text-foreground">مشاهده همه محصولات</Link>
+          <Link href={'/' + locale + '/products'} prefetch={false} className="mt-2 inline-flex text-sm text-muted-foreground hover:text-foreground">مشاهده همه محصولات</Link>
         </div>
       </div>
       <section aria-labelledby="category-results-heading" className="mt-6 min-w-0">
