@@ -18,6 +18,7 @@ import {
   type ProductCardData,
 } from "@/lib/catalog";
 import { FilterDrawer } from "@/components/storefront/catalog/FilterDrawer";
+import { CategoryFilterAutoSubmit } from "@/components/storefront/catalog/CategoryFilterAutoSubmit";
 import {
   FilterForm,
   Pagination,
@@ -43,7 +44,7 @@ export default async function ProductsPage({ params, searchParams }: Props) {
   const state = parseCatalogState(await searchParams);
 
   // Both requests start together; the filter vocabulary is optional (the page works without it).
-  const optionsPromise: Promise<FilterOptions | null> = getFilterOptions().catch(() => null);
+  const optionsPromise: Promise<FilterOptions | null> = getFilterOptions(state.category.join(",")).catch(() => null);
   let data: Paginated<ProductCardData> | null = null;
   let pageOutOfRange = false;
   try {
@@ -81,7 +82,9 @@ export default async function ProductsPage({ params, searchParams }: Props) {
               closeLabel={t.catalog.closeFilters}
               activeCount={activeFilterCount}
             >
-              <FilterForm locale={locale} t={t} state={state} options={options} />
+              <CategoryFilterAutoSubmit>
+                <FilterForm locale={locale} t={t} state={state} options={options} />
+              </CategoryFilterAutoSubmit>
             </FilterDrawer>
           </aside>
         )}
