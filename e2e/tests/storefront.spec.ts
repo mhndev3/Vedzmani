@@ -15,6 +15,83 @@ test("storefront uses Persian RTL and the header contains only the agreed links"
   await expect(page.getByRole("link", { name: "حساب کاربری" })).toBeVisible();
 });
 
+
+test("mobile viewport fills the device width without horizontal page overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/fa");
+
+  const viewport = page.locator('meta[name="viewport"]');
+  await expect(viewport).toHaveAttribute("content", /width=device-width/);
+  await expect(viewport).toHaveAttribute("content", /initial-scale=1/);
+
+  const dimensions = await page.evaluate(() => {
+    const documentWidth = document.documentElement.clientWidth;
+    const offenders = [...document.querySelectorAll<HTMLElement>("body *")]
+      .filter((element) => {
+        // Carousel cards may sit outside the visible viewport by design, but only
+        // inside their own horizontal scroll container. They must not count as
+        // document-level overflow.
+        return !element.parentElement?.closest('[style*="overflow"], .overflow-x-auto, .overflow-x-scroll');
+      })
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          id: element.id,
+          className: typeof element.className === "string" ? element.className.slice(0, 140) : "",
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          width: Math.round(rect.width),
+        };
+      })
+      .filter((element) => element.width > documentWidth + 1 || element.left < -1 || element.right > documentWidth + 1)
+      .sort((a, b) => b.width - a.width)
+      .slice(0, 8);
+    return {
+      innerWidth: window.innerWidth,
+      documentWidth,
+      bodyWidth: document.body.getBoundingClientRect().width,
+      scrollWidth: document.documentElement.scrollWidth,
+      heroWidth: document.querySelector("section[aria-label='بنر ویژه ودزمانی']")?.getBoundingClientRect().width ?? 0,
+      categoriesWidth: document.querySelector("section[aria-labelledby='home-categories']")?.getBoundingClientRect().width ?? 0,
+      offenders,
+    };
+  });
+
+  expect(dimensions.documentWidth).toBeGreaterThanOrEqual(389);
+  expect(dimensions.bodyWidth).toBeGreaterThanOrEqual(389);
+  expect(dimensions.scrollWidth, JSON.stringify(dimensions)).toBeLessThanOrEqual(dimensions.documentWidth + 1);
+  expect(dimensions.heroWidth).toBeGreaterThan(350);
+  expect(dimensions.categoriesWidth).toBeGreaterThan(350);
+  expect(dimensions.offenders, JSON.stringify(dimensions.offenders)).toEqual([]);
+});
+
+test("homepage product carousel scrolls internally without widening the page", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/fa");
+  const track = page.locator("section[aria-labelledby='home-newest-products'] [dir='rtl']");
+  await expect(track).toBeVisible();
+  const before = await track.evaluate((element) => ({
+    scrollWidth: element.scrollWidth,
+    clientWidth: element.clientWidth,
+    pageWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
+  }));
+  expect(before.scrollWidth).toBeGreaterThan(before.clientWidth);
+  await track.evaluate((element) => {
+    element.scrollTo({ left: -element.scrollWidth, behavior: "instant" });
+  });
+  const after = await track.evaluate((element) => ({
+    scrollLeft: element.scrollLeft,
+    pageWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
+  }));
+  expect(after.scrollLeft).toBeLessThan(0);
+  // Compare document width with the actual device viewport, not the narrower
+  // carousel viewport nested inside the page's horizontal padding.
+  expect(after.pageWidth).toBeLessThanOrEqual(after.viewportWidth + 1);
+});
+
 test("hero banner uses supplied VZ artwork and is not a link", async ({ page }) => {
   await page.goto("/fa");
   const hero = page.locator("section[aria-label='بنر ویژه ودزمانی']");
