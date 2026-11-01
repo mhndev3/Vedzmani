@@ -87,7 +87,6 @@ class FilterOptionsView(APIView):
             if slug.strip()
         ][:10]
         published_products = Product.objects.filter(is_active=True, category__is_active=True)
-        live = published_products
         live_variants = ColorVariant.objects.filter(
             is_active=True, product__is_active=True, product__category__is_active=True
         )
