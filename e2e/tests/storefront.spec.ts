@@ -101,31 +101,37 @@ test("hero banner uses supplied VZ artwork and is not a link", async ({ page }) 
 });
 
 test("homepage shows the requested square categories and newest seven products", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/fa");
 
   const categories = page.locator("section[aria-labelledby='home-categories']");
+  await expect(categories.getByRole("heading", { name: "دسته‌بندی‌ها" })).toHaveClass(/text-right/);
+  await expect(categories.getByRole("heading", { name: "دسته‌بندی‌ها" })).toHaveClass(/text-2xl/);
   await expect(categories.getByRole("link")).toHaveCount(5);
-  await expect(categories.locator("ul")).toHaveClass(/sm:grid-cols-6/);
-  await expect(categories.locator("li").nth(0)).toHaveClass(/sm:col-span-2/);
-  await expect(categories.locator("li").nth(2)).toHaveClass(/sm:col-span-2/);
-  await expect(categories.locator("li").nth(3)).toHaveClass(/sm:col-span-3/);
-  await expect(categories.locator("li").nth(4)).toHaveClass(/sm:col-span-3/);
+  await expect(categories.locator("ul")).toHaveClass(/grid-cols-6/);
+
   const expectedCategories = [
-    { name: "دورس", href: "/fa/categories/sweatshirts" },
-    { name: "بافت", href: "/fa/categories/knitwear" },
-    { name: "شلوار جین", href: "/fa/categories/jeans" },
-    { name: "جکت چرم", href: "/fa/categories/leather-jackets" },
-    { name: "هودی", href: "/fa/categories/hoodies" },
+    { name: "دورس", href: "/fa/categories/sweatshirts", placement: "col-span-2" },
+    { name: "بافت", href: "/fa/categories/knitwear", placement: "col-span-2" },
+    { name: "شلوار", href: "/fa/categories/jeans", placement: "col-span-2" },
+    { name: "هودی", href: "/fa/categories/hoodies", placement: "col-start-2" },
+    { name: "جکت چرم", href: "/fa/categories/leather-jackets", placement: "col-start-4" },
   ];
-  for (const category of expectedCategories) {
+  for (const [index, category] of expectedCategories.entries()) {
     const link = categories.getByRole("link", { name: category.name, exact: true });
     await expect(link).toHaveAttribute("href", category.href);
-    await expect(link).toHaveClass(/aspect-square/);
-    await expect(link).toHaveClass(/rounded-2xl/);
+    await expect(link.locator("span").first()).toHaveClass(/aspect-square/);
+    await expect(link.locator("span").first()).toHaveClass(/rounded-2xl/);
+    await expect(categories.locator("li").nth(index)).toHaveClass(new RegExp(category.placement));
   }
+
   const categoryImage = categories.locator("img").first();
   await expect(categoryImage).toHaveAttribute("src", /\/media\//);
   await expect(categoryImage).not.toHaveAttribute("src", /_next\/image/);
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(categories.locator("ul")).toHaveClass(/grid-cols-6/);
+  await expect(categories.getByRole("link")).toHaveCount(5);
 
   const newest = page.locator("section[aria-labelledby='home-newest-products']");
   await expect(newest.getByRole("heading", { name: "جدیدترین‌ها" })).toBeVisible();
