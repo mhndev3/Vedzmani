@@ -54,7 +54,7 @@ test.describe("guest cart and payment-safe checkout", () => {
   test("guest can add a product from its detail page without an account", async ({ page }) => {
     test.skip(!backendDir, "E2E_BACKEND_DIR not set");
     await page.goto("/fa/products/e2e-tee-02");
-    await page.getByRole("radio", { name: "M" }).check();
+    await page.locator("label").filter({ has: page.getByRole("radio", { name: "M" }) }).click();
     await page.getByRole("button", { name: "افزودن به سبد خرید" }).click();
     await expect(page.getByText("به سبد خرید اضافه شد.")).toBeVisible();
     const guestLine = await page.evaluate(() => {
