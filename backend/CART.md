@@ -17,7 +17,7 @@ All endpoints use Django session authentication and require X-CSRFToken for unsa
 
 ## Guest-cart transfer
 
-Guests can add and edit cart lines in the browser before authentication. The browser stores an opaque variant-size ID, quantity and display snapshots in localStorage. Snapshots (name, color, image and displayed price) are not trusted and are never used by Django to price or authorize a cart line.
+Guests can add and edit cart lines in the browser before authentication. The browser stores variant-size IDs, quantities and display snapshots in localStorage. Snapshots (name, color, image and displayed price) are not trusted and are never used by Django to price or authorize a cart line.
 
 When the guest selects «تکمیل خرید», the storefront routes them through the existing phone OTP authentication flow. OTP verification creates a user if the phone number is new. After the session is established, the browser sends a UUID idempotency token and an array of { variant_size_id, quantity } records to POST /api/cart/merge-guest/.
 
