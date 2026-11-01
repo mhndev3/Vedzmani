@@ -116,7 +116,7 @@ export function SearchButton({ locale }: { locale: Locale }) {
             <CloseIcon />
           </button>
         </div>
-        <div className="max-h-[calc(min(82dvh,44rem)-5rem)] overflow-y-auto p-3 sm:p-4">
+        <div className="max-h-[65dvh] overflow-y-auto p-3 sm:p-4">
           {!query.trim() ? (
             history.length > 0 && (
               <section>
