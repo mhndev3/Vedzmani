@@ -75,6 +75,7 @@ test("homepage product carousel scrolls internally without widening the page", a
     scrollWidth: element.scrollWidth,
     clientWidth: element.clientWidth,
     pageWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
   }));
   expect(before.scrollWidth).toBeGreaterThan(before.clientWidth);
   await track.evaluate((element) => {
@@ -83,10 +84,12 @@ test("homepage product carousel scrolls internally without widening the page", a
   const after = await track.evaluate((element) => ({
     scrollLeft: element.scrollLeft,
     pageWidth: document.documentElement.scrollWidth,
-    clientWidth: element.clientWidth,
+    viewportWidth: document.documentElement.clientWidth,
   }));
   expect(after.scrollLeft).toBeLessThan(0);
-  expect(after.pageWidth).toBeLessThanOrEqual(after.clientWidth + 1);
+  // Compare document width with the actual device viewport, not the narrower
+  // carousel viewport nested inside the page's horizontal padding.
+  expect(after.pageWidth).toBeLessThanOrEqual(after.viewportWidth + 1);
 });
 
 test("hero banner uses supplied VZ artwork and is not a link", async ({ page }) => {
