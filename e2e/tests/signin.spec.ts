@@ -145,7 +145,7 @@ test.describe("جریان واقعی کد یک‌بارمصرف", () => {
     await expect(codeInput(page)).toBeVisible();
     await codeInput(page).fill(await readOtp(phone));
     await verifyButton(page).click();
-    await expect(page).toHaveURL(/\\/fa\\/checkout$/);
+    await expect(page).toHaveURL(/checkout$/);
     await expect(page.getByRole("heading", { name: "سبد خرید شما خالی است" })).toBeVisible();
     const me = await (await page.request.get("/api/auth/me/")).json();
     expect(me.phone).toBe(canonical(phone));
