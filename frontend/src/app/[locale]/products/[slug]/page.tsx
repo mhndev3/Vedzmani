@@ -10,6 +10,7 @@ import { AddToCart } from "@/components/storefront/cart/AddToCart";
 import { ProductGallery } from "@/components/storefront/product/ProductGallery";
 import { ProductActions } from "@/components/storefront/product/ProductActions";
 import { ProductCard } from "@/components/storefront/catalog/ProductCard";
+import { ColorSwatch } from "@/components/storefront/catalog/ColorSwatch";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -176,11 +177,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
                           current ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-muted"
                         }`}
                       >
-                        <span
-                          aria-hidden="true"
-                          className="size-3.5 rounded-[3px] border border-border shadow-sm transition-transform duration-150 hover:scale-110"
-                          style={c.hex_color ? { backgroundColor: c.hex_color } : undefined}
-                        />
+                        <ColorSwatch name={c.name} hexColor={c.hex_color} className="size-3.5 transition-transform duration-150 hover:scale-110" />
                       </Link>
                     </li>
                   );
