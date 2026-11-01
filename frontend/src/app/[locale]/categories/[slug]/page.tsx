@@ -22,7 +22,7 @@ const CATEGORIES = [
   { name: "جکت", slug: "jackets" },
   { name: "شلوار جین", slug: "jeans" },
   { name: "شلوار پارچه ای", slug: "trousers" },
-  { name: "جاگر", slug: "joggers" },
+  { name: "شلوار جاگر", slug: "joggers" },
   { name: "کتونی", slug: "sneakers" },
   { name: "اکسسوری", slug: "accessories" },
   { name: "بافت", slug: "knitwear" },
