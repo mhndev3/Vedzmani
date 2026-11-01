@@ -28,6 +28,11 @@ test("homepage shows the requested square categories and newest seven products",
 
   const categories = page.locator("section[aria-labelledby='home-categories']");
   await expect(categories.getByRole("link")).toHaveCount(5);
+  await expect(categories.locator("ul")).toHaveClass(/sm:grid-cols-6/);
+  await expect(categories.locator("li").nth(0)).toHaveClass(/sm:col-span-2/);
+  await expect(categories.locator("li").nth(2)).toHaveClass(/sm:col-span-2/);
+  await expect(categories.locator("li").nth(3)).toHaveClass(/sm:col-span-3/);
+  await expect(categories.locator("li").nth(4)).toHaveClass(/sm:col-span-3/);
   const expectedCategories = [
     { name: "دورس", href: "/fa/categories/sweatshirts" },
     { name: "بافت", href: "/fa/categories/knitwear" },
@@ -48,6 +53,11 @@ test("homepage shows the requested square categories and newest seven products",
   const newest = page.locator("section[aria-labelledby='home-newest-products']");
   await expect(newest.getByRole("heading", { name: "جدیدترین‌ها" })).toBeVisible();
   await expect(newest.locator(":scope > ul > li")).toHaveCount(7);
+});
+
+test("joggers category uses the requested Persian label", async ({ page }) => {
+  await page.goto("/fa/categories/joggers");
+  await expect(page.getByRole("heading", { level: 1, name: "شلوار جاگر" })).toBeVisible();
 });
 
 test("theme toggle switches dark mode and persists", async ({ page }) => {
