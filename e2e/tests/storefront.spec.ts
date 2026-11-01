@@ -15,6 +15,31 @@ test("storefront uses Persian RTL and the header contains only the agreed links"
   await expect(page.getByRole("link", { name: "حساب کاربری" })).toBeVisible();
 });
 
+
+test("mobile viewport fills the device width without horizontal page overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/fa");
+
+  const viewport = page.locator('meta[name="viewport"]');
+  await expect(viewport).toHaveAttribute("content", /width=device-width/);
+  await expect(viewport).toHaveAttribute("content", /initial-scale=1/);
+
+  const dimensions = await page.evaluate(() => ({
+    innerWidth: window.innerWidth,
+    documentWidth: document.documentElement.clientWidth,
+    bodyWidth: document.body.getBoundingClientRect().width,
+    scrollWidth: document.documentElement.scrollWidth,
+    heroWidth: document.querySelector("section[aria-label='بنر ویژه ودزمانی']")?.getBoundingClientRect().width ?? 0,
+    categoriesWidth: document.querySelector("section[aria-labelledby='home-categories']")?.getBoundingClientRect().width ?? 0,
+  }));
+
+  expect(dimensions.documentWidth).toBeGreaterThanOrEqual(389);
+  expect(dimensions.bodyWidth).toBeGreaterThanOrEqual(389);
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.documentWidth + 1);
+  expect(dimensions.heroWidth).toBeGreaterThan(350);
+  expect(dimensions.categoriesWidth).toBeGreaterThan(350);
+});
+
 test("hero banner uses supplied VZ artwork and is not a link", async ({ page }) => {
   await page.goto("/fa");
   const hero = page.locator("section[aria-label='بنر ویژه ودزمانی']");
