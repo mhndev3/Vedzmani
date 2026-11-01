@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { SignInLink } from "@/components/auth/SignInLink";
 import { useEffect, useRef, useState } from "react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries/fa";
