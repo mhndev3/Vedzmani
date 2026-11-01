@@ -42,7 +42,7 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
           </svg>
         </button>
       </div>
-      <div className="min-w-0 max-w-full overflow-hidden">
+      <div className="relative w-full min-w-0 max-w-full overflow-x-clip [contain:paint]">
         <div
           ref={viewport}
           dir="rtl"
