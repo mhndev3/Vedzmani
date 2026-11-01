@@ -66,3 +66,8 @@ def test_owner_adjustment_command_swaps_images_and_adds_one_stock_unit_atomicall
         call_command("apply_owner_catalog_adjustments", apply=True, stdout=StringIO())
     variant_size.refresh_from_db()
     assert variant_size.stock_quantity == 1
+
+
+def test_joggers_category_name_is_updated_by_catalog_migration():
+    category = Category.objects.get(slug="joggers")
+    assert category.name == "شلوار جاگر"
