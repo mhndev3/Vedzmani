@@ -81,18 +81,19 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
             categories: "دسته‌بندی‌ها",
           }}
         />
-        <Link href={"/" + locale} aria-label="صفحه اصلی ودزمانی" className="inline-flex size-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted p-1">
+        <Link href={"/" + locale} prefetch={false} aria-label="صفحه اصلی ودزمانی" className="inline-flex size-12 shrink-0 items-center justify-center">
           <Image
-            src="/images/vedzmani-banner-vz.svg"
-            alt="نشان ودزمانی"
-            width={44}
-            height={44}
+            src="/images/vedzmani-mark.svg"
+            alt="نشان گرد ودزمانی"
+            width={48}
+            height={48}
             priority
-            className="size-10 rounded-full object-contain"
+            sizes="48px"
+            className="size-12 rounded-full object-cover"
           />
         </Link>
         <nav aria-label={t.a11y.mainNav} className="hidden flex-1 items-center justify-center gap-3 text-sm md:flex">
-          <Link href={items[0].href} className="rounded-full px-3 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <Link href={items[0].href} prefetch={false} className="rounded-full px-3 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             {items[0].label}
           </Link>
           <details className="group relative">
@@ -104,12 +105,12 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
             </summary>
             <div className="absolute end-0 top-full z-50 mt-2 grid min-w-64 grid-cols-2 gap-1 rounded-xl border border-border bg-background p-2 shadow-xl">
               {categories.map((category) => (
-                <Link key={category.slug} href={"/" + locale + "/categories/" + encodeURIComponent(category.slug)} className="rounded-lg px-3 py-2.5 text-sm hover:bg-muted">{category.name}</Link>
+                <Link key={category.slug} href={"/" + locale + "/categories/" + encodeURIComponent(category.slug)} prefetch={false} className="rounded-lg px-3 py-2.5 text-sm hover:bg-muted">{category.name}</Link>
               ))}
             </div>
           </details>
           {items.slice(1).map((item) => (
-            <Link key={item.href} href={item.href} className="rounded py-2 text-muted-foreground transition-colors hover:text-foreground">
+            <Link key={item.href} href={item.href} prefetch={false} className="rounded py-2 text-muted-foreground transition-colors hover:text-foreground">
               {item.label}
             </Link>
           ))}
@@ -117,7 +118,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
         <div className="ms-auto flex shrink-0 items-center gap-1">
           <SearchButton locale={locale} />
           <CartButton locale={locale} />
-          <Link href={"/" + locale + "/profile"} aria-label="حساب کاربری" title="حساب کاربری" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
+          <Link href={"/" + locale + "/profile"} prefetch={false} aria-label="حساب کاربری" title="حساب کاربری" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
           </Link>
           <ThemeToggle label={t.a11y.toggleTheme} />

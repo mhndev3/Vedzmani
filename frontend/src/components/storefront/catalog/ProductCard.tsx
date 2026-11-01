@@ -96,6 +96,7 @@ export function ProductCard({
     <li className={variant === "carousel" ? "min-w-[70%] snap-start sm:min-w-[40%] lg:min-w-[calc(25%-12px)]" : "min-w-0"}>
       <Link
         href={"/" + locale + "/products/" + product.slug}
+        prefetch={false}
         className="group block h-full rounded-2xl border border-border bg-card p-2.5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
       >
         <CatalogPicture
@@ -124,7 +125,7 @@ export function ProductCard({
                 <span
                   aria-hidden="true"
                   title={c.name}
-                  className="block size-4 rounded-full border border-border shadow-sm ring-1 ring-background"
+                  className="block size-3.5 rounded-[3px] border border-border shadow-sm"
                   style={c.hex_color ? { backgroundColor: c.hex_color } : undefined}
                 />
                 <span className="sr-only">{c.name}</span>

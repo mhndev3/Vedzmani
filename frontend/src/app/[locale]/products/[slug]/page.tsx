@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isLocale } from "@/i18n/config";
-import { getDictionary } from "@/i18n/dictionaries";
+import { isLocale, type Locale } from "@/i18n/config";
+import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
 import { emptyState, getProduct, getProducts, type ProductDetail } from "@/lib/catalog";
 import { Price } from "@/components/storefront/catalog/ProductCard";
 import { AddToCart } from "@/components/storefront/cart/AddToCart";
@@ -14,6 +15,37 @@ type Props = {
   params: Promise<{ locale: string; slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+async function RelatedProductsSection({
+  product,
+  locale,
+  t,
+}: {
+  product: ProductDetail;
+  locale: Locale;
+  t: Dictionary;
+}) {
+  const response = await getProducts(
+    { ...emptyState, category: [product.category.slug] },
+    { cache: "force-cache", next: { revalidate: 60 } },
+  ).catch(() => null);
+  const relatedProducts = (response?.results ?? [])
+    .filter((item) => item.id !== product.id)
+    .slice(0, 4);
+
+  if (relatedProducts.length === 0) return null;
+
+  return (
+    <section aria-labelledby="related-products-title" className="mt-12">
+      <h2 id="related-products-title" className="mb-4 text-xl font-semibold tracking-tight">محصولات مشابه</h2>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {relatedProducts.map((item, index) => (
+          <ProductCard key={item.id} product={item} locale={locale} t={t} eager={index < 2} />
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
   const { locale, slug } = await params;
@@ -44,6 +76,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const backLink = (
     <Link
       href={`/${locale}/products`}
+      prefetch={false}
       className="inline-flex items-center rounded-lg text-sm text-muted-foreground hover:text-foreground"
     >
       <span aria-hidden="true" className="me-1 rtl:rotate-180">
@@ -78,15 +111,13 @@ export default async function ProductPage({ params, searchParams }: Props) {
     ? [...color.images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.position - b.position)
     : [];
   const inStock = !!color?.sizes.some((s) => s.in_stock);
-  const relatedResponse = await getProducts({ ...emptyState, category: [product.category.slug] }, { cache: "force-cache", next: { revalidate: 60 } }).catch(() => null);
-  const relatedProducts = (relatedResponse?.results ?? []).filter((item) => item.id !== product.id).slice(0, 4);
-
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <nav aria-label={t.product.breadcrumb} className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {backLink}
         <Link
           href={"/" + locale + "/categories/" + encodeURIComponent(product.category.slug)}
+          prefetch={false}
           className="rounded-lg text-sm text-muted-foreground hover:text-foreground"
         >
           {product.category.name}
@@ -138,17 +169,18 @@ export default async function ProductPage({ params, searchParams }: Props) {
                         href={`/${locale}/products/${product.slug}?color=${encodeURIComponent(c.slug)}`}
                         prefetch={false}
                         scroll={false}
+                        aria-label={`انتخاب رنگ ${c.name}`}
+                        title={c.name}
                         aria-current={current ? "true" : undefined}
-                        className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm transition-transform duration-150 active:scale-95 ${
-                          current ? "border-primary ring-1 ring-primary" : "border-border hover:bg-muted"
+                        className={`inline-flex size-8 items-center justify-center rounded-lg border p-1 transition-transform duration-150 active:scale-95 ${
+                          current ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-muted"
                         }`}
                       >
                         <span
                           aria-hidden="true"
-                          className="size-4 rounded-full border border-border shadow-sm transition-transform duration-150 hover:scale-110"
+                          className="size-3.5 rounded-[3px] border border-border shadow-sm transition-transform duration-150 hover:scale-110"
                           style={c.hex_color ? { backgroundColor: c.hex_color } : undefined}
                         />
-                        {c.name}
                       </Link>
                     </li>
                   );
@@ -216,16 +248,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
         </section>
       </div>
 
-      {relatedProducts.length > 0 && (
-        <section aria-labelledby="related-products-title" className="mt-12">
-          <h2 id="related-products-title" className="mb-4 text-xl font-semibold tracking-tight">محصولات مشابه</h2>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {relatedProducts.map((item, index) => (
-              <ProductCard key={item.id} product={item} locale={locale} t={t} eager={index < 2} />
-            ))}
-          </ul>
-        </section>
-      )}
+      <Suspense fallback={null}>
+        <RelatedProductsSection product={product} locale={locale} t={t} />
+      </Suspense>
     </div>
   );
 }

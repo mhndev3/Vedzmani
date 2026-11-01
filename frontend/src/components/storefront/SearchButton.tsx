@@ -36,7 +36,7 @@ export function SearchButton({ locale }: { locale: Locale }) {
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
-    }, 220);
+    }, 280);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [query]);
 
@@ -81,19 +81,24 @@ export function SearchButton({ locale }: { locale: Locale }) {
 
   return (
     <>
-      <button type="button" onClick={open} aria-label="جستجوی محصولات" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
+      <button type="button" onClick={open} aria-label="جستجوی محصولات" className="inline-flex size-10 items-center justify-center rounded-xl transition hover:bg-muted">
         <SearchIcon width={19} height={19} />
       </button>
       <dialog
         ref={dialog}
         onClick={(event) => { if (event.target === event.currentTarget) dialog.current?.close(); }}
-        className="fixed inset-x-3 top-[12vh] m-auto max-h-[76vh] w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/50"
+        className="fixed inset-x-3 top-[max(1rem,env(safe-area-inset-top))] m-auto max-h-[min(82dvh,44rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-hidden rounded-2xl border border-border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/50 sm:top-[12vh]"
       >
-        <div className="flex items-center gap-2 border-b border-border p-3">
-          <SearchIcon width={19} height={19} />
+        <div className="flex items-center gap-2 border-b border-border p-3 sm:gap-3 sm:p-4">
+          <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+            <SearchIcon width={20} height={20} />
+          </span>
           <form onSubmit={submit} className="min-w-0 flex-1">
             <input
               ref={input}
+              type="search"
+              autoComplete="off"
+              enterKeyHint="search"
               value={query}
               onChange={(event) => {
                 const value = event.target.value;
@@ -104,14 +109,14 @@ export function SearchButton({ locale }: { locale: Locale }) {
               placeholder="نام یا کد محصول را جستجو کنید"
               aria-label="نام یا کد محصول"
               maxLength={100}
-              className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="h-11 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground sm:text-base"
             />
           </form>
           <button type="button" onClick={() => dialog.current?.close()} aria-label="بستن جستجو" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
             <CloseIcon />
           </button>
         </div>
-        <div className="max-h-[60vh] overflow-y-auto p-3">
+        <div className="max-h-[65dvh] overflow-y-auto p-3 sm:p-4">
           {!query.trim() ? (
             history.length > 0 && (
               <section>

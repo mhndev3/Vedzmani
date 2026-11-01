@@ -77,27 +77,36 @@ class FilterOptionsView(APIView):
     permission_classes: list = []
 
     def get(self, request):
-        live = Product.objects.filter(is_active=True, category__is_active=True)
+        # Keep the category vocabulary global so customers can switch categories,
+        # while scoping dependent facets (collections, colors and sizes) to the
+        # selected category set.
+        category_slugs = [
+            slug.strip()
+            for raw in request.query_params.getlist("category")
+            for slug in raw.split(",")
+            if slug.strip()
+        ][:10]
+        published_products = Product.objects.filter(is_active=True, category__is_active=True)
         live_variants = ColorVariant.objects.filter(
             is_active=True, product__is_active=True, product__category__is_active=True
         )
+        if category_slugs:
+            live_variants = live_variants.filter(product__category__slug__in=category_slugs)
         categories = (
             Category.objects.filter(is_active=True)
-            .filter(Exists(live.filter(category=OuterRef("pk"))))
+            .filter(Exists(published_products.filter(category=OuterRef("pk"))))
             .order_by("position", "name", "id")
             .values("name", "slug")
         )
+        collection_products = Product.collections.through.objects.filter(
+            product__is_active=True,
+            product__category__is_active=True,
+        )
+        if category_slugs:
+            collection_products = collection_products.filter(product__category__slug__in=category_slugs)
         collections = (
             Collection.objects.filter(is_active=True)
-            .filter(
-                Exists(
-                    Product.collections.through.objects.filter(
-                        collection_id=OuterRef("pk"),
-                        product__is_active=True,
-                        product__category__is_active=True,
-                    )
-                )
-            )
+            .filter(Exists(collection_products.filter(collection_id=OuterRef("pk"))))
             .order_by("position", "name", "id")
             .values("name", "slug")
         )
@@ -108,18 +117,16 @@ class FilterOptionsView(APIView):
             .order_by("name", "slug")
             .values("name", "slug", "hex_color")
         )
+        live_sizes = VariantSize.objects.filter(
+            is_active=True,
+            variant__is_active=True,
+            variant__product__is_active=True,
+            variant__product__category__is_active=True,
+        )
+        if category_slugs:
+            live_sizes = live_sizes.filter(variant__product__category__slug__in=category_slugs)
         sizes = (
-            Size.objects.filter(
-                Exists(
-                    VariantSize.objects.filter(
-                        size=OuterRef("pk"),
-                        is_active=True,
-                        variant__is_active=True,
-                        variant__product__is_active=True,
-                        variant__product__category__is_active=True,
-                    )
-                )
-            )
+            Size.objects.filter(Exists(live_sizes.filter(size=OuterRef("pk"))))
             .order_by("position", "code")
             .values("code", "label")
         )

@@ -20,6 +20,7 @@ export function HomeCategoryGrid({
           <li key={category.slug} className={index < 3 ? "sm:col-span-2" : "sm:col-span-3"}>
             <Link
               href={"/" + locale + "/categories/" + encodeURIComponent(category.slug)}
+              prefetch={false}
               className="group relative block aspect-square overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
               {category.image && (

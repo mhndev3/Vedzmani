@@ -36,7 +36,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.goto("/fa/products");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     const dialog = page.getByRole("dialog");
-    const input = dialog.getByRole("textbox", { name: "نام یا کد محصول" });
+    const input = dialog.getByRole("searchbox", { name: "نام یا کد محصول" });
     await input.fill("E2E-HOODIE-07");
     const result = dialog.getByRole("button", { name: /کد: E2E-HOODIE-07/ });
     await expect(result).toContainText("Hoodie 07");
@@ -49,7 +49,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.goto("/fa");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     const dialog = page.getByRole("dialog");
-    const input = dialog.getByRole("textbox", { name: "نام یا کد محصول" });
+    const input = dialog.getByRole("searchbox", { name: "نام یا کد محصول" });
     await input.fill("Hoodie 07");
     const result = dialog.getByRole("button", { name: /Hoodie 07/ });
     await expect(result).toBeVisible();
@@ -76,6 +76,27 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page).toHaveURL(/in_stock=true/);
     await expect(page.getByRole("heading", { level: 2, name: "۱۴ محصول" })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
+  });
+
+
+
+  test("انتخاب دسته‌بندی در همان لحظه فیلترهای وابسته را تازه می‌کند", async ({ page }) => {
+    await page.goto("/fa/products");
+    await page.getByRole("checkbox", { name: "هودی" }).check();
+    await expect(page).toHaveURL(/category=hoodies/);
+    await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
+    await expect(page.getByRole("group", { name: "کالکشن" })).toContainText("Winter");
+    await expect(page.getByRole("group", { name: "رنگ" })).toContainText("Black");
+    await expect(page.getByRole("group", { name: "سایز" })).toContainText("M");
+  });
+
+  test("پاک کردن همه فیلترها تمام وضعیت URL و فرم را پاک می‌کند", async ({ page }) => {
+    await page.goto("/fa/products?search=Hoodie&category=hoodies&color=black&size=m&min_price=1000&max_price=50000&in_stock=true&sort=price_asc");
+    await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
+    await page.getByRole("link", { name: "حذف همه فیلترها" }).click();
+    await expect(page).toHaveURL("/fa/products");
+    await expect(page.getByRole("checkbox", { name: "هودی" })).not.toBeChecked();
+    await expect(page.getByRole("link", { name: "ارزان‌ترین" })).not.toHaveAttribute("aria-current", "true");
   });
 
   test("فیلتر بازه قیمت در سمت سرور اعمال می‌شود", async ({ page }) => {
@@ -153,7 +174,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await gallery.getByRole("button", { name: "تصویر بعدی" }).click();
     await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 Black detail");
 
-    await page.getByRole("link", { name: "White" }).click();
+    await page.getByRole("link", { name: "انتخاب رنگ White" }).click();
     await expect(page).toHaveURL(/color=white/);
     await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 White front");
     await expect(page.getByText("ناموجود", { exact: true })).toBeVisible();
@@ -201,8 +222,8 @@ test.describe("کاتالوگ موبایل", () => {
     await expect(dialog).toBeHidden();
     await page.getByRole("button", { name: "فیلترها" }).click();
     await dialog.getByRole("checkbox", { name: "تی شرت" }).check();
-    await dialog.getByRole("button", { name: "اعمال فیلترها" }).click();
     await expect(page).toHaveURL(/category=t-shirts/);
+    await expect(dialog).toBeHidden();
     await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
     await expect(dialog).toBeHidden();
   });

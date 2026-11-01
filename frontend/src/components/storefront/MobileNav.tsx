@@ -48,7 +48,7 @@ export function MobileNav({ items, categories, labels }: Props) {
         <nav aria-label={labels.title} className="max-h-[calc(100dvh-4.5rem)] overflow-y-auto p-3">
           <ul className="flex flex-col">
             <li>
-              <Link href={items[0].href} onClick={close} className="block rounded-xl px-3 py-3 transition hover:bg-muted">
+              <Link href={items[0].href} prefetch={false} onClick={close} className="block rounded-xl px-3 py-3 transition hover:bg-muted">
                 {items[0].label}
               </Link>
             </li>
@@ -69,7 +69,7 @@ export function MobileNav({ items, categories, labels }: Props) {
             <ul className="grid grid-cols-2 gap-1 px-1 pb-2">
               {categories.map((item) => (
                 <li key={item.href}>
-                  <Link href={item.href} onClick={close} className="block rounded-xl px-3 py-3 text-sm transition hover:bg-muted">
+                  <Link href={item.href} prefetch={false} onClick={close} className="block rounded-xl px-3 py-3 text-sm transition hover:bg-muted">
                     {item.label}
                   </Link>
                 </li>
@@ -80,7 +80,7 @@ export function MobileNav({ items, categories, labels }: Props) {
           <ul className="flex flex-col">
             {items.slice(1).map((item) => (
               <li key={item.href}>
-                <Link href={item.href} onClick={close} className="block rounded-lg px-3 py-3 hover:bg-muted">
+                <Link href={item.href} prefetch={false} onClick={close} className="block rounded-lg px-3 py-3 hover:bg-muted">
                   {item.label}
                 </Link>
               </li>
