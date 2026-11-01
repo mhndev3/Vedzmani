@@ -124,7 +124,7 @@ SPECS = (
         shared=_top(XL=(57.5, 59.5, 61.5), XXL=(61.5, 65.5, 65.5)),
     ),
     ProductSpec(
-        "10", "جاگر دمپا کش", "جاگر", "joggers", 4_980_000, "bottom", None,
+        "10", "جاگر دمپا کش", "شلوار جاگر", "joggers", 4_980_000, "bottom", None,
         (
             ColorSpec("مشکی", _stock(L=1, XL=1, XXL=1)),
             ColorSpec("طوسی", _stock(L=1, XL=0, XXL=1)),
@@ -136,7 +136,7 @@ SPECS = (
         ),
     ),
     ProductSpec(
-        "11", "جاگر ESSENTIAL", "جاگر", "joggers", 4_980_000, "bottom", None,
+        "11", "جاگر ESSENTIAL", "شلوار جاگر", "joggers", 4_980_000, "bottom", None,
         (ColorSpec("طوسی", _stock(M=1)),),
         shared=_bottom(M=(STRETCH, 48, 74.5, 98.5, 25.5, 107.5)),  # rise is exactly 98.5
     ),
