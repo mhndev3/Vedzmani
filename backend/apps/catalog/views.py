@@ -1,9 +1,13 @@
 from django.db.models import Exists, Min, OuterRef, Prefetch
 from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 
-from .models import Category, Collection, ColorVariant, Product, ProductSizeMeasurement, Size, VariantImage, VariantSize
+from .models import Category, Collection, ColorVariant, Favorite, Product, ProductSizeMeasurement, Size, VariantImage, VariantSize
 from .filters import CatalogQuerySerializer, active_colors_queryset, build_product_queryset
 from .pagination import CatalogPagination
 from .serializers import ProductDetailSerializer, ProductListSerializer
@@ -127,3 +131,57 @@ class FilterOptionsView(APIView):
                 "sizes": list(sizes),
             }
         )
+
+
+@method_decorator(never_cache, name="dispatch")
+class FavoriteListView(APIView):
+    """List and create favorites for the authenticated customer only."""
+
+    def get(self, request):
+        rows = Favorite.objects.filter(
+            user=request.user,
+            product__is_active=True,
+            product__category__is_active=True,
+        ).select_related("product")
+        return Response([
+            {
+                "product_id": row.product_id,
+                "product_slug": row.product.slug,
+                "product_name": row.product.name,
+                "created_at": row.created_at,
+            }
+            for row in rows
+        ])
+
+    def post(self, request):
+        raw_id = request.data.get("product_id")
+        try:
+            if isinstance(raw_id, bool):
+                raise ValueError
+            product_id = int(raw_id)
+        except (TypeError, ValueError):
+            return Response(
+                {"error": {"code": "validation_error", "message": "A valid product_id is required."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        product = get_object_or_404(
+            Product.objects.filter(is_active=True, category__is_active=True),
+            pk=product_id,
+        )
+        Favorite.objects.get_or_create(user=request.user, product=product)
+        return Response(
+            {"product_id": product.pk, "product_slug": product.slug, "product_name": product.name},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@method_decorator(never_cache, name="dispatch")
+class FavoriteDetailView(APIView):
+    def delete(self, request, slug: str):
+        favorite = get_object_or_404(
+            Favorite.objects.select_related("product"),
+            user=request.user,
+            product__slug=slug,
+        )
+        favorite.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
