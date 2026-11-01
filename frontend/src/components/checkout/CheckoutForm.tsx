@@ -34,7 +34,7 @@ async function fetchSnapshot(): Promise<{ phase: Phase; me: Me | null }> {
       const anonymous = merge.kind === "http" && merge.status === 401;
       return { phase: { kind: anonymous ? "signin" : "unavailable" }, me: meRes.data };
     }
-    clearGuestCart();
+    clearGuestCart(merge.data.item_count);
     const phase: Phase = merge.data.items.length ? { kind: "ready", cart: merge.data } : { kind: "empty" };
     return { phase, me: meRes.data };
   }
