@@ -74,8 +74,14 @@ export function SignInForm({
         if (!user || !alive.current) return;
         const profile = await authApi.profile().catch(() => null);
         if (!alive.current) return;
+        const checkoutPath = "/" + locale + "/checkout";
+        const isCheckout = redirectTo === checkoutPath || redirectTo.startsWith(checkoutPath + "?");
+        // Checkout collects delivery details itself, so new customers should not be
+        // detoured through profile completion before returning to their cart.
         const profilePath = "/" + locale + "/profile";
-        const destination = profile?.is_complete ? redirectTo : profilePath + "?next=" + encodeURIComponent(redirectTo);
+        const destination = profile?.is_complete || isCheckout
+          ? redirectTo
+          : profilePath + "?next=" + encodeURIComponent(redirectTo);
         router.replace(destination);
       })
       .catch(() => {});

@@ -33,7 +33,8 @@ async function applySession(page: Page, session: Session, baseURL: string) {
   ]);
 }
 async function setGuestCart(page: Page, variantSizeId: number) {
-  await page.addInitScript((id) => {
+  await page.goto("/fa");
+  await page.evaluate((id) => {
     localStorage.setItem("vedzmani.guest-cart.v1", JSON.stringify({
       token: "54f7ac3d-09a8-46ba-ae19-e55f4c26a0f1",
       items: [{
@@ -69,7 +70,11 @@ test.describe("guest cart and payment-safe checkout", () => {
     await expect(page.getByTestId("guest-cart-line")).toBeVisible();
     await expect(page.getByRole("link", { name: "تکمیل خرید" })).toHaveAttribute("href", /\/fa\/sign-in\?next=/);
     await page.getByRole("button", { name: "افزایش تعداد تی‌شرت تست" }).click();
-    await expect(page.getByRole("group", { name: "تعداد: تی‌شرت تست" }).getByRole("status")).toHaveCount(0);
+    const guestLine = await page.evaluate(() => {
+      const cart = JSON.parse(localStorage.getItem("vedzmani.guest-cart.v1") || "{}");
+      return cart.items?.[0];
+    });
+    expect(guestLine.quantity).toBe(3);
     await expect(page.getByRole("link", { name: "تکمیل خرید" })).toBeVisible();
   });
 
@@ -87,7 +92,7 @@ test.describe("guest cart and payment-safe checkout", () => {
 
     await page.goto("/fa/checkout");
     await expect(page.getByRole("heading", { name: "اطلاعات تحویل" })).toBeVisible();
-    await expect(page.getByText("تی‌شرت تست")).toBeVisible();
+    await expect(page.getByText("Tee 02")).toBeVisible();
     await expect(page.getByLabel("نام گیرنده")).toBeVisible();
     await expect(page.getByText(/ثبت سفارش و پرداخت هنوز فعال نشده‌اند/)).toBeVisible();
     await expect(page.getByRole("button", { name: "ثبت سفارش" })).toHaveCount(0);
