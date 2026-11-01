@@ -36,7 +36,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.goto("/fa/products");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     const dialog = page.getByRole("dialog");
-    const input = dialog.getByRole("textbox", { name: "نام یا کد محصول" });
+    const input = dialog.getByRole("searchbox", { name: "نام یا کد محصول" });
     await input.fill("E2E-HOODIE-07");
     const result = dialog.getByRole("button", { name: /کد: E2E-HOODIE-07/ });
     await expect(result).toContainText("Hoodie 07");
@@ -49,7 +49,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.goto("/fa");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     const dialog = page.getByRole("dialog");
-    const input = dialog.getByRole("textbox", { name: "نام یا کد محصول" });
+    const input = dialog.getByRole("searchbox", { name: "نام یا کد محصول" });
     await input.fill("Hoodie 07");
     const result = dialog.getByRole("button", { name: /Hoodie 07/ });
     await expect(result).toBeVisible();
