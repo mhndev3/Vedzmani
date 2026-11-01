@@ -48,3 +48,29 @@ def test_filter_options_constant_query_count():
     with CaptureQueriesContext(connection) as big:
         Client().get(URL)
     assert len(big) == len(small)
+
+
+
+def test_dependent_filter_options_are_scoped_to_selected_categories():
+    make("hoodie", category="hoodie", collections=["winter"], variants={"black": {"m": 1}})
+    make("trousers", category="trousers", collections=["summer"], variants={"red": {"xl": 1}})
+
+    data = Client().get(URL, {"category": "hoodie"}).json()
+
+    # Customers can still change the top-level category, but dependent filters
+    # only show values that exist in the selected category.
+    assert sorted(c["slug"] for c in data["categories"]) == ["hoodie", "trousers"]
+    assert [c["slug"] for c in data["collections"]] == ["winter"]
+    assert [c["slug"] for c in data["colors"]] == ["black"]
+    assert [s["code"] for s in data["sizes"]] == ["m"]
+
+
+def test_dependent_filter_options_accept_multiple_selected_categories():
+    make("hoodie", category="hoodie", collections=["winter"], variants={"black": {"m": 1}})
+    make("trousers", category="trousers", collections=["summer"], variants={"red": {"xl": 1}})
+
+    data = Client().get(f"{URL}?category=hoodie&category=trousers").json()
+
+    assert sorted(c["slug"] for c in data["collections"]) == ["summer", "winter"]
+    assert sorted(c["slug"] for c in data["colors"]) == ["black", "red"]
+    assert sorted(s["code"] for s in data["sizes"]) == ["m", "xl"]
