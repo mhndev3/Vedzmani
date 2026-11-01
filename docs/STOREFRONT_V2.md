@@ -1,6 +1,10 @@
 # Storefront V2 implementation notes
 
 - Product favorites are customer-owned records. The authenticated catalog API never returns another customer's saved products.
-- Production order creation is disabled by default until the payment provider and its verified callback flow are configured. The backend returns 503 even if a client bypasses the disabled UI.
-- The current cart and checkout API are account-bound. A complete guest-order flow needs a guest cart identity, delivery phone verification/lookup policy, and secure order access. It is intentionally not simulated by attaching anonymous requests to arbitrary accounts.
-- Catalog media swaps and the single-unit stock increase must be verified against the real product/variant IDs before applying to production. The PR does not mutate live product data.
+- Guests can browse, add products and edit a browser-local cart without registering first. The cart CTA routes through the phone OTP sign-in flow; OTP verification creates an account automatically for a new phone number, then returns the customer to checkout.
+- Guest-cart transfer is authenticated, CSRF-protected, atomic and idempotent. Django accepts only variant-size IDs, quantities and a UUID idempotency token, then revalidates active catalog membership, current stock and cart limits. It rebuilds the cart response and prices from the server database; browser display snapshots are never authoritative.
+- Checkout shows delivery fields and the authenticated server cart summary. The client does not call the order API and has no final order-placement button. Production order creation remains disabled in Django even if a client bypasses the UI, until the payment provider and verified callback flow are configured.
+- The «بافت» category is seeded by migration 0004_seed_knitwear_category.py.
+- Catalog image/stock adjustments are defined by apply_owner_catalog_adjustments. The command is preview-only unless --apply is provided and validates all exact matches before a transaction. The live database was not changed by this code update; preview and owner approval are still required before applying it to Production.
+- Product listing cards already use responsive thumbnail derivatives and lazy loading; first visible cards are eager, while checkout/cart images use thumbnail URLs and lazy loading.
+- Bale and Rubika choices use the operating-system share sheet when the browser supports it; the customer can choose the installed app there. This does not claim a proprietary app-specific web share link.
