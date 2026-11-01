@@ -72,14 +72,17 @@ export function SignInForm({
       .me()
       .then(async (user) => {
         if (!user || !alive.current) return;
-        const profile = await authApi.profile().catch(() => null);
-        if (!alive.current) return;
         const checkoutPath = "/" + locale + "/checkout";
         const isCheckout = redirectTo === checkoutPath || redirectTo.startsWith(checkoutPath + "?");
-        // Checkout collects delivery details itself, so new customers should not be
-        // detoured through profile completion before returning to their cart.
+        // Checkout collects delivery details itself, so skip profile-completion routing.
+        if (isCheckout) {
+          router.replace(redirectTo);
+          return;
+        }
+        const profile = await authApi.profile().catch(() => null);
+        if (!alive.current) return;
         const profilePath = "/" + locale + "/profile";
-        const destination = profile?.is_complete || isCheckout
+        const destination = profile?.is_complete
           ? redirectTo
           : profilePath + "?next=" + encodeURIComponent(redirectTo);
         router.replace(destination);
@@ -160,6 +163,8 @@ export function SignInForm({
 
   /** Confirms with Django that the session cookie really works, then leaves. */
   async function finish(forceProfile = false): Promise<void> {
+    const checkoutPath = "/" + locale + "/checkout";
+    const isCheckout = redirectTo === checkoutPath || redirectTo.startsWith(checkoutPath + "?");
     const profilePath = "/" + locale + "/profile";
     let destination = redirectTo;
     try {
@@ -167,10 +172,16 @@ export function SignInForm({
         setBanner(t.errors.no_session);
         return;
       }
-      const profile = await authApi.profile();
-      if (forceProfile || !profile.is_complete) destination = profilePath + "?next=" + encodeURIComponent(redirectTo);
+      // Delivery information is collected by checkout, so a new account does not
+      // need to complete the profile page before returning to the guest basket.
+      if (!isCheckout) {
+        const profile = await authApi.profile();
+        if (forceProfile || !profile.is_complete) {
+          destination = profilePath + "?next=" + encodeURIComponent(redirectTo);
+        }
+      }
     } catch {
-      destination = profilePath + "?next=" + encodeURIComponent(redirectTo);
+      if (!isCheckout) destination = profilePath + "?next=" + encodeURIComponent(redirectTo);
     }
     if (!alive.current) return;
     setStep("done");

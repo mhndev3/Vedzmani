@@ -46,20 +46,3 @@ class GuestCartMerge(models.Model):
 
     def __str__(self) -> str:
         return f"guest-cart-merge:{self.user_id}:{self.token}"
-
-
-class GuestCartMerge(models.Model):
-    """Idempotency receipt for transferring a guest basket to an authenticated account."""
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="guest_cart_merges")
-    token = models.UUIDField()
-    payload_hash = models.CharField(max_length=64)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["user", "token"], name="guestcartmerge_user_token_uniq"),
-        ]
-        indexes = [models.Index(fields=["user", "-created_at"], name="guestmerge_user_created_idx")]
-
-    def __str__(self) -> str:
-        return f"guest-cart-merge:{self.user_id}:{self.token}"
