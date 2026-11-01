@@ -93,7 +93,7 @@ export function ProductCard({
   variant?: "grid" | "carousel";
 }) {
   return (
-    <li className={variant === "carousel" ? "min-w-[70%] snap-start sm:min-w-[40%] lg:min-w-[calc(25%-12px)]" : "min-w-0"}>
+    <li className={variant === "carousel" ? "min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(25%-12px)]" : "min-w-0"}>
       <Link
         href={"/" + locale + "/products/" + product.slug}
         prefetch={false}
