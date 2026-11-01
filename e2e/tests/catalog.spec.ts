@@ -78,6 +78,27 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
   });
 
+
+
+  test("انتخاب دسته‌بندی در همان لحظه فیلترهای وابسته را تازه می‌کند", async ({ page }) => {
+    await page.goto("/fa/products");
+    await page.getByRole("checkbox", { name: "هودی" }).check();
+    await expect(page).toHaveURL(/category=hoodies/);
+    await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
+    await expect(page.getByRole("group", { name: "کالکشن" })).toContainText("Winter");
+    await expect(page.getByRole("group", { name: "رنگ" })).toContainText("Black");
+    await expect(page.getByRole("group", { name: "سایز" })).toContainText("M");
+  });
+
+  test("پاک کردن همه فیلترها تمام وضعیت URL و فرم را پاک می‌کند", async ({ page }) => {
+    await page.goto("/fa/products?search=Hoodie&category=hoodies&color=black&size=m&min_price=1000&max_price=50000&in_stock=true&sort=price_asc");
+    await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
+    await page.getByRole("link", { name: "حذف همه فیلترها" }).click();
+    await expect(page).toHaveURL("/fa/products");
+    await expect(page.getByRole("checkbox", { name: "هودی" })).not.toBeChecked();
+    await expect(page.getByRole("link", { name: "ارزان‌ترین" })).toHaveAttribute("aria-current", undefined);
+  });
+
   test("فیلتر بازه قیمت در سمت سرور اعمال می‌شود", async ({ page }) => {
     await page.goto("/fa/products?category=hoodies&min_price=14000&max_price=15500");
     await expect(page.getByLabel("حداقل قیمت")).toHaveValue("14000");
@@ -153,7 +174,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await gallery.getByRole("button", { name: "تصویر بعدی" }).click();
     await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 Black detail");
 
-    await page.getByRole("link", { name: "White" }).click();
+    await page.getByRole("link", { name: "انتخاب رنگ White" }).click();
     await expect(page).toHaveURL(/color=white/);
     await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 White front");
     await expect(page.getByText("ناموجود", { exact: true })).toBeVisible();
@@ -201,8 +222,8 @@ test.describe("کاتالوگ موبایل", () => {
     await expect(dialog).toBeHidden();
     await page.getByRole("button", { name: "فیلترها" }).click();
     await dialog.getByRole("checkbox", { name: "تی شرت" }).check();
-    await dialog.getByRole("button", { name: "اعمال فیلترها" }).click();
     await expect(page).toHaveURL(/category=t-shirts/);
+    await expect(dialog).toBeHidden();
     await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
     await expect(dialog).toBeHidden();
   });
