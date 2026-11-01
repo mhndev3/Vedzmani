@@ -413,17 +413,39 @@ def test_guest_merge_token_cannot_be_reused_for_different_payload(http):
     assert CartItem.objects.get().quantity == 1
 
 
-def test_guest_merge_is_atomic_when_one_item_is_unavailable_or_out_of_stock(http):
+def test_guest_merge_is_atomic_when_a_variant_size_no_longer_exists(http):
     import uuid
 
-    first, second = make_vs("valid", stock=5), make_vs("short", stock=1)
+    valid = make_vs("valid", stock=5)
     r = http.send("post", "/api/cart/merge-guest/", {
         "token": str(uuid.uuid4()),
         "items": [
-            {"variant_size_id": first.id, "quantity": 1},
-            {"variant_size_id": second.id, "quantity": 2},
+            {"variant_size_id": valid.id, "quantity": 1},
+            {"variant_size_id": 999999999, "quantity": 1},
         ],
     })
     assert r.status_code == 409
     assert CartItem.objects.count() == 0
     assert GuestCartMerge.objects.count() == 0
+
+
+def test_guest_merge_preserves_lines_when_stock_dropped_or_product_unpublished(http):
+    import uuid
+
+    short = make_vs("short", stock=1)
+    hidden = make_vs("hidden", stock=5)
+    Product.objects.filter(pk=hidden.variant.product_id).update(is_active=False)
+    r = http.send("post", "/api/cart/merge-guest/", {
+        "token": str(uuid.uuid4()),
+        "items": [
+            {"variant_size_id": short.id, "quantity": 2},
+            {"variant_size_id": hidden.id, "quantity": 1},
+        ],
+    })
+    assert r.status_code == 200
+    by_sku = {line["variant_size"]["sku"]: line for line in r.json()["items"]}
+    assert by_sku[short.sku]["availability"] == "insufficient_stock"
+    assert by_sku[hidden.sku]["availability"] == "unavailable"
+    assert r.json()["has_issues"] is True
+    assert CartItem.objects.count() == 2
+    assert GuestCartMerge.objects.count() == 1

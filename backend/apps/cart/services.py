@@ -107,9 +107,14 @@ def merge_guest_items(user, token, items) -> None:
     if len(canonical) > settings.CART_MAX_LINES:
         raise CartFull()
     variant_ids = [item["variant_size_id"] for item in canonical]
+    # Keep existing catalog rows even if they became inactive or short on stock
+    # after the guest added them. The authenticated cart response labels those
+    # lines unavailable/insufficient_stock so the customer can remove or reduce them.
     variants = {
         row.pk: row
-        for row in purchasable_variant_sizes().select_related("variant__product__category", "variant", "size").filter(pk__in=variant_ids)
+        for row in VariantSize.objects.select_related(
+            "variant__product__category", "variant", "size"
+        ).filter(pk__in=variant_ids)
     }
     if len(variants) != len(variant_ids):
         raise ItemUnavailable()
@@ -126,7 +131,11 @@ def merge_guest_items(user, token, items) -> None:
         quantity = guest_item["quantity"]
         existing = current.get(variant_id)
         target = quantity + (existing.quantity if existing else 0)
-        _check_quantity(target, variants[variant_id].stock_quantity)
+        if target > settings.CART_MAX_ITEM_QUANTITY:
+            raise _quantity_error(
+                "max_quantity",
+                f"At most {settings.CART_MAX_ITEM_QUANTITY} units per item.",
+            )
         targets.append((variant_id, target, existing))
 
     GuestCartMerge.objects.create(user=user, token=token, payload_hash=payload_hash)
