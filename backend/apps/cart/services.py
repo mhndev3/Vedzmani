@@ -1,12 +1,6 @@
-"""Cart business logic. Views stay thin; every mutation is one short transaction.
-
-Stock rule: the cart is NOT a reservation. We read `stock_quantity` (no lock, no write) to reject
-quantities that cannot currently be fulfilled; checkout must validate again under its own locks.
-Concurrency rule: each mutation locks the *user's own cart row* (SELECT ... FOR UPDATE), which
-serializes that user's concurrent requests so the quantity/line limits cannot be bypassed.
-Reads take no locks.
-"""
-
+"""Cart business logic. All mutations are transactional and scoped to the authenticated owner."""
+import hashlib
+import json
 from decimal import Decimal
 
 from django.conf import settings
@@ -19,7 +13,7 @@ from rest_framework.exceptions import APIException, ErrorDetail, NotFound, Valid
 from apps.catalog.models import VariantImage, VariantSize
 from apps.catalog.storage import public_image_url
 
-from .models import Cart, CartItem
+from .models import Cart, CartItem, GuestCartMerge
 
 MAX_BIGINT = 2**63 - 1
 
@@ -43,7 +37,6 @@ class CartFull(APIException):
 
 
 def purchasable_variant_sizes():
-    """VariantSize rows that are published and sellable (whole catalog chain active)."""
     return VariantSize.objects.filter(
         is_active=True,
         variant__is_active=True,
@@ -64,7 +57,6 @@ def _check_quantity(quantity: int, stock_quantity: int) -> None:
 
 
 def _locked_cart(user) -> Cart:
-    """Get-or-create (race-safe via UNIQUE user) then lock the row for this transaction."""
     cart, _created = Cart.objects.get_or_create(user=user)
     return Cart.objects.select_for_update().get(pk=cart.pk)
 
@@ -75,9 +67,7 @@ def _touch(cart: Cart) -> None:
 
 @transaction.atomic
 def add_item(user, variant_size_id: int, quantity: int) -> None:
-    """Add `quantity` units; an existing line for the same VariantSize is incremented."""
     cart = _locked_cart(user)
-    # Unknown, inactive and unpublished are indistinguishable to the client on purpose.
     variant_size = purchasable_variant_sizes().filter(pk=variant_size_id).first()
     if variant_size is None:
         raise ValidationError(
@@ -98,12 +88,64 @@ def add_item(user, variant_size_id: int, quantity: int) -> None:
 
 
 @transaction.atomic
+def merge_guest_items(user, token, items) -> None:
+    """Atomically merge a guest basket. A token makes retries safe after an uncertain network result."""
+    cart = _locked_cart(user)
+    canonical = sorted(
+        ({"variant_size_id": int(item["variant_size_id"]), "quantity": int(item["quantity"])} for item in items),
+        key=lambda item: item["variant_size_id"],
+    )
+    payload_hash = hashlib.sha256(
+        json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    receipt = GuestCartMerge.objects.filter(user=user, token=token).first()
+    if receipt:
+        if receipt.payload_hash != payload_hash:
+            raise ValidationError({"token": [ErrorDetail("This transfer token was already used with different items.", code="token_reused")]})
+        return
+
+    if len(canonical) > settings.CART_MAX_LINES:
+        raise CartFull()
+    variant_ids = [item["variant_size_id"] for item in canonical]
+    variants = {
+        row.pk: row
+        for row in purchasable_variant_sizes().select_related("variant__product__category", "variant", "size").filter(pk__in=variant_ids)
+    }
+    if len(variants) != len(variant_ids):
+        raise ItemUnavailable()
+
+    current = {row.variant_size_id: row for row in CartItem.objects.filter(cart=cart, variant_size_id__in=variant_ids)}
+    new_lines = len([variant_id for variant_id in variant_ids if variant_id not in current])
+    if cart.items.count() + new_lines > settings.CART_MAX_LINES:
+        raise CartFull()
+
+    # Validate every line before writing any of them: no partial guest-cart transfer.
+    targets = []
+    for guest_item in canonical:
+        variant_id = guest_item["variant_size_id"]
+        quantity = guest_item["quantity"]
+        existing = current.get(variant_id)
+        target = quantity + (existing.quantity if existing else 0)
+        _check_quantity(target, variants[variant_id].stock_quantity)
+        targets.append((variant_id, target, existing))
+
+    GuestCartMerge.objects.create(user=user, token=token, payload_hash=payload_hash)
+    for variant_id, target, existing in targets:
+        if existing is None:
+            CartItem.objects.create(cart=cart, variant_size_id=variant_id, quantity=target)
+        else:
+            existing.quantity = target
+            existing.save(update_fields=["quantity", "updated_at"])
+    _touch(cart)
+
+
+@transaction.atomic
 def set_item_quantity(user, item_id: int, quantity: int) -> None:
     cart = _locked_cart(user)
     item = _own_item(cart, item_id)
     variant_size = purchasable_variant_sizes().filter(pk=item.variant_size_id).first()
     if variant_size is None:
-        raise ItemUnavailable()  # the client may still remove it
+        raise ItemUnavailable()
     _check_quantity(quantity, variant_size.stock_quantity)
     item.quantity = quantity
     item.save(update_fields=["quantity", "updated_at"])
@@ -126,7 +168,6 @@ def clear_cart(user) -> None:
 
 
 def _own_item(cart: Cart, item_id: int) -> CartItem:
-    # Scoped to the caller's cart: another user's item id is indistinguishable from a missing one.
     if item_id > MAX_BIGINT:
         raise NotFound()
     item = CartItem.objects.filter(cart=cart, pk=item_id).first()
@@ -135,18 +176,14 @@ def _own_item(cart: Cart, item_id: int) -> CartItem:
     return item
 
 
-# --- read side ---------------------------------------------------------------------------------
-
 def _availability(item: CartItem) -> str:
     vs = item.variant_size
     live = vs.is_active and vs.variant.is_active and vs.variant.product.is_active and vs.variant.product.category.is_active
-    if not live:
-        return "unavailable"
-    return "available" if item.quantity <= vs.stock_quantity else "insufficient_stock"
+    return "available" if live and item.quantity <= vs.stock_quantity else ("insufficient_stock" if live else "unavailable")
 
 
 def _image(variant) -> dict | None:
-    images = list(variant.images.all())  # prefetched: active images only
+    images = list(variant.images.all())
     if not images:
         return None
     best = min(images, key=lambda i: (not i.is_primary, i.position, i.id))
@@ -154,29 +191,20 @@ def _image(variant) -> dict | None:
 
 
 def build_cart(user) -> dict:
-    """Authoritative cart view. Constant query count: cart + items(joined) + images."""
     cart = Cart.objects.filter(user=user).first()
     items = []
     if cart is not None:
         items = list(
             CartItem.objects.filter(cart=cart)
-            .select_related(
-                "variant_size__size", "variant_size__variant__product__category"
-            )
-            .prefetch_related(
-                Prefetch(
-                    "variant_size__variant__images",
-                    queryset=VariantImage.objects.filter(is_active=True),
-                )
-            )
+            .select_related("variant_size__size", "variant_size__variant__product__category")
+            .prefetch_related(Prefetch("variant_size__variant__images", queryset=VariantImage.objects.filter(is_active=True)))
         )
     lines = []
     total = Decimal("0")
     total_quantity = 0
     has_problem = False
     for item in items:
-        vs = item.variant_size
-        variant = vs.variant
+        vs, variant = item.variant_size, item.variant_size.variant
         product = variant.product
         availability = _availability(item)
         unit_price = product.current_price
@@ -186,19 +214,17 @@ def build_cart(user) -> dict:
             total_quantity += item.quantity
         if availability != "available":
             has_problem = True
-        lines.append(
-            {
-                "id": item.id,
-                "quantity": item.quantity,
-                "availability": availability,
-                "unit_price": unit_price,
-                "subtotal": subtotal,
-                "product": {"id": product.id, "name": product.name, "slug": product.slug},
-                "color": {"name": variant.name, "slug": variant.slug, "hex_color": variant.hex_color},
-                "variant_size": {"id": vs.id, "sku": vs.sku, "size": vs.size.code, "label": vs.size.label},
-                "image": _image(variant),
-            }
-        )
+        lines.append({
+            "id": item.id,
+            "quantity": item.quantity,
+            "availability": availability,
+            "unit_price": unit_price,
+            "subtotal": subtotal,
+            "product": {"id": product.id, "name": product.name, "slug": product.slug},
+            "color": {"name": variant.name, "slug": variant.slug, "hex_color": variant.hex_color},
+            "variant_size": {"id": vs.id, "sku": vs.sku, "size": vs.size.code, "label": vs.size.label},
+            "image": _image(variant),
+        })
     return {
         "items": lines,
         "item_count": len(lines),
