@@ -1,6 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 import { PriceRange } from "./PriceRange";
+import { ColorSwatch } from "./ColorSwatch";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import {
@@ -93,11 +94,7 @@ function CheckGroup({
                 className="size-4 accent-[var(--primary)]"
               />
               {swatch && (
-                <span
-                  aria-hidden="true"
-                  className="size-3.5 shrink-0 rounded-[3px] border border-border"
-                  style={item.hex ? { backgroundColor: item.hex } : undefined}
-                />
+                <ColorSwatch name={item.label} hexColor={item.hex} />
               )}
               <span className="min-w-0 break-words">{item.label}</span>
             </label>
@@ -215,6 +212,29 @@ export function SortLinks({
         })}
       </ul>
     </nav>
+  );
+}
+
+export function CatalogToolbar({
+  locale,
+  t,
+  state,
+  count,
+  basePath,
+}: {
+  locale: Locale;
+  t: Dictionary;
+  state: CatalogState;
+  count: number;
+  basePath?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <h2 className="text-sm font-semibold" aria-live="polite">
+        {fill(t.catalog.results, { count: formatPrice(count, locale) })}
+      </h2>
+      <SortLinks locale={locale} t={t} state={state} basePath={basePath} />
+    </div>
   );
 }
 

@@ -4,6 +4,7 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { type CatalogImage, type ProductCardData } from "@/lib/catalog";
 import { formatCurrency } from "@/lib/format";
+import { ColorSwatch } from "./ColorSwatch";
 
 /** Shows real prices only: a struck-through original appears solely when the backend sends a sale_price. */
 export function Price({
@@ -122,12 +123,7 @@ export function ProductCard({
           <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={t.catalog.availableColors}>
             {product.colors.map((c) => (
               <li key={c.slug}>
-                <span
-                  aria-hidden="true"
-                  title={c.name}
-                  className="block size-3.5 rounded-[3px] border border-border shadow-sm"
-                  style={c.hex_color ? { backgroundColor: c.hex_color } : undefined}
-                />
+                <ColorSwatch name={c.name} hexColor={c.hex_color} />
                 <span className="sr-only">{c.name}</span>
               </li>
             ))}
