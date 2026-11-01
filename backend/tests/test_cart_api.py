@@ -7,7 +7,7 @@ from django.db import connection
 from django.test import Client
 
 from apps.accounts.models import User
-from apps.cart.models import Cart, CartItem
+from apps.cart.models import Cart, CartItem, GuestCartMerge
 from apps.catalog.models import Category, ColorVariant, Product, Size, VariantImage, VariantSize
 
 CART = "/api/cart/"
@@ -360,3 +360,70 @@ def test_concurrent_adds_cannot_exceed_limits():
     assert Cart.objects.count() == 1
     vs.refresh_from_db()
     assert vs.stock_quantity == 100
+
+
+
+# --- secure guest-cart transfer ---------------------------------------------------------------
+
+def test_anonymous_cannot_merge_guest_cart(api):
+    vs = make_vs()
+    payload = {"token": "54f7ac3d-09a8-46ba-ae19-e55f4c26a0f1", "items": [{"variant_size_id": vs.id, "quantity": 1}]}
+    assert api.post("/api/cart/merge-guest/", payload).status_code == 401
+    assert Cart.objects.count() == 0
+
+
+def test_guest_merge_uses_server_prices_and_merges_existing_cart(http):
+    import uuid
+
+    vs = make_vs(price="1900", sale="1500", stock=8)
+    http.send("post", ITEMS, {"variant_size_id": vs.id, "quantity": 2})
+    token = str(uuid.uuid4())
+    r = http.send("post", "/api/cart/merge-guest/", {
+        "token": token, "items": [{"variant_size_id": vs.id, "quantity": 3}],
+    })
+    assert r.status_code == 200
+    assert r.json()["items"][0]["quantity"] == 5
+    assert r.json()["items"][0]["unit_price"] == "1500"
+    assert r.json()["total"] == "7500"
+
+
+def test_guest_merge_retry_with_same_token_is_idempotent(http):
+    import uuid
+
+    vs = make_vs(stock=8)
+    token = str(uuid.uuid4())
+    payload = {"token": token, "items": [{"variant_size_id": vs.id, "quantity": 2}]}
+    first = http.send("post", "/api/cart/merge-guest/", payload)
+    second = http.send("post", "/api/cart/merge-guest/", payload)
+    assert first.status_code == second.status_code == 200
+    assert second.json()["items"][0]["quantity"] == 2
+    assert GuestCartMerge.objects.count() == 1
+
+
+def test_guest_merge_token_cannot_be_reused_for_different_payload(http):
+    import uuid
+
+    vs = make_vs(stock=8)
+    token = str(uuid.uuid4())
+    first = http.send("post", "/api/cart/merge-guest/", {"token": token, "items": [{"variant_size_id": vs.id, "quantity": 1}]})
+    second = http.send("post", "/api/cart/merge-guest/", {"token": token, "items": [{"variant_size_id": vs.id, "quantity": 2}]})
+    assert first.status_code == 200
+    assert second.status_code == 400
+    assert second.json()["error"]["details"]["token"][0]["code"] == "token_reused"
+    assert CartItem.objects.get().quantity == 1
+
+
+def test_guest_merge_is_atomic_when_one_item_is_unavailable_or_out_of_stock(http):
+    import uuid
+
+    first, second = make_vs("valid", stock=5), make_vs("short", stock=1)
+    r = http.send("post", "/api/cart/merge-guest/", {
+        "token": str(uuid.uuid4()),
+        "items": [
+            {"variant_size_id": first.id, "quantity": 1},
+            {"variant_size_id": second.id, "quantity": 2},
+        ],
+    })
+    assert r.status_code == 409
+    assert CartItem.objects.count() == 0
+    assert GuestCartMerge.objects.count() == 0
