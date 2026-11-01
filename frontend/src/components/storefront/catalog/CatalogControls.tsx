@@ -127,7 +127,7 @@ export function FilterForm({
       className="flex flex-col gap-4"
     >
       {carry(state, "filters")}
-      <Link href={catalogHref(locale, emptyState)} className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-muted/60 px-3 text-sm font-semibold transition hover:bg-muted">حذف همه فیلترها</Link>
+      <Link prefetch={false} href={catalogHref(locale, emptyState)} className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-muted/60 px-3 text-sm font-semibold transition hover:bg-muted">حذف همه فیلترها</Link>
       <CheckGroup
         legend={t.catalog.category}
         name="category"
