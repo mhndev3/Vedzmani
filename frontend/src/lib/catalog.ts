@@ -205,9 +205,12 @@ export async function getProducts(state: CatalogState, init?: RequestInit): Prom
   return apiGet<Paginated<ProductCardData>>(`/api/catalog/products/?${p.toString()}`, init);
 }
 
-/** Vocabulary changes rarely; a short revalidation window keeps this off the hot path. */
-export const getFilterOptions = cache(async (): Promise<FilterOptions> => {
-  return apiGet<FilterOptions>("/api/catalog/filters/", {
+/** Vocabulary changes rarely; cache each category scope for a short revalidation window. */
+export const getFilterOptions = cache(async (categoryKey: string): Promise<FilterOptions> => {
+  const params = new URLSearchParams();
+  for (const slug of categoryKey.split(",").filter(Boolean)) params.append("category", slug);
+  const query = params.toString();
+  return apiGet<FilterOptions>(`/api/catalog/filters/${query ? `?${query}` : ""}`, {
     cache: "force-cache",
     next: { revalidate: 60 },
   });
