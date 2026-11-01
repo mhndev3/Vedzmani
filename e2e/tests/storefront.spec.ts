@@ -24,18 +24,37 @@ test("mobile viewport fills the device width without horizontal page overflow", 
   await expect(viewport).toHaveAttribute("content", /width=device-width/);
   await expect(viewport).toHaveAttribute("content", /initial-scale=1/);
 
-  const dimensions = await page.evaluate(() => ({
-    innerWidth: window.innerWidth,
-    documentWidth: document.documentElement.clientWidth,
-    bodyWidth: document.body.getBoundingClientRect().width,
-    scrollWidth: document.documentElement.scrollWidth,
-    heroWidth: document.querySelector("section[aria-label='بنر ویژه ودزمانی']")?.getBoundingClientRect().width ?? 0,
-    categoriesWidth: document.querySelector("section[aria-labelledby='home-categories']")?.getBoundingClientRect().width ?? 0,
-  }));
+  const dimensions = await page.evaluate(() => {
+    const documentWidth = document.documentElement.clientWidth;
+    const offenders = [...document.querySelectorAll<HTMLElement>("body *")]
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          id: element.id,
+          className: typeof element.className === "string" ? element.className.slice(0, 140) : "",
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          width: Math.round(rect.width),
+        };
+      })
+      .filter((element) => element.width > documentWidth + 1 || element.left < -1 || element.right > documentWidth + 1)
+      .sort((a, b) => b.width - a.width)
+      .slice(0, 8);
+    return {
+      innerWidth: window.innerWidth,
+      documentWidth,
+      bodyWidth: document.body.getBoundingClientRect().width,
+      scrollWidth: document.documentElement.scrollWidth,
+      heroWidth: document.querySelector("section[aria-label='بنر ویژه ودزمانی']")?.getBoundingClientRect().width ?? 0,
+      categoriesWidth: document.querySelector("section[aria-labelledby='home-categories']")?.getBoundingClientRect().width ?? 0,
+      offenders,
+    };
+  });
 
   expect(dimensions.documentWidth).toBeGreaterThanOrEqual(389);
   expect(dimensions.bodyWidth).toBeGreaterThanOrEqual(389);
-  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.documentWidth + 1);
+  expect(dimensions.scrollWidth, JSON.stringify(dimensions)).toBeLessThanOrEqual(dimensions.documentWidth + 1);
   expect(dimensions.heroWidth).toBeGreaterThan(350);
   expect(dimensions.categoriesWidth).toBeGreaterThan(350);
 });
