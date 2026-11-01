@@ -27,6 +27,12 @@ test("mobile viewport fills the device width without horizontal page overflow", 
   const dimensions = await page.evaluate(() => {
     const documentWidth = document.documentElement.clientWidth;
     const offenders = [...document.querySelectorAll<HTMLElement>("body *")]
+      .filter((element) => {
+        // Carousel cards may sit outside the visible viewport by design, but only
+        // inside their own horizontal scroll container. They must not count as
+        // document-level overflow.
+        return !element.parentElement?.closest('[style*="overflow"], .overflow-x-auto, .overflow-x-scroll');
+      })
       .map((element) => {
         const rect = element.getBoundingClientRect();
         return {
@@ -57,6 +63,30 @@ test("mobile viewport fills the device width without horizontal page overflow", 
   expect(dimensions.scrollWidth, JSON.stringify(dimensions)).toBeLessThanOrEqual(dimensions.documentWidth + 1);
   expect(dimensions.heroWidth).toBeGreaterThan(350);
   expect(dimensions.categoriesWidth).toBeGreaterThan(350);
+  expect(dimensions.offenders, JSON.stringify(dimensions.offenders)).toEqual([]);
+});
+
+test("homepage product carousel scrolls internally without widening the page", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/fa");
+  const track = page.locator("section[aria-labelledby='home-newest-products'] [dir='rtl']");
+  await expect(track).toBeVisible();
+  const before = await track.evaluate((element) => ({
+    scrollWidth: element.scrollWidth,
+    clientWidth: element.clientWidth,
+    pageWidth: document.documentElement.scrollWidth,
+  }));
+  expect(before.scrollWidth).toBeGreaterThan(before.clientWidth);
+  await track.evaluate((element) => {
+    element.scrollTo({ left: -element.scrollWidth, behavior: "instant" });
+  });
+  const after = await track.evaluate((element) => ({
+    scrollLeft: element.scrollLeft,
+    pageWidth: document.documentElement.scrollWidth,
+    clientWidth: element.clientWidth,
+  }));
+  expect(after.scrollLeft).toBeLessThan(0);
+  expect(after.pageWidth).toBeLessThanOrEqual(after.clientWidth + 1);
 });
 
 test("hero banner uses supplied VZ artwork and is not a link", async ({ page }) => {
