@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="746" height="746" viewBox="0 0 746 746" role="img" aria-labelledby="title">
+  <title id="title">نشان گرد VZ ودزمانی</title>
+  <circle cx="373" cy="373" r="370" fill="#000"/>
+  <g fill="#fff" transform="translate(-1048 -167) scale(1.4)">
+    <path d="M996 254 969 295 1120 295 1121 297 978 518 1166 518 1194 476 1191 477 1058 475 1155 327 1201 254Z"/>
+    <path d="M829 254 966 486 993 444 913 307 884 254Z"/>
+  </g>
+</svg>
