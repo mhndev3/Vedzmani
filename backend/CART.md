@@ -21,7 +21,7 @@ Guests can add and edit cart lines in the browser before authentication. The bro
 
 When the guest selects «تکمیل خرید», the storefront routes them through the existing phone OTP authentication flow. OTP verification creates a user if the phone number is new. After the session is established, the browser sends a UUID idempotency token and an array of { variant_size_id, quantity } records to POST /api/cart/merge-guest/.
 
-The endpoint is authenticated and CSRF-protected. Django resolves every variant against the active/published catalog, checks current stock and quantity/line limits, merges with the authenticated user's existing cart and builds product, color, image and price fields from the database. The operation is atomic: if any line fails validation, none of the guest items are merged. Client-supplied names, prices, images, cart IDs and user IDs are not accepted.
+The endpoint is authenticated and CSRF-protected. Django resolves every variant against the active/published catalog, checks quantity/line limits, merges with the authenticated user's existing cart and builds product, color, image and price fields from the database. If stock has fallen or a product was unpublished, the line is retained but returned with its server-calculated insufficient_stock/unavailable status so the customer can fix it in the account cart. The operation is atomic: if any line fails validation, none of the guest items are merged. Client-supplied names, prices, images, cart IDs and user IDs are not accepted.
 
 A UUID token plus server-side payload hash makes a repeated identical transfer idempotent. Reusing a token with a different payload is rejected. This prevents duplicate lines when the browser retries after an uncertain network response.
 
@@ -29,7 +29,7 @@ The guest cart is cleared from local storage only after Django confirms the merg
 
 ## Cart invariants
 
-- A cart is not an inventory reservation. Stock is checked when adding, changing quantity and merging, and must be checked again at a future payment/order step.
+- A cart is not an inventory reservation. Stock is checked when adding and changing quantity; guest merge preserves pre-existing lines and flags reduced stock or unpublished products. Stock must be checked again at a future payment/order step.
 - Prices are not stored in cart rows. The current product price is read from the catalog on every cart response.
 - Each mutation locks only the authenticated user's cart row; ownership is never accepted from request data.
 - A cart row is lazily created on first successful addition/merge.
