@@ -3,20 +3,20 @@ import type { Locale } from "@/i18n/config";
 type Strings<T> = { [K in keyof T]: T[K] extends string ? string : Strings<T[K]> };
 
 const fa = {
-  title: "ورود",
-  intro: "شماره موبایل خود را وارد کنید تا یک کد یک‌بارمصرف برایتان ارسال شود.",
-  signInLink: "ورود",
+  title: "ورود یا ساخت حساب",
+  intro: "شماره موبایل خود را وارد کنید. اگر حسابی نداشته باشید، پس از تأیید شماره برایتان ساخته می‌شود.",
+  signInLink: "ورود / ساخت حساب",
   phone: {
     label: "شماره موبایل",
     hint: "مثلاً 09123456789",
-    submit: "ارسال کد",
+    submit: "دریافت کد ورود / ثبت‌نام",
     submitting: "در حال ارسال کد…",
   },
   code: {
     label: "کد تأیید",
     hint: "۶ رقم",
     instruction: "کد ۶ رقمی ارسال‌شده به {phone} را وارد کنید.",
-    submit: "تأیید و ورود",
+    submit: "تأیید و ادامه",
     submitting: "در حال بررسی…",
     change: "تغییر شماره",
     resend: "ارسال دوباره کد",

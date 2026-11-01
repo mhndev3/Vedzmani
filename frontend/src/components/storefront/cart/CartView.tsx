@@ -12,6 +12,7 @@ import {
   readGuestCart, removeGuestCartItem, setGuestCartQuantity, type GuestCartLine,
 } from "@/lib/guest-cart";
 import { fill, formatCurrency, formatPrice } from "@/lib/format";
+import { signInHref } from "@/lib/auth/redirect";
 
 type State =
   | { kind: "loading" }
@@ -141,9 +142,9 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
               <span>{t.total}</span>{" "}
               <span>{formatCurrency(state.items.reduce((sum, item) => sum + Number(item.unit_price) * item.quantity, 0), locale)}</span>
             </p>
-            <SignInLink locale={locale} next={checkoutLink} className="inline-flex h-12 items-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.99]">
+            <Link href={signInHref(locale, checkoutLink)} className="inline-flex h-12 items-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.99]">
               {t.checkout}
-            </SignInLink>
+            </Link>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">{t.guestNote}</p>
           <p className="mt-2 text-xs text-muted-foreground">{t.orderDisabledNote}</p>
