@@ -91,7 +91,6 @@ class FilterOptionsView(APIView):
             is_active=True, product__is_active=True, product__category__is_active=True
         )
         if category_slugs:
-            live = live.filter(category__slug__in=category_slugs)
             live_variants = live_variants.filter(product__category__slug__in=category_slugs)
         categories = (
             Category.objects.filter(is_active=True)
