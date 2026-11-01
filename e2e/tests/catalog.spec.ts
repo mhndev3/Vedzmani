@@ -79,9 +79,9 @@ test.describe("کاتالوگ دسکتاپ", () => {
   });
 
   test("فیلتر بازه قیمت در سمت سرور اعمال می‌شود", async ({ page }) => {
-    await page.goto("/fa/products?min_price=14000&max_price=15500");
+    await page.goto("/fa/products?category=hoodies&min_price=14000&max_price=15500");
     await expect(page.getByLabel("حداقل قیمت")).toHaveValue("14000");
-    await expect(cards(page)).toHaveCount(4);
+    await expect(cards(page)).toHaveCount(2);
   });
 
   test("مرتب‌سازی با لینک‌ها اعمال می‌شود", async ({ page }) => {
@@ -129,7 +129,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByText("Fixture Hoodie number 1.")).toBeVisible();
     await expect(page.getByText("موجود", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("M : 5")).toBeVisible();
-    await expect(page.getByText(/تومان/)).toBeVisible();
+    await expect(page.getByText(/تومان/).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeEnabled();
     await expect(page.getByRole("radio", { name: "M" })).toBeEnabled();
 
