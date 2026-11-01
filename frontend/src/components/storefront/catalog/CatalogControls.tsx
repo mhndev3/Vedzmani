@@ -1,9 +1,11 @@
 import Form from "next/form";
 import Link from "next/link";
+import { PriceRange } from "./PriceRange";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import {
   SORTS,
+  emptyState,
   catalogHref,
   fill,
   formatPrice,
@@ -125,74 +127,49 @@ export function FilterForm({
       className="flex flex-col gap-4"
     >
       {carry(state, "filters")}
+      <Link href={catalogHref(locale, emptyState)} className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-muted/60 px-3 text-sm font-semibold transition hover:bg-muted">حذف همه فیلترها</Link>
       <CheckGroup
         legend={t.catalog.category}
         name="category"
         selected={state.category}
         items={options.categories.map((c) => ({ value: c.slug, label: c.name }))}
       />
-      <CheckGroup
-        legend={t.catalog.collection}
-        name="collection"
-        selected={state.collection}
-        items={options.collections.map((c) => ({ value: c.slug, label: c.name }))}
-      />
-      <CheckGroup
-        legend={t.catalog.color}
-        name="color"
-        selected={state.color}
-        swatch
-        items={options.colors.map((c) => ({ value: c.slug, label: c.name, hex: c.hex_color }))}
-      />
-      <CheckGroup
-        legend={t.catalog.size}
-        name="size"
-        selected={state.size}
-        items={options.sizes.map((s) => ({ value: s.code, label: s.label }))}
-      />
-      <fieldset className="min-w-0 border-t border-border pt-4">
-        <legend className="mb-2 text-sm font-semibold">{t.catalog.price}</legend>
-        <div className="flex gap-2">
-          <div className="min-w-0 flex-1">
-            <label htmlFor="min_price" className="mb-1 block text-xs text-muted-foreground">
-              {t.catalog.minPrice}
-            </label>
-            <input
-              id="min_price"
-              name="min_price"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              defaultValue={state.minPrice}
-              className={inputClass}
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            <label htmlFor="max_price" className="mb-1 block text-xs text-muted-foreground">
-              {t.catalog.maxPrice}
-            </label>
-            <input
-              id="max_price"
-              name="max_price"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              defaultValue={state.maxPrice}
-              className={inputClass}
-            />
-          </div>
-        </div>
-      </fieldset>
-      <label className="flex cursor-pointer items-center gap-2 border-t border-border pt-4 text-sm">
-        <input
-          type="checkbox"
-          name="in_stock"
-          value="true"
-          defaultChecked={state.inStock}
-          className="size-4 accent-[var(--primary)]"
+      {state.category.length > 0 ? (
+        <>
+        <CheckGroup
+          legend={t.catalog.collection}
+          name="collection"
+          selected={state.collection}
+          items={options.collections.map((c) => ({ value: c.slug, label: c.name }))}
         />
-        {t.catalog.inStockOnly}
-      </label>
+        <CheckGroup
+          legend={t.catalog.color}
+          name="color"
+          selected={state.color}
+          swatch
+          items={options.colors.map((c) => ({ value: c.slug, label: c.name, hex: c.hex_color }))}
+        />
+        <CheckGroup
+          legend={t.catalog.size}
+          name="size"
+          selected={state.size}
+          items={options.sizes.map((s) => ({ value: s.code, label: s.label }))}
+        />
+        <PriceRange min={state.minPrice} max={state.maxPrice} />
+        <label className="flex cursor-pointer items-center gap-2 border-t border-border pt-4 text-sm">
+          <input
+            type="checkbox"
+            name="in_stock"
+            value="true"
+            defaultChecked={state.inStock}
+            className="size-4 accent-[var(--primary)]"
+          />
+          {t.catalog.inStockOnly}
+        </label>
+        </>
+      ) : (
+        <p className="rounded-xl border border-dashed border-border bg-muted/50 p-3 text-xs text-muted-foreground">ابتدا دسته‌بندی موردنظر را انتخاب کنید تا فیلترهای مربوط به آن نمایش داده شوند.</p>
+      )}
       <button type="submit" className={buttonClass}>
         {t.catalog.applyFilters}
       </button>

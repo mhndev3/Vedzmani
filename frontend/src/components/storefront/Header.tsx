@@ -19,7 +19,7 @@ const categories = [
   { name: "جکت", slug: "jackets" },
   { name: "شلوار جین", slug: "jeans" },
   { name: "شلوار پارچه ای", slug: "trousers" },
-  { name: "جاگر", slug: "joggers" },
+  { name: "شلوار جاگر", slug: "joggers" },
   { name: "کتونی", slug: "sneakers" },
   { name: "اکسسوری", slug: "accessories" },
   { name: "بافت", slug: "knitwear" },
@@ -28,7 +28,7 @@ const categories = [
 
 export function navItems(locale: Locale, t: Dictionary) {
   return [
-    { href: "/" + locale + "/products", label: "محصولات" },
+    { href: "/" + locale + "/products", label: "همه محصولات" },
     { href: "/" + locale + "/about", label: t.nav.about },
     { href: "/" + locale + "/faq", label: t.nav.faq },
     { href: "/" + locale + "/support", label: t.nav.support },
@@ -68,9 +68,9 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
     <header
       aria-hidden={!visible}
       inert={!visible}
-      className={"sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur transition-transform duration-150 motion-reduce:transition-none " + (visible ? "translate-y-0" : "-translate-y-full")}
+      className={"sticky top-0 z-40 transition-transform duration-150 motion-reduce:transition-none " + (visible ? "translate-y-0" : "-translate-y-full")}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
+      <div className="mx-auto my-2 flex h-16 max-w-6xl items-center gap-3 rounded-full border border-border bg-background/95 px-3 shadow-sm sm:px-4">
         <MobileNav
           items={items}
           categories={categoryItems}
@@ -81,18 +81,18 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
             categories: "دسته‌بندی‌ها",
           }}
         />
-        <Link href={"/" + locale} aria-label="صفحه اصلی ودزمانی" className="inline-flex shrink-0 items-center rounded-lg">
+        <Link href={"/" + locale} aria-label="صفحه اصلی ودزمانی" className="inline-flex size-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted p-1">
           <Image
             src="/images/vedzmani-banner-vz.svg"
             alt="نشان ودزمانی"
-            width={112}
-            height={41}
+            width={44}
+            height={44}
             priority
-            className="h-9 w-auto object-contain"
+            className="size-10 rounded-full object-contain"
           />
         </Link>
-        <nav aria-label={t.a11y.mainNav} className="hidden flex-1 items-center justify-center gap-5 text-sm md:flex">
-          <Link href={items[0].href} className="rounded py-2 text-muted-foreground transition-colors hover:text-foreground">
+        <nav aria-label={t.a11y.mainNav} className="hidden flex-1 items-center justify-center gap-3 text-sm md:flex">
+          <Link href={items[0].href} className="rounded-full px-3 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             {items[0].label}
           </Link>
           <details className="group relative">

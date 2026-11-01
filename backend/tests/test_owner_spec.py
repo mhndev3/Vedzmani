@@ -58,8 +58,8 @@ def test_totals_match_the_previous_reconciliation_counts():
         ("07", 7_680_000, "\u0647\u0648\u062f\u06cc"),
         ("08", 5_298_000, "\u062c\u06a9\u062a"),
         ("09", 6_490_000, "\u062c\u06a9\u062a \u0686\u0631\u0645"),
-        ("10", 4_980_000, "\u062c\u0627\u06af\u0631"),
-        ("11", 4_980_000, "\u062c\u0627\u06af\u0631"),
+        ("10", 4_980_000, "\u0634\u0644\u0648\u0627\u0631 \u062c\u0627\u06af\u0631"),
+        ("11", 4_980_000, "\u0634\u0644\u0648\u0627\u0631 \u062c\u0627\u06af\u0631"),
         ("12", 3_950_000, "\u0634\u0644\u0648\u0627\u0631 \u062c\u06cc\u0646"),
         ("13", 3_890_000, "\u0634\u0644\u0648\u0627\u0631 \u067e\u0627\u0631\u0686\u0647 \u0627\u06cc"),
     ],
@@ -122,8 +122,8 @@ def test_product_08_is_a_jacket_not_a_shirt():
     p = P["08"]
     assert p.category_slug_hint == "jackets" and p.category_slug_hint != "shirts"
     light, charcoal = p.colors
-    assert light.stock["XXL"] == 1 and charcoal.stock["XL"] == 1
-    assert sum(light.stock.values()) == 1 and sum(charcoal.stock.values()) == 1
+    assert light.stock["XXL"] == 2 and charcoal.stock["XL"] == 1
+    assert sum(light.stock.values()) == 2 and sum(charcoal.stock.values()) == 1
     assert S.measurements_for(p, charcoal, "XL") == {"shoulder": D(56), "chest": D(62), "length": D(64)}
     assert S.is_purchasable(p, light, "XXL") and S.is_purchasable(p, charcoal, "XL")
 

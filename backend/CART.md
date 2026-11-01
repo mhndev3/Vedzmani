@@ -1,72 +1,40 @@
-# Cart API (Agent 7, Session 1)
+# Cart API
 
-App: `backend/apps/cart`. PostgreSQL is the source of truth. **The cart is not an inventory reservation.**
+The cart is a non-reserving list of purchasable VariantSize rows. PostgreSQL is authoritative for signed-in carts, prices and inventory state.
 
-```
-User ─1:1─ Cart ─< CartItem >─ catalog.VariantSize   (unique (cart, variant_size); quantity > 0 by DB check)
-```
+## Endpoints
 
-## Contract
-Base path `/api/cart/`. JSON in/out. **Auth: Django session cookie (same as `AUTH.md`); anonymous → `401 not_authenticated`.**
-Every non-GET request needs the CSRF header `X-CSRFToken` (`GET /api/auth/csrf/`), otherwise `403 csrf_failed`.
-The owner is always `request.user`; no user/cart id is ever accepted from the client (extra body fields are ignored).
-Responses are `Cache-Control: max-age=0, no-cache, no-store, must-revalidate, private`.
+All endpoints use Django session authentication and require X-CSRFToken for unsafe methods. Ownership is derived only from request.user.
 
-| Method | Path | Body | Success |
-|---|---|---|---|
-| GET | `/api/cart/` | – | `200` cart |
-| DELETE | `/api/cart/` | – | `200` empty cart (idempotent) |
-| POST | `/api/cart/items/` | `{variant_size_id, quantity?=1}` | `201` cart. Existing line for the same `variant_size_id` is **incremented**. |
-| PATCH | `/api/cart/items/<item_id>/` | `{quantity}` | `200` cart. Sets the absolute quantity. |
-| DELETE | `/api/cart/items/<item_id>/` | – | `200` cart |
-
-`variant_size_id` is `VariantSize.id` — already exposed as `colors[].sizes[].id` by `GET /api/catalog/products/<slug>/`.
-`<item_id>` is the cart line `id` from the cart response.
-
-### Cart response (every endpoint returns this shape)
-```
-{ items: [{ id, quantity, availability, unit_price, subtotal,
-            product{id,name,slug}, color{name,slug,hex_color},
-            variant_size{id,sku,size,label}, image{url,alt_text,width,height}|null }],
-  item_count,        // distinct lines
-  total_quantity,    // units on lines that are not "unavailable"
-  total,             // sum of subtotals of lines that are not "unavailable"
-  has_issues }       // any line is not "available"
-```
-Money = whole-unit Decimal rendered as a string. One stored/displayed unit is one Iranian Toman. `unit_price` is
-`Product.current_price` (`sale_price` if set, else `price`), read from the catalog on **every** request; nothing is
-copied into the cart, so prices can never be stale or client-controlled. `subtotal = unit_price × quantity` (Decimal).
-`availability`: `available` | `insufficient_stock` (quantity > current stock) | `unavailable` (variant size, color,
-product or category is inactive/unpublished). `unavailable` lines are shown, excluded from totals, cannot be edited
-(only removed). Stock numbers are never exposed.
-
-### Errors (`{"error": {"code", "message", "details"?}}`)
-| HTTP | code | when |
+| Method | Path | Purpose |
 |---|---|---|
-| 400 | `validation_error` | non-integer / `< 1` / `> CART_MAX_ITEM_QUANTITY` quantity (`details.quantity[].code == "max_quantity"` when over the limit, including increments via POST); malformed/missing/out-of-range `variant_size_id`; unknown, inactive or unpublished item (`details.variant_size_id[].code == "unavailable"` — deliberately identical for all three) |
-| 401 | `not_authenticated` | anonymous |
-| 403 | `csrf_failed` | missing/invalid CSRF token |
-| 404 | `not_found` | unknown item id, **or another user's item id** (indistinguishable) |
-| 409 | `insufficient_stock` | requested resulting quantity exceeds current `stock_quantity` (incl. stock 0) |
-| 409 | `item_unavailable` | PATCH on a line whose product/variant became unpublished |
-| 409 | `cart_full` | adding a new distinct line beyond `CART_MAX_LINES` |
+| GET | /api/cart/ | Return the authenticated user's cart |
+| DELETE | /api/cart/ | Clear the authenticated user's cart |
+| POST | /api/cart/items/ | Add a purchasable variant and quantity |
+| PATCH | /api/cart/items/<item_id>/ | Set a cart line quantity |
+| DELETE | /api/cart/items/<item_id>/ | Remove a cart line |
+| POST | /api/cart/merge-guest/ | Atomically transfer a browser guest cart after authentication |
 
-## Data integrity decisions
-- **Stock:** cart code never writes `stock_quantity` (tested). It is read (unlocked) only to reject impossible
-  quantities. A cart item is *not* a promise of purchasability; **checkout must re-validate and decrement under
-  `select_for_update` on `VariantSize`**. Stock can drop later → line becomes `insufficient_stock`; the user may
-  lower the quantity or remove it.
-- **Concurrency:** each mutation is one transaction that locks only the caller's own `Cart` row, serializing that
-  user's concurrent requests so quantity/line limits can't be bypassed (regression-tested with real threads; the test
-  fails if the lock is removed). `UNIQUE(user)` and `UNIQUE(cart, variant_size)` + `CHECK(quantity > 0)` back this up
-  in the DB. Reads take no locks. `VariantSize` rows are deliberately *not* locked (no reservation).
-- **Lazy creation:** the `Cart` row is created on first add; `GET`/`DELETE` never create one.
-- **Limits** (not specified by product docs → conservative defaults, env-overridable): `CART_MAX_ITEM_QUANTITY=10`,
-  `CART_MAX_LINES=50`. Product owner should confirm.
-- **Queries:** reading a cart is constant-cost (cart, items joined to size/variant/product/category, active images).
-- `CartItem.variant_size` is `CASCADE`: removing a purchasable unit from the catalog drops it from carts. Orders
-  (future) must **snapshot** name/SKU/price and use `PROTECT`/no FK to live catalog rows.
+## Guest-cart transfer
 
-## Not implemented (by design)
-Guest carts / merge on login, checkout/orders (now in `ORDERS.md`), stock deduction or reservation, coupons, shipping, tax,
-cart expiry/cleanup job, frontend wiring (Add to Cart is still a placeholder on the storefront), caching.
+Guests can add and edit cart lines in the browser before authentication. The browser stores variant-size IDs, quantities and display snapshots in localStorage. Snapshots (name, color, image and displayed price) are not trusted and are never used by Django to price or authorize a cart line.
+
+When the guest selects «تکمیل خرید», the storefront routes them through the existing phone OTP authentication flow. OTP verification creates a user if the phone number is new. After the session is established, the browser sends a UUID idempotency token and an array of { variant_size_id, quantity } records to POST /api/cart/merge-guest/.
+
+The endpoint is authenticated and CSRF-protected. Django resolves every variant against the active/published catalog, checks quantity/line limits, merges with the authenticated user's existing cart and builds product, color, image and price fields from the database. If stock has fallen or a product was unpublished, the line is retained but returned with its server-calculated insufficient_stock/unavailable status so the customer can fix it in the account cart. The operation is atomic: if any line fails validation, none of the guest items are merged. Client-supplied names, prices, images, cart IDs and user IDs are not accepted.
+
+A UUID token plus server-side payload hash makes a repeated identical transfer idempotent. Reusing a token with a different payload is rejected. This prevents duplicate lines when the browser retries after an uncertain network response.
+
+The guest cart is cleared from local storage only after Django confirms the merge. The signed-in cart remains owned by the current session user.
+
+## Cart invariants
+
+- A cart is not an inventory reservation. Stock is checked when adding and changing quantity; guest merge preserves pre-existing lines and flags reduced stock or unpublished products. Stock must be checked again at a future payment/order step.
+- Prices are not stored in cart rows. The current product price is read from the catalog on every cart response.
+- Each mutation locks only the authenticated user's cart row; ownership is never accepted from request data.
+- A cart row is lazily created on first successful addition/merge.
+- Default limits are CART_MAX_ITEM_QUANTITY=10 and CART_MAX_LINES=50.
+
+## Final order placement
+
+The checkout screen shows delivery fields and the server-calculated cart summary, but deliberately sends no order request and renders no final «ثبت سفارش» button. Production also keeps ORDERS_ENABLED=False; its API rejects direct attempts to create an order. Enabling order creation requires the payment provider and its verified callback flow.

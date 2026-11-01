@@ -11,6 +11,8 @@ only gives each purchasable (product, color, size) row an addressable
 
 from decimal import Decimal
 
+from django.conf import settings
+
 from django.core.validators import MinValueValidator, validate_slug
 from django.db import models
 from django.db.models import F, Q
@@ -292,3 +294,21 @@ class VariantImage(models.Model):
     @property
     def url(self) -> str:
         return public_image_url(self.storage_key)
+
+
+class Favorite(models.Model):
+    """A customer-owned saved product. Favorites never expose data across accounts."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorite_products")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="favorited_by")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "product"], name="catalog_favorite_user_product_uniq"),
+        ]
+        indexes = [models.Index(fields=["user", "-created_at"], name="favorite_user_created_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.product_id}"

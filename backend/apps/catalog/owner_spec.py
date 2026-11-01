@@ -113,7 +113,7 @@ SPECS = (
     ProductSpec(
         "08", "وست جین", "جکت", "jackets", 5_298_000, "top", "cm",
         (
-            ColorSpec("آبی روشن", _stock(M=0, L=0, XL=0, XXL=1, XXXL=0)),
+            ColorSpec("آبی روشن", _stock(M=0, L=0, XL=0, XXL=2, XXXL=0)),
             ColorSpec("ذغالی", _stock(M=0, L=0, XL=1, XXL=0, XXXL=0)),
         ),
         shared=_top(XL=(56, 62, 64), XXL=(57, 64, 67)),
@@ -124,7 +124,7 @@ SPECS = (
         shared=_top(XL=(57.5, 59.5, 61.5), XXL=(61.5, 65.5, 65.5)),
     ),
     ProductSpec(
-        "10", "جاگر دمپا کش", "جاگر", "joggers", 4_980_000, "bottom", None,
+        "10", "جاگر دمپا کش", "شلوار جاگر", "joggers", 4_980_000, "bottom", None,
         (
             ColorSpec("مشکی", _stock(L=1, XL=1, XXL=1)),
             ColorSpec("طوسی", _stock(L=1, XL=0, XXL=1)),
@@ -136,7 +136,7 @@ SPECS = (
         ),
     ),
     ProductSpec(
-        "11", "جاگر ESSENTIAL", "جاگر", "joggers", 4_980_000, "bottom", None,
+        "11", "جاگر ESSENTIAL", "شلوار جاگر", "joggers", 4_980_000, "bottom", None,
         (ColorSpec("طوسی", _stock(M=1)),),
         shared=_bottom(M=(STRETCH, 48, 74.5, 98.5, 25.5, 107.5)),  # rise is exactly 98.5
     ),

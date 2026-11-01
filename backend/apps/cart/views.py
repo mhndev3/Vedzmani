@@ -1,6 +1,4 @@
-"""Cart API. Authentication = existing Django session auth (401 when anonymous, CSRF on unsafe methods).
-Ownership always comes from `request.user`; no user/cart id is ever accepted from the client."""
-
+"""Cart API; all cart state and ownership are bound to the authenticated session user."""
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -8,14 +6,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
-from .serializers import AddItemSerializer, CartSerializer, UpdateItemSerializer
+from .serializers import AddItemSerializer, CartSerializer, GuestCartMergeSerializer, UpdateItemSerializer
 
 
 def cart_response(user, http_status=status.HTTP_200_OK) -> Response:
     return Response(CartSerializer(services.build_cart(user)).data, status=http_status)
 
 
-@method_decorator(never_cache, name="dispatch")  # user-specific: never cached by browsers/proxies
+@method_decorator(never_cache, name="dispatch")
 class CartView(APIView):
     def get(self, request):
         return cart_response(request.user)
@@ -44,4 +42,14 @@ class CartItemDetailView(APIView):
 
     def delete(self, request, item_id: int):
         services.remove_item(request.user, item_id)
+        return cart_response(request.user)
+
+
+@method_decorator(never_cache, name="dispatch")
+class GuestCartMergeView(APIView):
+    """Authenticated-only merge; user, prices, stock and catalog state are never client supplied."""
+    def post(self, request):
+        data = GuestCartMergeSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        services.merge_guest_items(request.user, **data.validated_data)
         return cart_response(request.user)

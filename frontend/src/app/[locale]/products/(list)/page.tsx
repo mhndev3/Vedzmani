@@ -88,8 +88,8 @@ export default async function ProductsPage({ params, searchParams }: Props) {
         <section aria-labelledby="results-heading" className="min-w-0">
           {data ? (
             <>
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <h2 id="results-heading" className="text-sm text-muted-foreground" aria-live="polite">
+              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <h2 id="results-heading" className="text-sm font-semibold" aria-live="polite">
                   {fill(t.catalog.results, { count: formatPrice(data.count, locale) })}
                 </h2>
                 <SortLinks locale={locale} t={t} state={state} />

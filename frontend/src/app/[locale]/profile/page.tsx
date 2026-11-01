@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { SignInLink } from "@/components/auth/SignInLink";
 import { ProfileForm } from "@/components/profile/ProfileForm";
+import { SavedProducts } from "@/components/profile/SavedProducts";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { ApiError, apiGet } from "@/lib/api";
@@ -51,6 +52,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             <dd className="mt-1" dir="ltr" style={{ textAlign: "start" }}>{state.profile.phone}</dd>
           </dl>
           <ProfileForm initialProfile={state.profile} locale={locale} continueTo={continueTo} />
+          <SavedProducts locale={locale} />
         </>
       )}
       {state.kind === "anonymous" && (

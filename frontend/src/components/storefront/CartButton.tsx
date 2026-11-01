@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/config";
 import { cartApi } from "@/lib/cart";
+import { readGuestCart } from "@/lib/guest-cart";
+import { BrowserApiError } from "@/lib/browser-api";
 import { BagIcon } from "./icons";
 
 export function CartButton({ locale }: { locale: Locale }) {
@@ -21,8 +23,13 @@ export function CartButton({ locale }: { locale: Locale }) {
         .then((cart) => {
           if (active && requestedVersion === mutationVersion) setCount(cart.item_count);
         })
-        .catch(() => {
-          if (active && requestedVersion === mutationVersion) setCount(0);
+        .catch((error: unknown) => {
+          if (active && requestedVersion === mutationVersion) {
+            const guestCount = error instanceof BrowserApiError && error.status === 401
+              ? readGuestCart().items.length
+              : 0;
+            setCount(guestCount);
+          }
         });
     };
     const updated = (event: Event) => {

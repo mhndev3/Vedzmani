@@ -18,8 +18,25 @@ class AddItemSerializer(serializers.Serializer):
 
 class UpdateItemSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1)
-
     validate_quantity = AddItemSerializer.validate_quantity
+
+
+class GuestCartMergeItemSerializer(serializers.Serializer):
+    variant_size_id = serializers.IntegerField(min_value=1, max_value=MAX_BIGINT)
+    quantity = serializers.IntegerField(min_value=1, max_value=settings.CART_MAX_ITEM_QUANTITY)
+
+
+class GuestCartMergeSerializer(serializers.Serializer):
+    token = serializers.UUIDField()
+    items = GuestCartMergeItemSerializer(many=True, allow_empty=False)
+
+    def validate_items(self, items):
+        if len(items) > settings.CART_MAX_LINES:
+            raise serializers.ValidationError("Too many distinct cart lines.", code="cart_full")
+        ids = [item["variant_size_id"] for item in items]
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError("Duplicate variant sizes are not allowed.", code="duplicate_items")
+        return items
 
 
 # --- response (money is a whole-Toman Decimal rendered as a string, like the catalog) ---
@@ -48,6 +65,7 @@ class _VariantSizeSerializer(serializers.Serializer):
 
 class _ImageSerializer(serializers.Serializer):
     url = serializers.CharField()
+    thumbnail_url = serializers.CharField()
     alt_text = serializers.CharField()
     width = serializers.IntegerField()
     height = serializers.IntegerField()

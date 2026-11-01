@@ -2,37 +2,19 @@ import { expect, test, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
-/**
- * Checkout e2e. Runs against the real stack (Nginx -> Next + Django + PostgreSQL), like the
- * other specs, but needs a THROWAWAY database seeded with e2e/seed_catalog.py.
- *
- * Required env for everything except the anonymous test:
- *   E2E_BACKEND_DIR  absolute path to /backend (same DATABASE_URL/REDIS_URL as the running server)
- *   E2E_PYTHON       python that has the backend requirements (default: "python")
- *
- * Sign-in: production login needs an SMS provider that does not exist yet, so tests cannot
- * complete the OTP flow. e2e_helper.py creates a REAL Django session for a test user via
- * Django's own `force_login`; the browser then uses it as a normal login cookie. Carts are
- * filled through the real cart API, and CSRF, validation, stock and order creation are all real.
- * Tests named "(mocked response)" intercept the order POST to exercise failure states that
- * cannot be produced on demand; they assert UI behavior only.
- */
-
 const backendDir = process.env.E2E_BACKEND_DIR;
 const python = process.env.E2E_PYTHON ?? "python";
 const helperPath = path.join(__dirname, "..", "e2e_helper.py");
 
 type Session = { sessionid: string; phone: string; variantSizeIds: Record<string, number> };
-
 function helper<T>(env: Record<string, string>): T {
-  if (!backendDir) throw new Error("E2E_BACKEND_DIR is required for tests that sign in");
-  // `shell -c exec(...)` rather than piping stdin: piped stdin is not executed on Windows.
+  if (!backendDir) throw new Error("E2E_BACKEND_DIR is required");
   const out = execFileSync(
     python,
     ["manage.py", "shell", "-c", `exec(open(${JSON.stringify(helperPath)}, encoding="utf-8").read())`],
     { cwd: backendDir, env: { ...process.env, ...env }, encoding: "utf8" },
   );
-  const line = out.split(/\r?\n/).find((l) => l.startsWith("E2E_JSON:"));
+  const line = out.split(/\r?\n/).find((value) => value.startsWith("E2E_JSON:"));
   if (!line) throw new Error(`helper produced no result:\n${out}`);
   return JSON.parse(line.slice("E2E_JSON:".length)) as T;
 }
@@ -40,236 +22,105 @@ function helper<T>(env: Record<string, string>): T {
 let counter = 0;
 function uniquePhone(): string {
   counter += 1;
-  const tail = String(Date.now() % 1_000_000).padStart(6, "0");
-  return `0912${tail}${counter % 10}`;
+  return `0912${String(Date.now() % 1_000_000).padStart(6, "0")}${counter % 10}`;
 }
-
-async function signIn(page: Page, baseURL: string): Promise<Session> {
-  const session = helper<Session>({ E2E_ACTION: "session", E2E_PHONE: uniquePhone() });
+async function createSession(): Promise<Session> {
+  return helper<Session>({ E2E_ACTION: "session", E2E_PHONE: uniquePhone() });
+}
+async function applySession(page: Page, session: Session, baseURL: string) {
   await page.context().addCookies([
     { name: "sessionid", value: session.sessionid, url: baseURL, httpOnly: true, sameSite: "Lax" },
   ]);
-  return session;
+}
+async function setGuestCart(page: Page, variantSizeId: number) {
+  await page.goto("/fa");
+  await page.evaluate((id) => {
+    localStorage.setItem("vedzmani.guest-cart.v1", JSON.stringify({
+      token: "54f7ac3d-09a8-46ba-ae19-e55f4c26a0f1",
+      items: [{
+        variant_size_id: id,
+        quantity: 2,
+        product: { id: 1, name: "تی‌شرت تست", slug: "e2e-tee-02" },
+        color: { name: "مشکی", slug: "black", hex_color: "#000000" },
+        variant_size: { id, sku: "e2e-tee-02-black-m", label: "M" },
+        unit_price: "1000",
+        image: null,
+      }],
+    }));
+  }, variantSizeId);
 }
 
-async function csrf(page: Page): Promise<string> {
-  const res = await page.request.get("/api/auth/csrf/");
-  return (await res.json()).csrfToken as string;
-}
-
-async function addToCart(page: Page, variantSizeId: number, quantity: number) {
-  const res = await page.request.post("/api/cart/items/", {
-    data: { variant_size_id: variantSizeId, quantity },
-    headers: { "X-CSRFToken": await csrf(page) },
+test.describe("guest cart and payment-safe checkout", () => {
+  test("guest can add a product from its detail page without an account", async ({ page }) => {
+    test.skip(!backendDir, "E2E_BACKEND_DIR not set");
+    await page.goto("/fa/products/e2e-tee-02");
+    await page.locator("label").filter({ has: page.getByRole("radio", { name: "M" }) }).click();
+    await page.getByRole("button", { name: "افزودن به سبد خرید" }).click();
+    await expect(page.getByText("به سبد خرید اضافه شد.")).toBeVisible();
+    const guestLine = await page.evaluate(() => {
+      const cart = JSON.parse(localStorage.getItem("vedzmani.guest-cart.v1") || "{}");
+      return cart.items?.[0];
+    });
+    expect(guestLine.quantity).toBe(1);
+    expect(guestLine.variant_size.sku).toBe("e2e-tee-02-black-m");
+    await expect(page.getByRole("link", { name: "سبد خرید، ۱ کالا" })).toBeVisible();
   });
-  expect(res.status(), await res.text()).toBe(201);
-}
 
-const getJson = async (page: Page, url: string) => (await page.request.get(url)).json();
-const money = (value: string) => `${new Intl.NumberFormat("fa-IR").format(Number(value))} تومان`;
-
-const DELIVERY = {
-  "نام گیرنده": "Sara Ahmadi",
-  استان: "Tehran",
-  شهر: "Tehran",
-  نشانی: "Valiasr St, No. 12",
-  "کد پستی": "1234567890",
-};
-
-async function fillDelivery(page: Page, values: Record<string, string> = DELIVERY) {
-  for (const [label, value] of Object.entries(values)) await page.getByLabel(label).fill(value);
-}
-
-const placeOrder = (page: Page) => page.getByRole("button", { name: "ثبت سفارش" });
-
-test.describe("checkout", () => {
-  test.skip(({}, testInfo) => !backendDir && testInfo.title !== ANON, "E2E_BACKEND_DIR not set");
-
-  const ANON = "anonymous visitor is asked to sign in and no form or order request is made";
-  test(ANON, async ({ page }) => {
-    let orderRequests = 0;
-    page.on("request", (r) => r.url().includes("/api/orders/") && orderRequests++);
+  test("anonymous direct checkout asks for sign-in or account creation and never posts an order", async ({ page }) => {
+    let orderPosts = 0;
+    page.on("request", (request) => {
+      if (request.url().includes("/api/orders/") && request.method() === "POST") orderPosts += 1;
+    });
     await page.goto("/fa/checkout");
-    await expect(page.getByRole("heading", { name: "برای ادامه وارد شوید" })).toBeVisible();
-    await expect(placeOrder(page)).toHaveCount(0);
-    expect(orderRequests).toBe(0);
+    await expect(page.getByRole("heading", { name: "برای ادامه وارد شوید یا حساب بسازید" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "ورود / ساخت حساب" })).toHaveAttribute("href", /\/fa\/sign-in\?next=/);
+    expect(orderPosts).toBe(0);
   });
 
-  test("signed-in customer with an empty cart sees the empty state", async ({ page, baseURL }) => {
-    await signIn(page, baseURL!);
-    await page.goto("/fa/checkout");
-    await expect(page.getByRole("heading", { name: "سبد خرید شما خالی است" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "مشاهده محصولات" })).toHaveAttribute("href", "/fa/products");
-    await expect(placeOrder(page)).toHaveCount(0);
+  test("guest cart is editable and checkout CTA sends the visitor to the OTP account flow", async ({ page }) => {
+    test.skip(!backendDir, "E2E_BACKEND_DIR not set");
+    const session = await createSession(); // get a real seeded variant ID, but do not set its session cookie
+    await setGuestCart(page, session.variantSizeIds["e2e-tee-02-black-m"]);
+    await page.goto("/fa/cart");
+    await expect(page.getByTestId("guest-cart-line")).toBeVisible();
+    await expect(page.getByRole("link", { name: "تکمیل خرید" })).toHaveAttribute("href", /\/fa\/sign-in\?next=/);
+    await page.getByRole("button", { name: "افزایش تعداد تی‌شرت تست" }).click();
+    const guestLine = await page.evaluate(() => {
+      const cart = JSON.parse(localStorage.getItem("vedzmani.guest-cart.v1") || "{}");
+      return cart.items?.[0];
+    });
+    expect(guestLine.quantity).toBe(3);
+    await expect(page.getByRole("link", { name: "تکمیل خرید" })).toBeVisible();
   });
 
-  test("client validation blocks an invalid submit without any order request", async ({ page, baseURL }) => {
-    const s = await signIn(page, baseURL!);
-    await addToCart(page, s.variantSizeIds["e2e-tee-02-black-m"], 1);
-    let posts = 0;
-    page.on("request", (r) => r.url().includes("/api/orders/") && r.method() === "POST" && posts++);
-
-    await page.goto("/fa/checkout");
-    await placeOrder(page).click();
-    await expect(page.getByText("این فیلد الزامی است.")).toHaveCount(5);
-    await expect(page.getByLabel("نام گیرنده")).toBeFocused();
-
-    await fillDelivery(page, { ...DELIVERY, "کد پستی": "123" });
-    await placeOrder(page).click();
-    await expect(page.getByText("کد پستی ۱۰ رقمی وارد کنید.")).toBeVisible();
-    expect(posts).toBe(0);
-    expect((await getJson(page, "/api/cart/")).items).toHaveLength(1);
-    expect(await getJson(page, "/api/orders/")).toHaveLength(0);
-  });
-
-  test("places an order and shows the confirmation Django returned", async ({ page, baseURL }) => {
-    const s = await signIn(page, baseURL!);
-    await addToCart(page, s.variantSizeIds["e2e-hoodie-02-black-m"], 2);
-    await addToCart(page, s.variantSizeIds["e2e-tee-04-black-m"], 1);
-    const cart = await getJson(page, "/api/cart/");
-
-    await page.goto("/fa/checkout");
-    await expect(page.getByTestId("cart-total")).toHaveText(money(cart.total));
-
-    await fillDelivery(page, { ...DELIVERY, "کد پستی": "۱۲۳۴۵۶۷۸۹۰" }); // Persian digits
-    const posted = page.waitForRequest((r) => r.url().endsWith("/api/orders/") && r.method() === "POST");
-    await placeOrder(page).click();
-
-    const request = await posted;
-    // Only the five documented delivery fields are sent: no user, items, prices, status or total.
-    expect(Object.keys(request.postDataJSON()).sort()).toEqual(
-      ["address", "city", "postal_code", "province", "recipient_name"],
-    );
-    expect(request.headers()["x-csrftoken"]).toBeTruthy();
-
-    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toBeVisible();
-    const orders = await getJson(page, "/api/orders/");
-    expect(orders).toHaveLength(1);
-    await expect(page.getByTestId("order-id")).toHaveText(String(orders[0].id));
-    await expect(page.getByTestId("order-total")).toHaveText(money(orders[0].total));
-    expect(orders[0].payment_status).toBe("unpaid");
-    await expect(page.getByText("پرداخت نشده. هیچ مبلغی دریافت نشده است.")).toBeVisible();
-    await expect(page.getByText("هزینه ارسال شامل نمی‌شود").first()).toBeVisible();
-    await expect(page.getByText("Sara Ahmadi")).toBeVisible();
-    expect((await getJson(page, "/api/cart/")).items).toHaveLength(0); // cleared by Django, not by the UI
-  });
-
-  test("a double click creates exactly one order", async ({ page, baseURL }) => {
-    const s = await signIn(page, baseURL!);
-    await addToCart(page, s.variantSizeIds["e2e-hoodie-04-black-m"], 1);
-    let posts = 0;
-    await page.route("**/api/orders/", async (route) => {
-      if (route.request().method() === "POST") {
-        posts += 1;
-        await new Promise((resolve) => setTimeout(resolve, 1500)); // keep the first request in flight
-      }
-      await route.continue();
+  test("authenticated customer gets the guest cart merged once and sees delivery details without an order action", async ({ page, baseURL }) => {
+    test.skip(!backendDir, "E2E_BACKEND_DIR not set");
+    const session = await createSession();
+    await applySession(page, session, baseURL!);
+    await setGuestCart(page, session.variantSizeIds["e2e-tee-02-black-m"]);
+    let merges = 0;
+    let orderPosts = 0;
+    page.on("request", (request) => {
+      if (request.url().endsWith("/api/cart/merge-guest/") && request.method() === "POST") merges += 1;
+      if (request.url().includes("/api/orders/") && request.method() === "POST") orderPosts += 1;
     });
 
     await page.goto("/fa/checkout");
-    await fillDelivery(page);
-    await placeOrder(page).dblclick();
-    await page.getByLabel("کد پستی").press("Enter"); // a third attempt while still in flight
-    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toBeVisible();
-    expect(posts).toBe(1);
-    expect(await getJson(page, "/api/orders/")).toHaveLength(1);
-  });
+    await expect(page.getByRole("heading", { name: "اطلاعات تحویل" })).toBeVisible();
+    await expect(page.getByText("Tee 02")).toBeVisible();
+    await expect(page.getByLabel("نام گیرنده")).toBeVisible();
+    await expect(page.getByText(/ثبت سفارش و پرداخت هنوز فعال نشده‌اند/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "ثبت سفارش" })).toHaveCount(0);
+    expect(merges).toBe(1);
+    expect(orderPosts).toBe(0);
 
-  test("submitting a stale page after the cart was already ordered does not blindly re-order", async ({
-    page,
-    baseURL,
-  }) => {
-    const s = await signIn(page, baseURL!);
-    await addToCart(page, s.variantSizeIds["e2e-hoodie-05-black-m"], 1);
-    await page.goto("/fa/checkout");
-    await fillDelivery(page);
+    const cart = await page.request.get("/api/cart/");
+    expect(cart.status()).toBe(200);
+    expect((await cart.json()).items[0].quantity).toBe(2);
 
-    // The order is placed elsewhere (another tab/device) while this page is still open.
-    const other = await page.request.post("/api/orders/", {
-      data: { recipient_name: "A", province: "B", city: "C", address: "D", postal_code: "1234567890" },
-      headers: { "X-CSRFToken": await csrf(page) },
-    });
-    expect(other.status()).toBe(201);
-
-    await placeOrder(page).click();
-    await expect(page.getByRole("heading", { name: "پیش از سفارش مجدد بررسی کنید" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toHaveCount(0);
-    expect(await getJson(page, "/api/orders/")).toHaveLength(1);
-  });
-
-  test("insufficient stock at submit: order rejected, form values kept, cart refreshed", async ({
-    page,
-    baseURL,
-  }) => {
-    const s = await signIn(page, baseURL!);
-    const sku = "e2e-tee-06-black-m";
-    await addToCart(page, s.variantSizeIds[sku], 3);
-    await page.goto("/fa/checkout");
-    await fillDelivery(page);
-
-    helper({ E2E_ACTION: "set_stock", E2E_SKU: sku, E2E_STOCK: "1" }); // stock drops after carting
-    await placeOrder(page).click();
-
-    await expect(page.getByText("موجودی یک یا چند کالا کافی نیست.")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toHaveCount(0);
-    await expect(page.getByLabel("نام گیرنده")).toHaveValue(DELIVERY["نام گیرنده"]);
-    await expect(page.getByLabel("نشانی")).toHaveValue(DELIVERY.نشانی);
-    await expect(page.getByText("موجودی کافی نیست").first()).toBeVisible(); // refreshed cart line
-    expect(await getJson(page, "/api/orders/")).toHaveLength(0);
-    expect((await getJson(page, "/api/cart/")).items).toHaveLength(1);
-  });
-
-  for (const failure of ["server error", "network failure"] as const) {
-    test(`unconfirmed outcome on ${failure} (mocked response): no success shown, values kept, retry works`, async ({
-      page,
-      baseURL,
-    }) => {
-      const s = await signIn(page, baseURL!);
-      await addToCart(page, s.variantSizeIds["e2e-hoodie-06-black-m"], 1);
-      const handler = (route: import("@playwright/test").Route) =>
-        route.request().method() === "POST"
-          ? failure === "server error"
-            ? route.fulfill({
-                status: 500,
-                contentType: "application/json",
-                body: JSON.stringify({ error: { code: "error", message: "boom" } }),
-              })
-            : route.abort("failed")
-          : route.continue();
-      await page.route("**/api/orders/", handler);
-
-      await page.goto("/fa/checkout");
-      await fillDelivery(page);
-      await placeOrder(page).click();
-
-      await expect(page.getByText("نتوانستیم تأیید کنیم که سفارش ثبت شده است یا نه.")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toHaveCount(0);
-      await expect(page.getByLabel("شهر")).toHaveValue("Tehran");
-      await expect(placeOrder(page)).toBeEnabled();
-
-      await page.unroute("**/api/orders/", handler); // connection recovers: the customer retries
-      await placeOrder(page).click();
-      await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toBeVisible();
-      expect(await getJson(page, "/api/orders/")).toHaveLength(1);
-    });
-  }
-
-  test("Persian locale renders RTL and completes an order", async ({ page, baseURL }) => {
-    const s = await signIn(page, baseURL!);
-    await addToCart(page, s.variantSizeIds["e2e-tee-08-black-m"], 1);
-    await page.goto("/fa/checkout");
-    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-    await expect(page.getByRole("heading", { name: "تسویه حساب", level: 1 })).toBeVisible();
-
-    await page.getByLabel("نام گیرنده").fill("سارا احمدی");
-    await page.getByLabel("استان").fill("تهران");
-    await page.getByLabel("شهر").fill("تهران");
-    await page.getByLabel("نشانی").fill("خیابان ولیعصر، پلاک ۱۲");
-    await page.getByLabel("کد پستی").fill("1234567890");
-    await page.getByRole("button", { name: "ثبت سفارش" }).click();
-
-    await expect(page.getByRole("heading", { name: "سفارش ثبت شد" })).toBeVisible();
-    await expect(page.getByText("پرداخت نشده. هیچ مبلغی دریافت نشده است.")).toBeVisible();
-    expect(await getJson(page, "/api/orders/")).toHaveLength(1);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "اطلاعات تحویل" })).toBeVisible();
+    expect(merges).toBe(1);
+    expect(orderPosts).toBe(0);
   });
 });

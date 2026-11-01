@@ -23,8 +23,8 @@ async function readOtp(local: string): Promise<string> {
 
 const phoneInput = (page: Page) => page.getByLabel("شماره موبایل");
 const codeInput = (page: Page) => page.getByLabel("کد تأیید");
-const sendButton = (page: Page) => page.getByRole("button", { name: "ارسال کد" });
-const verifyButton = (page: Page) => page.getByRole("button", { name: "تأیید و ورود" });
+const sendButton = (page: Page) => page.getByRole("button", { name: "دریافت کد ورود / ثبت‌نام" });
+const verifyButton = (page: Page) => page.getByRole("button", { name: "تأیید و ادامه" });
 const alertBox = (page: Page) => page.locator('form [role="alert"]');
 const json = (status: number, body: unknown, headers: Record<string, string> = {}) => (route: Route) =>
   route.fulfill({ status, json: body, headers });
@@ -49,7 +49,7 @@ test.describe("ورود با شماره موبایل", () => {
     await page.goto("/fa/sign-in");
     await expect(page.locator("html")).toHaveAttribute("lang", "fa");
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-    await expect(page.getByRole("heading", { name: "ورود", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "ورود یا ساخت حساب", level: 1 })).toBeVisible();
     await sendButton(page).click();
     await expect(page.getByText("شماره موبایل را وارد کنید.")).toBeVisible();
     await expect(phoneInput(page)).toBeFocused();
@@ -120,24 +120,28 @@ test.describe("ورود با شماره موبایل", () => {
 });
 
 test.describe("دسترسی مهمان", () => {
-  for (const path of ["/fa/cart", "/fa/checkout", "/fa/profile"]) {
-    test(`${path} مسیر ورود را حفظ می‌کند`, async ({ page }) => {
-      await page.goto(path);
-      const link = page.getByRole("link", { name: "ورود", exact: true }).last();
-      await expect(link).toHaveAttribute("href", `/fa/sign-in?next=${encodeURIComponent(path)}`);
-    });
-  }
+  test("سبد خالی مهمان بدون اجبار به ورود قابل مشاهده است", async ({ page }) => {
+    await page.goto("/fa/cart");
+    await expect(page.getByRole("heading", { name: "سبد خرید شما خالی است" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "مشاهده محصولات" })).toHaveAttribute("href", "/fa/products");
+  });
 
-  test("تسویه حساب مهمان را به ورود هدایت می‌کند", async ({ page }) => {
+  test("checkout مسیر بازگشت به خرید را در لینک ورود نگه می‌دارد", async ({ page }) => {
     await page.goto("/fa/checkout");
-    await expect(page.getByRole("heading", { name: "برای ادامه وارد شوید" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "برای ادامه وارد شوید یا حساب بسازید" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "ورود / ساخت حساب" })).toHaveAttribute("href", "/fa/sign-in?next=%2Ffa%2Fcheckout");
+  });
+
+  test("پروفایل مهمان مسیر بازگشت امن را حفظ می‌کند", async ({ page }) => {
+    await page.goto("/fa/profile");
+    await expect(page.getByRole("link", { name: "ورود / ساخت حساب" })).toHaveAttribute("href", "/fa/sign-in?next=%2Ffa%2Fprofile");
   });
 });
 
 test.describe("جریان واقعی کد یک‌بارمصرف", () => {
   test.skip(!otpLogCommand, "E2E_OTP_LOG_COMMAND is not set");
 
-  test("ورود واقعی به حساب و بازگشت به مقصد امن", async ({ page }) => {
+  test("ورود واقعی با OTP و بازگشت مستقیم به checkout", async ({ page }) => {
     const phone = uniquePhone();
     await page.goto(`/fa/sign-in?next=${encodeURIComponent("/fa/checkout")}`);
     await phoneInput(page).fill(phone);
@@ -145,15 +149,7 @@ test.describe("جریان واقعی کد یک‌بارمصرف", () => {
     await expect(codeInput(page)).toBeVisible();
     await codeInput(page).fill(await readOtp(phone));
     await verifyButton(page).click();
-    await expect(page).toHaveURL(/\/fa\/profile\?next=/);
-    await expect(page.getByRole("heading", { name: "تکمیل اطلاعات حساب کاربری" })).toBeVisible();
-    await page.getByLabel("نام", { exact: true }).fill("کاربر");
-    await page.getByLabel("نام خانوادگی", { exact: true }).fill("آزمایشی");
-    await page.getByLabel("نشانی کامل", { exact: true }).fill("تهران، خیابان نمونه، پلاک ۱");
-    await page.getByLabel("کد پستی", { exact: true }).fill("1234567890");
-    await page.getByLabel("کد ملی", { exact: true }).fill(phone.slice(-10));
-    await page.getByRole("button", { name: "ذخیره اطلاعات" }).click();
-    await expect(page).toHaveURL(/\/fa\/checkout$/);
+    await expect(page).toHaveURL(/checkout$/);
     await expect(page.getByRole("heading", { name: "سبد خرید شما خالی است" })).toBeVisible();
     const me = await (await page.request.get("/api/auth/me/")).json();
     expect(me.phone).toBe(canonical(phone));

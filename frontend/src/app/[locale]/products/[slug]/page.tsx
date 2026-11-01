@@ -3,10 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
-import { getProduct, type ProductDetail } from "@/lib/catalog";
+import { emptyState, getProduct, getProducts, type ProductDetail } from "@/lib/catalog";
 import { Price } from "@/components/storefront/catalog/ProductCard";
 import { AddToCart } from "@/components/storefront/cart/AddToCart";
 import { ProductGallery } from "@/components/storefront/product/ProductGallery";
+import { ProductActions } from "@/components/storefront/product/ProductActions";
+import { ProductCard } from "@/components/storefront/catalog/ProductCard";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -76,6 +78,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
     ? [...color.images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.position - b.position)
     : [];
   const inStock = !!color?.sizes.some((s) => s.in_stock);
+  const relatedResponse = await getProducts({ ...emptyState, category: [product.category.slug] }, { cache: "force-cache", next: { revalidate: 60 } }).catch(() => null);
+  const relatedProducts = (relatedResponse?.results ?? []).filter((item) => item.id !== product.id).slice(0, 4);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -135,13 +139,13 @@ export default async function ProductPage({ params, searchParams }: Props) {
                         prefetch={false}
                         scroll={false}
                         aria-current={current ? "true" : undefined}
-                        className={`inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm ${
+                        className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm transition-transform duration-150 active:scale-95 ${
                           current ? "border-primary ring-1 ring-primary" : "border-border hover:bg-muted"
                         }`}
                       >
                         <span
                           aria-hidden="true"
-                          className="size-4 rounded-full border border-border"
+                          className="size-4 rounded-full border border-border shadow-sm transition-transform duration-150 hover:scale-110"
                           style={c.hex_color ? { backgroundColor: c.hex_color } : undefined}
                         />
                         {c.name}
@@ -153,6 +157,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
             </div>
           )}
 
+          <ProductActions productId={product.id} productSlug={product.slug} productName={product.name} locale={locale} />
+
           {color &&
             (color.sizes.length > 0 ? (
               <AddToCart
@@ -160,12 +166,25 @@ export default async function ProductPage({ params, searchParams }: Props) {
                 locale={locale}
                 sizes={color.sizes.map((s) => ({
                   id: s.id,
+                  sku: s.sku,
                   label: s.label,
                   in_stock: s.in_stock,
                   stock_quantity: s.stock_quantity,
                   measurements: s.measurements,
                   description: s.size_description,
                 }))}
+                guestContext={{
+                  product: { id: product.id, name: product.name, slug: product.slug },
+                  color: { name: color.name, slug: color.slug, hex_color: color.hex_color },
+                  unit_price: product.sale_price ?? product.price,
+                  image: images[0] ? {
+                    url: images[0].url,
+                    thumbnail_url: images[0].thumbnail_url ?? images[0].url,
+                    alt_text: images[0].alt_text || product.name,
+                    width: images[0].width,
+                    height: images[0].height,
+                  } : null,
+                }}
                 labels={{
                   sizes: t.product.sizes,
                   sizeOutOfStock: t.product.sizeOutOfStock,
@@ -196,6 +215,17 @@ export default async function ProductPage({ params, searchParams }: Props) {
           )}
         </section>
       </div>
+
+      {relatedProducts.length > 0 && (
+        <section aria-labelledby="related-products-title" className="mt-12">
+          <h2 id="related-products-title" className="mb-4 text-xl font-semibold tracking-tight">محصولات مشابه</h2>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {relatedProducts.map((item, index) => (
+              <ProductCard key={item.id} product={item} locale={locale} t={t} eager={index < 2} />
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

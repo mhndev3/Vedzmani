@@ -1,11 +1,4 @@
-"""Shopping cart: a per-user, *non-reserving* list of VariantSize + quantity.
-
-PostgreSQL is the source of truth. A cart never changes `VariantSize.stock_quantity`;
-stock is only validated when lines are added/edited and must be validated again by checkout.
-Prices are NOT stored: they are read from the catalog at request time, so a cart can never
-hold a stale or client-supplied price.
-"""
-
+"""Shopping cart: a per-user, non-reserving list of purchasable variants."""
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
@@ -22,8 +15,6 @@ class Cart(models.Model):
 
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
-    # Deleting a purchasable unit from the catalog simply drops it from carts (carts are transient;
-    # orders will snapshot their own data).
     variant_size = models.ForeignKey("catalog.VariantSize", on_delete=models.CASCADE, related_name="cart_items")
     quantity = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -38,3 +29,20 @@ class CartItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.cart_id}:{self.variant_size_id}x{self.quantity}"
+
+
+class GuestCartMerge(models.Model):
+    """Idempotency receipt for a guest-cart transfer into an authenticated account."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="guest_cart_merges")
+    token = models.UUIDField()
+    payload_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "token"], name="guestcartmerge_user_token_uniq"),
+        ]
+        indexes = [models.Index(fields=["user", "-created_at"], name="guestmerge_user_created_idx")]
+
+    def __str__(self) -> str:
+        return f"guest-cart-merge:{self.user_id}:{self.token}"

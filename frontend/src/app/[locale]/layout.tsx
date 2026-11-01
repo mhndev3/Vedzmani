@@ -5,6 +5,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { siteConfig } from "@/lib/site-config";
 import { Footer } from "@/components/storefront/Footer";
 import { Header } from "@/components/storefront/Header";
+import { ReleaseCacheGuard } from "@/components/storefront/ReleaseCacheGuard";
 import { notFound } from "next/navigation";
 import "../globals.css";
 
@@ -69,6 +70,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="flex min-h-dvh flex-col bg-background text-foreground antialiased">
+        <ReleaseCacheGuard />
         <a
           href="#main"
           className="sr-only rounded-lg bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50"

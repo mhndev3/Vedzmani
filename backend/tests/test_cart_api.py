@@ -7,7 +7,7 @@ from django.db import connection
 from django.test import Client
 
 from apps.accounts.models import User
-from apps.cart.models import Cart, CartItem
+from apps.cart.models import Cart, CartItem, GuestCartMerge
 from apps.catalog.models import Category, ColorVariant, Product, Size, VariantImage, VariantSize
 
 CART = "/api/cart/"
@@ -102,7 +102,7 @@ def test_add_returns_full_renderable_cart(http):
     assert line["unit_price"] == "1200" and line["subtotal"] == "2400"  # sale price wins, server-side
     assert line["product"]["slug"] == "hoodie" and line["color"]["slug"] == "black"
     assert line["variant_size"] == {"id": vs.id, "sku": "hoodie-m", "size": "m", "label": "M"}
-    assert line["image"]["url"].endswith("a/b.webp") and line["image"]["width"] == 10
+    assert line["image"]["url"].endswith("a/b.webp") and line["image"]["thumbnail_url"].endswith("a/b.webp") and line["image"]["width"] == 10
     assert body["total"] == "2400" and body["total_quantity"] == 2 and body["item_count"] == 1
     assert "stock_quantity" not in json.dumps(body)
 
@@ -360,3 +360,92 @@ def test_concurrent_adds_cannot_exceed_limits():
     assert Cart.objects.count() == 1
     vs.refresh_from_db()
     assert vs.stock_quantity == 100
+
+
+
+# --- secure guest-cart transfer ---------------------------------------------------------------
+
+def test_anonymous_cannot_merge_guest_cart(api):
+    vs = make_vs()
+    payload = {"token": "54f7ac3d-09a8-46ba-ae19-e55f4c26a0f1", "items": [{"variant_size_id": vs.id, "quantity": 1}]}
+    assert api.post("/api/cart/merge-guest/", payload).status_code == 401
+    assert Cart.objects.count() == 0
+
+
+def test_guest_merge_uses_server_prices_and_merges_existing_cart(http):
+    import uuid
+
+    vs = make_vs(price="1900", sale="1500", stock=8)
+    http.send("post", ITEMS, {"variant_size_id": vs.id, "quantity": 2})
+    token = str(uuid.uuid4())
+    r = http.send("post", "/api/cart/merge-guest/", {
+        "token": token, "items": [{"variant_size_id": vs.id, "quantity": 3}],
+    })
+    assert r.status_code == 200
+    assert r.json()["items"][0]["quantity"] == 5
+    assert r.json()["items"][0]["unit_price"] == "1500"
+    assert r.json()["total"] == "7500"
+
+
+def test_guest_merge_retry_with_same_token_is_idempotent(http):
+    import uuid
+
+    vs = make_vs(stock=8)
+    token = str(uuid.uuid4())
+    payload = {"token": token, "items": [{"variant_size_id": vs.id, "quantity": 2}]}
+    first = http.send("post", "/api/cart/merge-guest/", payload)
+    second = http.send("post", "/api/cart/merge-guest/", payload)
+    assert first.status_code == second.status_code == 200
+    assert second.json()["items"][0]["quantity"] == 2
+    assert GuestCartMerge.objects.count() == 1
+
+
+def test_guest_merge_token_cannot_be_reused_for_different_payload(http):
+    import uuid
+
+    vs = make_vs(stock=8)
+    token = str(uuid.uuid4())
+    first = http.send("post", "/api/cart/merge-guest/", {"token": token, "items": [{"variant_size_id": vs.id, "quantity": 1}]})
+    second = http.send("post", "/api/cart/merge-guest/", {"token": token, "items": [{"variant_size_id": vs.id, "quantity": 2}]})
+    assert first.status_code == 200
+    assert second.status_code == 400
+    assert second.json()["error"]["details"]["token"][0]["code"] == "token_reused"
+    assert CartItem.objects.get().quantity == 1
+
+
+def test_guest_merge_is_atomic_when_a_variant_size_no_longer_exists(http):
+    import uuid
+
+    valid = make_vs("valid", stock=5)
+    r = http.send("post", "/api/cart/merge-guest/", {
+        "token": str(uuid.uuid4()),
+        "items": [
+            {"variant_size_id": valid.id, "quantity": 1},
+            {"variant_size_id": 999999999, "quantity": 1},
+        ],
+    })
+    assert r.status_code == 409
+    assert CartItem.objects.count() == 0
+    assert GuestCartMerge.objects.count() == 0
+
+
+def test_guest_merge_preserves_lines_when_stock_dropped_or_product_unpublished(http):
+    import uuid
+
+    short = make_vs("short", stock=1)
+    hidden = make_vs("hidden", stock=5)
+    Product.objects.filter(pk=hidden.variant.product_id).update(is_active=False)
+    r = http.send("post", "/api/cart/merge-guest/", {
+        "token": str(uuid.uuid4()),
+        "items": [
+            {"variant_size_id": short.id, "quantity": 2},
+            {"variant_size_id": hidden.id, "quantity": 1},
+        ],
+    })
+    assert r.status_code == 200
+    by_sku = {line["variant_size"]["sku"]: line for line in r.json()["items"]}
+    assert by_sku[short.sku]["availability"] == "insufficient_stock"
+    assert by_sku[hidden.sku]["availability"] == "unavailable"
+    assert r.json()["has_issues"] is True
+    assert CartItem.objects.count() == 2
+    assert GuestCartMerge.objects.count() == 1
