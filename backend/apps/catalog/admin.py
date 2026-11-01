@@ -17,7 +17,7 @@ from django.forms.models import BaseInlineFormSet
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Category, Collection, ColorVariant, Product, ProductSizeDescription, ProductSizeMeasurement, Size, VariantImage, VariantSize, VariantSizeDescription, VariantSizeMeasurement
+from .models import Category, Collection, ColorVariant, Favorite, Product, ProductSizeDescription, ProductSizeMeasurement, Size, VariantImage, VariantSize, VariantSizeDescription, VariantSizeMeasurement
 
 
 class ProductAdminForm(forms.ModelForm):
@@ -276,3 +276,18 @@ class VariantImageAdmin(_VariantColumnsMixin, admin.ModelAdmin):
     ordering = ("variant__product__name", "variant__position", "position")
     autocomplete_fields = ("variant",)
     readonly_fields = ("url", "created_at", "updated_at")
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    list_display = ("user", "product", "created_at")
+    list_select_related = ("user", "product")
+    search_fields = ("user__phone", "product__name", "product__product_code")
+    readonly_fields = ("user", "product", "created_at")
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

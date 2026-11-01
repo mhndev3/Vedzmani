@@ -54,3 +54,5 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_HSTS_INCLUDE_SUBDOMAINS", Fals
 SECURE_HSTS_PRELOAD = env_bool("DJANGO_HSTS_PRELOAD", False)
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 X_FRAME_OPTIONS = "DENY"
+# No payment provider is configured: refuse order creation until the owner enables the full payment flow.
+ORDERS_ENABLED = env_bool("ORDERS_ENABLED", False)

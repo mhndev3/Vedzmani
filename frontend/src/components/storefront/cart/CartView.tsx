@@ -16,6 +16,8 @@ type State =
   | { kind: "error" }
   | { kind: "ready"; cart: Cart };
 
+const ORDER_PLACEMENT_ENABLED = process.env.NEXT_PUBLIC_ORDERS_ENABLED !== "false";
+
 const buttonBase =
   "inline-flex items-center justify-center rounded-lg border border-border text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -176,15 +178,20 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
               >
                 {t.checkout}
               </span>
-            ) : (
+            ) : ORDER_PLACEMENT_ENABLED ? (
               <Link
                 href={`/${locale}/checkout`}
-                className="inline-flex h-12 items-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="inline-flex h-12 items-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 {t.checkout}
               </Link>
+            ) : (
+              <span aria-disabled="true" className="inline-flex h-12 cursor-not-allowed items-center rounded-xl border border-border bg-muted px-6 text-sm font-medium text-muted-foreground" title="ثبت سفارش پس از اتصال درگاه پرداخت فعال می‌شود">
+                ثبت سفارش فعلاً غیرفعال است
+              </span>
             )}
           </div>
+          {!ORDER_PLACEMENT_ENABLED && <p className="mt-3 text-xs text-muted-foreground">سبد خرید شما حفظ می‌شود؛ ثبت نهایی سفارش بعد از راه‌اندازی درگاه پرداخت فعال خواهد شد.</p>}
         </>
       )}
     </div>
@@ -212,7 +219,7 @@ function CartLine({
       <div className="relative aspect-[3/4] w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:w-24">
         {item.image && (
           <Image
-            src={item.image.url}
+            src={item.image.thumbnail_url || item.image.url}
             alt={item.image.alt_text || name}
             fill
             sizes="96px"

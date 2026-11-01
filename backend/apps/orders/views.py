@@ -3,6 +3,7 @@ The owner is always `request.user`. The only client input to order creation is t
 (`CheckoutSerializer`); any other key in the body (user id, total, status, payment status, phone, ...) is ignored."""
 
 from django.shortcuts import get_object_or_404
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -26,6 +27,11 @@ class OrderListCreateView(APIView):
         return Response(OrderSerializer(_own_orders(request.user), many=True).data)
 
     def post(self, request):
+        if not settings.ORDERS_ENABLED:
+            return Response(
+                {"error": {"code": "orders_disabled", "message": "Order placement is temporarily disabled."}},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         # Validate BEFORE the transaction: invalid delivery details take no lock and change nothing
         # (no order, no stock change, cart untouched). Authentication and CSRF were already enforced by DRF.
         details = CheckoutSerializer(data=request.data)

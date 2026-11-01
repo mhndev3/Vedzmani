@@ -48,6 +48,7 @@ class _VariantSizeSerializer(serializers.Serializer):
 
 class _ImageSerializer(serializers.Serializer):
     url = serializers.CharField()
+    thumbnail_url = serializers.CharField()
     alt_text = serializers.CharField()
     width = serializers.IntegerField()
     height = serializers.IntegerField()

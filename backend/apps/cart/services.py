@@ -17,6 +17,7 @@ from rest_framework import status
 from rest_framework.exceptions import APIException, ErrorDetail, NotFound, ValidationError
 
 from apps.catalog.models import VariantImage, VariantSize
+from apps.catalog.storage import public_image_url
 
 from .models import Cart, CartItem
 
@@ -149,7 +150,7 @@ def _image(variant) -> dict | None:
     if not images:
         return None
     best = min(images, key=lambda i: (not i.is_primary, i.position, i.id))
-    return {"url": best.url, "alt_text": best.alt_text, "width": best.width, "height": best.height}
+    return {"url": best.url, "thumbnail_url": public_image_url(best.thumbnail_storage_key or best.storage_key), "alt_text": best.alt_text, "width": best.width, "height": best.height}
 
 
 def build_cart(user) -> dict:

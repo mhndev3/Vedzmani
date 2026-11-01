@@ -6,7 +6,7 @@ test("storefront uses Persian RTL and the header contains only the agreed links"
   await expect(page.locator("html")).toHaveAttribute("lang", "fa");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   const nav = page.getByRole("navigation", { name: "ناوبری اصلی" });
-  for (const name of ["محصولات", "درباره ما", "سوالات متداول", "پشتیبانی"]) {
+  for (const name of ["همه محصولات", "درباره ما", "سوالات متداول", "پشتیبانی"]) {
     await expect(nav.getByRole("link", { name })).toBeVisible();
   }
   for (const removed of ["تماس با ما", "بازگشت کالا", "پروفایل", "سبد خرید"]) {
@@ -76,7 +76,7 @@ test("hamburger menu contains the requested categories and support links", async
     { name: "جکت چرم", href: "/fa/categories/leather-jackets" },
     { name: "شلوار جین" },
     { name: "شلوار پارچه ای" },
-    { name: "جاگر" },
+    { name: "شلوار جاگر" },
     { name: "کتونی" },
     { name: "اکسسوری" },
   ];
@@ -85,7 +85,7 @@ test("hamburger menu contains the requested categories and support links", async
     await expect(link).toBeVisible();
     if (category.href) await expect(link).toHaveAttribute("href", category.href);
   }
-  for (const name of ["محصولات", "درباره ما", "سوالات متداول", "پشتیبانی"]) {
+  for (const name of ["همه محصولات", "درباره ما", "سوالات متداول", "پشتیبانی"]) {
     await expect(dialog.getByRole("link", { name, exact: true })).toBeVisible();
   }
   await page.keyboard.press("Escape");

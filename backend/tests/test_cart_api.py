@@ -102,7 +102,7 @@ def test_add_returns_full_renderable_cart(http):
     assert line["unit_price"] == "1200" and line["subtotal"] == "2400"  # sale price wins, server-side
     assert line["product"]["slug"] == "hoodie" and line["color"]["slug"] == "black"
     assert line["variant_size"] == {"id": vs.id, "sku": "hoodie-m", "size": "m", "label": "M"}
-    assert line["image"]["url"].endswith("a/b.webp") and line["image"]["width"] == 10
+    assert line["image"]["url"].endswith("a/b.webp") and line["image"]["thumbnail_url"].endswith("a/b.webp") and line["image"]["width"] == 10
     assert body["total"] == "2400" and body["total_quantity"] == 2 and body["item_count"] == 1
     assert "stock_quantity" not in json.dumps(body)
 

@@ -33,6 +33,7 @@ export function ProductGallery({
   const [fading, setFading] = useState(false);
   const previousKey = useRef(imageKey);
   const touchStartX = useRef<number | null>(null);
+  const lightbox = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (previousKey.current === imageKey) return;
@@ -82,6 +83,7 @@ export function ProductGallery({
               touchStartX.current = null;
             }}
           >
+            <button type="button" onClick={() => lightbox.current?.showModal()} aria-label="بزرگ‌نمایی تصویر محصول" className="absolute inset-0 z-0 cursor-zoom-in">
             <Image
               key={current.url}
               src={current.display_url || current.url}
@@ -93,6 +95,7 @@ export function ProductGallery({
               fetchPriority={activeIndex === 0 ? "high" : "auto"}
               className={"object-contain transition-opacity duration-150 ease-in-out motion-reduce:transition-none " + (fading ? "opacity-0" : "opacity-100")}
             />
+            </button>
 
             {hasMultiple && (
               <>
@@ -116,6 +119,14 @@ export function ProductGallery({
             )}
           </div>
 
+          <dialog ref={lightbox} aria-label={labels.gallery} onClick={(event) => { if (event.target === event.currentTarget) lightbox.current?.close(); }} className="fixed inset-0 m-0 h-dvh max-h-dvh w-screen max-w-none overflow-hidden border-0 bg-black/95 p-0 text-white backdrop:bg-black/90">
+            <div className="relative h-dvh w-screen">
+              <Image src={current.display_url || current.url} alt={current.alt_text || productName} fill sizes="100vw" unoptimized className="object-contain p-3 sm:p-8" />
+              <button type="button" onClick={() => lightbox.current?.close()} aria-label="بستن تصویر" className="absolute end-4 top-4 z-10 rounded-full bg-white/15 p-3 text-2xl">×</button>
+              {hasMultiple && <><button type="button" onClick={previous} aria-label={labels.previous} className="absolute start-4 top-1/2 z-10 rounded-full bg-white/15 p-3 text-3xl">‹</button><button type="button" onClick={next} aria-label={labels.next} className="absolute end-4 top-1/2 z-10 rounded-full bg-white/15 p-3 text-3xl">›</button></>}
+              <p className="absolute bottom-4 inset-x-0 z-10 text-center text-sm">{activeIndex + 1} / {displayImages.length}</p>
+            </div>
+          </dialog>
           {hasMultiple && (
             <div className="mt-3 flex items-center justify-center gap-2" aria-label="پیمایش تصاویر">
               {displayImages.map((image, index) => (

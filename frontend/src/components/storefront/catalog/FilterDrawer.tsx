@@ -26,7 +26,7 @@ export function FilterDrawer({
         type="button"
         aria-haspopup="dialog"
         onClick={() => ref.current?.showModal()}
-        className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted lg:hidden"
+        className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:bg-muted lg:hidden"
       >
         {title}
         {activeCount > 0 && (
@@ -42,7 +42,7 @@ export function FilterDrawer({
         onClick={(e) => {
           if (e.target === ref.current) ref.current?.close();
         }}
-        className="fixed inset-y-0 start-0 m-0 h-dvh max-h-dvh w-80 max-w-[85vw] overflow-y-auto bg-background p-4 text-foreground backdrop:bg-black/50 lg:static lg:block lg:h-auto lg:max-h-none lg:w-full lg:max-w-none lg:overflow-visible lg:bg-transparent lg:p-0"
+        className="fixed inset-y-0 start-0 m-0 h-dvh max-h-dvh w-80 max-w-[88vw] overflow-y-auto rounded-e-3xl border border-border bg-background p-4 text-foreground shadow-2xl backdrop:bg-black/50 lg:static lg:block lg:h-auto lg:max-h-none lg:w-full lg:max-w-none lg:overflow-visible lg:rounded-2xl lg:bg-card lg:p-4 lg:shadow-sm"
       >
         <div className="mb-4 flex items-center justify-between lg:hidden">
           <h2 className="text-base font-semibold">{title}</h2>

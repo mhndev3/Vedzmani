@@ -58,7 +58,7 @@ export function CatalogPicture({
   noImage: string;
 }) {
   return (
-    <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted">
+    <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted">
       {image ? (
         <Image
           src={image.thumbnail_url || image.url}
@@ -84,17 +84,19 @@ export function ProductCard({
   locale,
   t,
   eager,
+  variant = "grid",
 }: {
   product: ProductCardData;
   locale: Locale;
   t: Dictionary;
   eager?: boolean;
+  variant?: "grid" | "carousel";
 }) {
   return (
-    <li>
+    <li className={variant === "carousel" ? "min-w-[70%] snap-start sm:min-w-[40%] lg:min-w-[calc(25%-12px)]" : "min-w-0"}>
       <Link
         href={"/" + locale + "/products/" + product.slug}
-        className="group block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+        className="group block h-full rounded-2xl border border-border bg-card p-2.5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
       >
         <CatalogPicture
           image={product.image}
@@ -103,7 +105,7 @@ export function ProductCard({
           eager={eager}
           noImage={t.catalog.noImage}
         />
-        <h3 className="mt-3 line-clamp-2 text-sm font-medium">{product.name}</h3>
+        <h3 className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold">{product.name}</h3>
         {product.code && <p className="mt-1 text-xs text-muted-foreground">کد محصول: {product.code}</p>}
         <Price
           price={product.price}
@@ -122,7 +124,7 @@ export function ProductCard({
                 <span
                   aria-hidden="true"
                   title={c.name}
-                  className="block size-3.5 rounded-full border border-border"
+                  className="block size-4 rounded-full border border-border shadow-sm ring-1 ring-background"
                   style={c.hex_color ? { backgroundColor: c.hex_color } : undefined}
                 />
                 <span className="sr-only">{c.name}</span>

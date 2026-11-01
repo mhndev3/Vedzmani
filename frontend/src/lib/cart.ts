@@ -13,7 +13,7 @@ export type CartItem = {
   product: { id: number; name: string; slug: string };
   color: { name: string; slug: string; hex_color: string };
   variant_size: { id: number; sku: string; size: string; label: string };
-  image: { url: string; alt_text: string; width: number; height: number } | null;
+  image: { url: string; thumbnail_url: string; alt_text: string; width: number; height: number } | null;
 };
 
 export type Cart = {
