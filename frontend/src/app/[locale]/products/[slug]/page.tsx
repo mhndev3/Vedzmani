@@ -166,12 +166,25 @@ export default async function ProductPage({ params, searchParams }: Props) {
                 locale={locale}
                 sizes={color.sizes.map((s) => ({
                   id: s.id,
+                  sku: s.sku,
                   label: s.label,
                   in_stock: s.in_stock,
                   stock_quantity: s.stock_quantity,
                   measurements: s.measurements,
                   description: s.size_description,
                 }))}
+                guestContext={{
+                  product: { id: product.id, name: product.name, slug: product.slug },
+                  color: { name: color.name, slug: color.slug, hex_color: color.hex_color },
+                  unit_price: product.sale_price ?? product.price,
+                  image: images[0] ? {
+                    url: images[0].url,
+                    thumbnail_url: images[0].thumbnail_url ?? images[0].url,
+                    alt_text: images[0].alt_text || product.name,
+                    width: images[0].width,
+                    height: images[0].height,
+                  } : null,
+                }}
                 labels={{
                   sizes: t.product.sizes,
                   sizeOutOfStock: t.product.sizeOutOfStock,

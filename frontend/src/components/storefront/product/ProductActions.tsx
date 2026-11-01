@@ -72,8 +72,8 @@ export function ProductActions({ productId, productSlug, productName, locale }: 
 
   async function nativeShare() {
     if (!navigator.share) return copyLink();
-    try { await navigator.share({ title: productName, url: window.location.href }); }
-    catch { /* A cancelled native share is not an error. */ }
+    try { await navigator.share({ title: productName, text: productName, url: window.location.href }); }
+    catch { /* Cancelling the device share sheet is not an error. */ }
   }
 
   const links = shareLinks(typeof window === "undefined" ? "" : window.location.href, productName);
@@ -97,8 +97,8 @@ export function ProductActions({ productId, productSlug, productName, locale }: 
             <a href={links.telegram} target="_blank" rel="noopener noreferrer" className="rounded-full border border-border px-3 py-2 text-sm hover:bg-muted">تلگرام</a>
             <a href={links.whatsapp} target="_blank" rel="noopener noreferrer" className="rounded-full border border-border px-3 py-2 text-sm hover:bg-muted">واتساپ</a>
             <a href={links.eitaa} target="_blank" rel="noopener noreferrer" className="rounded-full border border-border px-3 py-2 text-sm hover:bg-muted">ایتا</a>
-            <button type="button" onClick={copyLink} className="rounded-full border border-border px-3 py-2 text-sm hover:bg-muted">کپی برای بله</button>
-            <button type="button" onClick={copyLink} className="rounded-full border border-border px-3 py-2 text-sm hover:bg-muted">کپی برای روبیکا</button>
+            <button type="button" onClick={nativeShare} className="rounded-full border border-border px-3 py-2 text-sm hover:bg-muted">اشتراک‌گذاری با بله</button>
+            <button type="button" onClick={nativeShare} className="rounded-full border border-border px-3 py-2 text-sm hover:bg-muted">اشتراک‌گذاری با روبیکا</button>
           </div>
         </div>
       )}
