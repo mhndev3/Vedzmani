@@ -48,7 +48,7 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
           dir="rtl"
           className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <ul className="flex w-max min-w-full snap-x snap-mandatory gap-3 pb-3 sm:gap-4">
+          <ul className="flex w-full min-w-0 snap-x snap-mandatory gap-3 pb-3 sm:gap-4">
             {children}
           </ul>
         </div>
