@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 const MAX_PRICE = 50_000_000;
-const STEP = 50_000;
+const STEP = 500;
 
 export function PriceRange({ min, max }: { min: string; max: string }) {
   const [minValue, setMinValue] = useState(min ? Number(min) : 0);
