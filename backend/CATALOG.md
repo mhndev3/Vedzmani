@@ -102,7 +102,9 @@ media is now handled by `image_processing.py` and `optimize_catalog_images`.
 ### Filter vocabulary: `GET /api/catalog/filters/` (Agent 6, Session 2)
 Public, read-only. Returns `{categories[{name,slug}], collections[{name,slug}], colors[{name,slug,hex_color}], sizes[{code,label}]}`
 containing **only values that exist on published products** (active product + active category/variant/size/collection).
-Fixed cost of 4 queries. Added so the storefront never offers fake filter values. Colors are de-duplicated by slug.
+Optional repeated `category=<slug>` parameters scope dependent facets (collections, colors and sizes) to the selected
+category set; the top-level category list remains global so customers can change their selection. Fixed cost of 4
+queries regardless of catalog size or selected category count. Added so the storefront never offers fake filter values. Colors are de-duplicated by slug.
 
 ### Storefront (frontend) notes
 Routes: `/[locale]/products` (listing) and `/[locale]/products/[slug]` (detail, `?color=<slug>` selects a variant).
