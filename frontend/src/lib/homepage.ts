@@ -15,9 +15,9 @@ export type HomepageContent = {
 const HOME_CATEGORIES = [
   { name: "دورس", slug: "sweatshirts" },
   { name: "بافت", slug: "knitwear" },
-  { name: "شلوار جین", slug: "jeans" },
-  { name: "جکت چرم", slug: "leather-jackets" },
+  { name: "شلوار", slug: "jeans" },
   { name: "هودی", slug: "hoodies" },
+  { name: "جکت چرم", slug: "leather-jackets" },
 ] as const;
 
 /**
