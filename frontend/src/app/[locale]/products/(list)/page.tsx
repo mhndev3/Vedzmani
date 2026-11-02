@@ -103,7 +103,7 @@ export default async function ProductsPage({ params, searchParams }: Props) {
                 <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
                   {data.results.map((product, i) => (
                     <ProductCard
-                      key={product.id}
+                      key={product.variant_id}
                       product={product}
                       locale={locale}
                       t={t}
