@@ -123,7 +123,6 @@ export function ProductCard({
         <p className={"mt-1 text-xs " + (product.in_stock ? "text-muted-foreground" : "font-medium text-foreground")}>
           {product.in_stock ? t.catalog.inStock : t.catalog.outOfStock}
         </p>
-}
       </Link>
     </li>
   );
