@@ -1,9 +1,19 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useRef,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 export function CarouselTrack({ children, itemCount }: { children: ReactNode; itemCount: number }) {
   const viewport = useRef<HTMLDivElement>(null);
+  const track = useRef<HTMLUListElement>(null);
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function scroll(direction: "previous" | "next") {
     const element = viewport.current;
@@ -14,7 +24,78 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
       left: direction === "next" ? -distance : distance,
       behavior: reducedMotion ? "auto" : "smooth",
     });
+    pauseAndResumeAfterInteraction();
   }
+
+  function pauseAndResumeAfterInteraction() {
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    resumeTimer.current = setTimeout(() => {
+      resumeTimer.current = null;
+      paused.current = false;
+      lastFrame.current = 0;
+    }, 6000);
+    paused.current = true;
+  }
+
+  const paused = useRef(false);
+  const lastFrame = useRef(0);
+
+  useEffect(() => {
+    const element = viewport.current;
+    const list = track.current;
+    if (!element || !list || itemCount < 2) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reduceMotion.matches) return;
+
+    let frame = 0;
+    let visible = true;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      lastFrame.current = 0;
+    }, { threshold: 0.05 });
+    observer.observe(element);
+
+    const animate = (now: number) => {
+      if (!paused.current && visible && document.visibilityState === "visible") {
+        const delta = lastFrame.current ? Math.min(now - lastFrame.current, 50) : 0;
+        const first = list.children[0] as HTMLElement | undefined;
+        const firstClone = list.children[itemCount] as HTMLElement | undefined;
+        const loopDistance = first && firstClone
+          ? Math.abs(first.offsetLeft - firstClone.offsetLeft)
+          : 0;
+
+        if (delta > 0 && loopDistance > element.clientWidth + 2) {
+          // About 18px per second: deliberately slower than a typical storefront carousel.
+          element.scrollLeft -= delta * 0.018;
+          if (element.scrollLeft <= -loopDistance) {
+            element.scrollLeft += loopDistance;
+          }
+        }
+      }
+
+      lastFrame.current = now;
+      frame = window.requestAnimationFrame(animate);
+    };
+
+    frame = window.requestAnimationFrame(animate);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    };
+  }, [itemCount]);
+
+  const duplicateChildren = Children.map(children, (child, index) =>
+    isValidElement(child)
+      ? cloneElement(child as ReactElement<Record<string, unknown>>, {
+          key: `infinite-copy-${index}`,
+          "aria-hidden": true,
+          inert: true,
+        })
+      : child,
+  );
 
   return (
     <>
@@ -42,14 +123,29 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
           </svg>
         </button>
       </div>
-      <div className="relative w-full min-w-0 max-w-full overflow-x-hidden [contain:paint]">
+      <div
+        className="relative w-full min-w-0 max-w-full overflow-x-hidden [contain:paint]"
+        onMouseEnter={() => { paused.current = true; if (resumeTimer.current) clearTimeout(resumeTimer.current); }}
+        onMouseLeave={pauseAndResumeAfterInteraction}
+        onTouchStart={() => { paused.current = true; if (resumeTimer.current) clearTimeout(resumeTimer.current); }}
+        onTouchEnd={pauseAndResumeAfterInteraction}
+        onTouchCancel={pauseAndResumeAfterInteraction}
+        onFocusCapture={() => { paused.current = true; if (resumeTimer.current) clearTimeout(resumeTimer.current); }}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            pauseAndResumeAfterInteraction();
+          }
+        }}
+      >
         <div
           ref={viewport}
           dir="rtl"
+          aria-label="جدیدترین محصولات"
           className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <ul className="flex w-full min-w-0 snap-x snap-mandatory gap-3 pb-3 sm:gap-4">
+          <ul ref={track} className="flex w-max min-w-full snap-x snap-mandatory gap-3 pb-3 sm:gap-4">
             {children}
+            {duplicateChildren}
           </ul>
         </div>
       </div>
