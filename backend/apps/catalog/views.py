@@ -48,6 +48,7 @@ class ProductDetailView(RetrieveAPIView):
             )
         )
 
+
 class ProductListView(ListAPIView):
     """Public, paginated listing of active products with search, filters and whitelisted sorting.
 
