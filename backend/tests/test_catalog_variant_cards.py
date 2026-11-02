@@ -23,7 +23,7 @@ def make_product():
         price=Decimal("1250000"),
         is_active=True,
     )
-    size = Size.objects.create(code="m", label="M")
+    size, _ = Size.objects.get_or_create(code="m", defaults={"label": "M"})
     black = ColorVariant.objects.create(product=product, name="مشکی", slug="black", hex_color="#111111", position=0)
     white = ColorVariant.objects.create(product=product, name="سفید", slug="white", hex_color="#ffffff", position=1)
     VariantImage.objects.create(
