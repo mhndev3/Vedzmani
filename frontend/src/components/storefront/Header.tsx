@@ -38,18 +38,15 @@ export function navItems(locale: Locale, t: Dictionary) {
 
 export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   const [visible, setVisible] = useState(true);
-  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [searchOpenedOnPath, setSearchOpenedOnPath] = useState<string | null>(null);
   const pathname = usePathname();
+  const searchExpanded = searchOpenedOnPath === pathname;
   const hideTimer = useRef<number | undefined>(undefined);
   const items = navItems(locale, t);
   const categoryItems = categories.map((category) => ({
     href: "/" + locale + "/categories/" + encodeURIComponent(category.slug),
     label: category.name,
   }));
-
-  useEffect(() => {
-    setSearchExpanded(false);
-  }, [pathname]);
 
   useEffect(() => {
     let frame = 0;
@@ -127,7 +124,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
           ))}
         </nav>
         <div className={"ms-auto flex items-center gap-1 " + (searchExpanded ? "min-w-0 flex-1" : "shrink-0")}>
-          <SearchButton locale={locale} expanded={searchExpanded} onExpandedChange={setSearchExpanded} />
+          <SearchButton locale={locale} expanded={searchExpanded} onExpandedChange={(value) => setSearchOpenedOnPath(value ? pathname : null)} />
           <CartButton locale={locale} />
           <Link href={"/" + locale + "/profile"} prefetch={false} aria-label="حساب کاربری" title="حساب کاربری" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
