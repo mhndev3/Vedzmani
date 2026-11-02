@@ -130,19 +130,15 @@ export function SearchButton({ locale }: { locale: Locale }) {
   return (
     <div
       ref={root}
-      className={
-        "relative z-50 h-10 shrink-0 transition-[width] duration-300 ease-out motion-reduce:transition-none " +
-        (expanded
-          ? "w-[min(48vw,28rem)] md:w-[min(38vw,30rem)]"
-          : "w-10")
-      }
+      data-testid="navbar-search-root"
+      className="relative z-50 h-10 w-10 shrink-0"
     >
       <div
         className={
           "flex h-10 items-center overflow-hidden rounded-full border bg-background transition-[border-color,box-shadow] duration-200 " +
           (expanded
-            ? "border-border shadow-sm ring-1 ring-border/60"
-            : "border-transparent")
+            ? "absolute end-0 top-0 z-50 w-[min(72vw,28rem)] border-border shadow-sm ring-1 ring-border/60 md:w-[min(38vw,30rem)]"
+            : "w-10 border-transparent")
         }
       >
         {expanded ? (
@@ -168,7 +164,7 @@ export function SearchButton({ locale }: { locale: Locale }) {
               setLoading(false);
             }}
             onFocus={() => { if (!expanded) open(); }}
-            placeholder="جستجوی نام یا کد محصول"
+            placeholder="جستجو"
             aria-label="جستجوی نام یا کد محصول"
             maxLength={100}
             tabIndex={expanded ? 0 : -1}
@@ -195,7 +191,8 @@ export function SearchButton({ locale }: { locale: Locale }) {
       {showPanel ? (
         <div
           id="navbar-search-results"
-          className="absolute end-0 top-[calc(100%+0.55rem)] max-h-[min(65dvh,28rem)] w-[min(82vw,28rem)] overflow-y-auto rounded-2xl border border-border bg-background p-2 text-foreground shadow-xl md:w-full"
+          data-testid="navbar-search-panel"
+          className="fixed left-1/2 top-[calc(5.25rem+env(safe-area-inset-top))] z-[60] max-h-[min(65dvh,28rem)] w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 overflow-y-auto rounded-2xl border border-border bg-background p-2 text-foreground shadow-xl"
         >
           {!query.trim() ? (
             <section className="p-2">
