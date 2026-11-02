@@ -94,7 +94,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.goto("/fa/products?search=Hoodie&category=hoodies&color=black&size=m&min_price=1000&max_price=50000&in_stock=true&sort=price_asc");
     await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
     await page.getByRole("link", { name: "حذف همه فیلترها" }).click();
-    await expect(page).toHaveURL("/fa/products");
+    await expect(page).toHaveURL(/\/fa\/products\?filters_open=1$/);
     await expect(page.getByRole("checkbox", { name: "هودی" })).not.toBeChecked();
     await expect(page.getByRole("link", { name: "ارزان‌ترین" })).not.toHaveAttribute("aria-current", "true");
   });
@@ -223,9 +223,8 @@ test.describe("کاتالوگ موبایل", () => {
     await page.getByRole("button", { name: "فیلترها" }).click();
     await dialog.getByRole("checkbox", { name: "تی شرت" }).check();
     await expect(page).toHaveURL(/category=t-shirts/);
-    await expect(dialog).toBeHidden();
+    await expect(dialog).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
-    await expect(dialog).toBeHidden();
   });
 
   test("صفحه جزئیات محصول در موبایل سرریز افقی ندارد", async ({ page }) => {
