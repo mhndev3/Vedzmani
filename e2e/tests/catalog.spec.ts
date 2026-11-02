@@ -235,8 +235,16 @@ test.describe("کاتالوگ موبایل", () => {
     await page.getByRole("button", { name: "فیلترها" }).click();
     await dialog.getByRole("checkbox", { name: "تی شرت" }).check();
     await expect(page).toHaveURL(/category=t-shirts/);
-    await expect(dialog).toBeVisible();
+    await expect(page).not.toHaveURL(/filters_open=1/);
+    await expect(dialog).toBeHidden();
     await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
+
+    // Reopen the drawer to continue with dependent filters for the chosen category.
+    await page.getByRole("button", { name: "فیلترها" }).click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("checkbox", { name: "تی شرت" })).toBeChecked();
+    await expect(dialog.getByRole("group", { name: "رنگ" })).toBeVisible();
+    await expect(dialog.getByRole("group", { name: "سایز" })).toBeVisible();
   });
 
   test("صفحه جزئیات محصول در موبایل سرریز افقی ندارد", async ({ page }) => {
