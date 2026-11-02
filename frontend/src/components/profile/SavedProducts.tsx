@@ -6,14 +6,34 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ProductCard } from "@/components/storefront/catalog/ProductCard";
 import { CarouselTrack } from "@/components/storefront/CarouselTrack";
-import type { ProductCardData } from "@/lib/catalog";
 import { apiRequest } from "@/lib/browser-api";
+
+type FavoriteCard = {
+  id: number;
+  variant_id: number;
+  name: string;
+  slug: string;
+  code: string | null;
+  price: string;
+  sale_price: string | null;
+  category: { name: string; slug: string };
+  color: { name: string; slug: string; hex_color: string | null };
+  in_stock: boolean;
+  image: {
+    url: string;
+    thumbnail_url?: string;
+    display_url?: string;
+    alt_text: string;
+    width: number;
+    height: number;
+  } | null;
+};
 
 type Favorite = {
   product_id: number;
   product_slug: string;
   product_name: string;
-  card: ProductCardData | null;
+  card: FavoriteCard | null;
 };
 
 export function SavedProducts({ locale, t }: { locale: Locale; t: Dictionary }) {
