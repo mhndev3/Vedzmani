@@ -78,7 +78,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             />
             {products.results.length ? (
               <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
-                {products.results.map((product, index) => <ProductCard key={product.id} product={product} locale={locale} t={t} eager={index < 4} />)}
+                {products.results.map((product, index) => <ProductCard key={product.variant_id} product={product} locale={locale} t={t} eager={index < 4} />)}
               </ul>
             ) : (
               <div className="mt-6 rounded-lg border border-border bg-muted p-8 text-center">

@@ -1,8 +1,9 @@
-"""Catalog listing query: parameter validation, filtering, search and sorting.
+"""Catalog listing query builders: parameter validation, filtering, search and sorting.
 
-Everything is done database-side. Joins that could multiply rows (collections,
-variants, sizes) are expressed as `Exists` sub-queries, so a product can never
-appear twice in a page and `count` is accurate.
+The compatibility product endpoint pages Product rows without join fan-out. The storefront
+variant endpoint pages ColorVariant rows, intentionally returning one card per active color.
+Both builders keep filters and ordering in SQL; related collections and purchasable sizes use
+Exists subqueries so each endpoint has an accurate count and no accidental row multiplication.
 """
 
 import re
@@ -146,3 +147,90 @@ def build_product_queryset(params: dict):
 def active_colors_queryset():
     """Lightweight swatch data for product cards (no images, no sizes)."""
     return ColorVariant.objects.filter(is_active=True).only("id", "product_id", "name", "slug", "hex_color", "position")
+
+
+def _variant_search_q(term: str) -> Q:
+    collection_match = Product.collections.through.objects.filter(
+        product_id=OuterRef("product_id"),
+        collection__is_active=True,
+        collection__name__icontains=term,
+    )
+    return (
+        Q(product__name__icontains=term)
+        | Q(name__icontains=term)
+        | Q(slug__icontains=term)
+        | Q(product__product_code__icontains=term)
+        | Q(product__slug__icontains=term)
+        | Q(product__description__icontains=term)
+        | Q(product__category__name__icontains=term)
+        | Q(Exists(collection_match))
+    )
+
+
+def _variant_image(field: str) -> Subquery:
+    image = (
+        VariantImage.objects.filter(variant=OuterRef("pk"), is_active=True)
+        .order_by("-is_primary", "position", "id")
+        .values(field)[:1]
+    )
+    return Subquery(image)
+
+
+def build_variant_queryset(params: dict):
+    """One storefront row per active color variant, with variant-owned media and stock."""
+    qs = ColorVariant.objects.filter(
+        is_active=True,
+        product__is_active=True,
+        product__category__is_active=True,
+    ).select_related("product", "product__category")
+
+    purchasable = VariantSize.objects.filter(variant=OuterRef("pk"), is_active=True)
+    qs = qs.annotate(
+        effective_price=Coalesce(
+            "product__sale_price", "product__price",
+            output_field=DecimalField(max_digits=14, decimal_places=0),
+        ),
+        in_stock=Exists(purchasable.filter(stock_quantity__gt=0)),
+        image_key=_variant_image("storage_key"),
+        image_thumbnail_key=_variant_image("thumbnail_storage_key"),
+        image_alt=_variant_image("alt_text"),
+        image_width=_variant_image("width"),
+        image_height=_variant_image("height"),
+    )
+
+    for term in (params.get("search") or "").split()[:MAX_SEARCH_TERMS]:
+        qs = qs.filter(_variant_search_q(term))
+
+    if params.get("category"):
+        qs = qs.filter(product__category__slug__in=params["category"])
+
+    if params.get("collection"):
+        in_collection = Product.collections.through.objects.filter(
+            product_id=OuterRef("product_id"),
+            collection__is_active=True,
+            collection__slug__in=params["collection"],
+        )
+        qs = qs.filter(Exists(in_collection))
+
+    if params.get("color"):
+        qs = qs.filter(slug__in=params["color"])
+
+    if params.get("size"):
+        qs = qs.filter(Exists(purchasable.filter(size__code__in=params["size"], stock_quantity__gt=0)))
+
+    if params.get("in_stock"):
+        qs = qs.filter(Exists(purchasable.filter(stock_quantity__gt=0)))
+
+    if params.get("min_price") is not None:
+        qs = qs.filter(effective_price__gte=params["min_price"])
+    if params.get("max_price") is not None:
+        qs = qs.filter(effective_price__lte=params["max_price"])
+
+    sort_options = {
+        "newest": ("-product__created_at", "-product_id", "position", "id"),
+        "price_asc": ("effective_price", "product_id", "position", "id"),
+        "price_desc": ("-effective_price", "-product_id", "position", "id"),
+        "name_asc": ("product__name", "product_id", "position", "id"),
+        "name_desc": ("-product__name", "-product_id", "position", "id"),
+    }
+    return qs.order_by(*sort_options[params.get("sort", DEFAULT_SORT)])

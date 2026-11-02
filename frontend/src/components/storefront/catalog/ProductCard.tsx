@@ -96,7 +96,7 @@ export function ProductCard({
   return (
     <li className={variant === "carousel" ? "min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(25%-12px)]" : "min-w-0"}>
       <Link
-        href={"/" + locale + "/products/" + product.slug}
+        href={"/" + locale + "/products/" + product.slug + "?color=" + encodeURIComponent(product.color.slug)}
         prefetch={false}
         className="group block h-full rounded-2xl border border-border bg-card p-2.5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
       >
@@ -108,6 +108,10 @@ export function ProductCard({
           noImage={t.catalog.noImage}
         />
         <h3 className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold">{product.name}</h3>
+        <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+          <ColorSwatch name={product.color.name} hexColor={product.color.hex_color} productCode={product.code} colorIndex={0} />
+          <span>{product.color.name}</span>
+        </p>
         {product.code && <p className="mt-1 text-xs text-muted-foreground">کد محصول: {product.code}</p>}
         <Price
           price={product.price}
@@ -119,16 +123,6 @@ export function ProductCard({
         <p className={"mt-1 text-xs " + (product.in_stock ? "text-muted-foreground" : "font-medium text-foreground")}>
           {product.in_stock ? t.catalog.inStock : t.catalog.outOfStock}
         </p>
-        {product.colors.length > 0 && (
-          <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={t.catalog.availableColors}>
-            {product.colors.map((c, index) => (
-              <li key={c.slug}>
-                <ColorSwatch name={c.name} hexColor={c.hex_color} productCode={product.code} colorIndex={index} />
-                <span className="sr-only">{c.name}</span>
-              </li>
-            ))}
-          </ul>
-        )}
       </Link>
     </li>
   );

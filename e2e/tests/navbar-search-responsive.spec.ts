@@ -21,7 +21,7 @@ for (const viewport of [{ name: "دسکتاپ", width: 1280, height: 800 }, { na
     await input.fill("Hoodie 07");
 
     const panel = page.getByTestId("navbar-search-panel");
-    const result = panel.getByRole("button", { name: /Hoodie 07/ });
+    const result = panel.getByRole("button", { name: /Hoodie 07/ }).first();
     await expect(result).toBeVisible();
 
     const expandedHeader = await headerBar.boundingBox();
@@ -61,10 +61,10 @@ test("انتخاب نتیجه، صفحه را عوض می‌کند و Navbar ر�
   const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
   await input.fill("Hoodie 07");
 
-  const result = page.getByTestId("navbar-search-panel").getByRole("button", { name: /Hoodie 07/ });
+  const result = page.getByTestId("navbar-search-panel").getByRole("button", { name: /Hoodie 07/ }).first();
   await expect(result).toBeVisible();
   await result.click();
-  await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07$/);
+  await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07\?color=black$/);
   await expect(headerBar).toHaveClass(/rounded-full/);
   const after = await headerBar.boundingBox();
   expect(after?.width).toBeCloseTo(before?.width ?? 0, 0);

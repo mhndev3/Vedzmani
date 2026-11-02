@@ -133,15 +133,16 @@ export type Swatch = { name: string; slug: string; hex_color: string };
 
 export type ProductCardData = {
   id: number;
+  variant_id: number;
   name: string;
   slug: string;
   code: string | null;
   price: string;
   sale_price: string | null;
   category: { name: string; slug: string };
+  color: Swatch;
   in_stock: boolean;
   image: CatalogImage | null;
-  colors: Swatch[];
 };
 
 export type Paginated<T> = {
@@ -202,7 +203,7 @@ export function totalPages(count: number): number {
 export async function getProducts(state: CatalogState, init?: RequestInit): Promise<Paginated<ProductCardData>> {
   const p = stateToParams(state);
   p.set("page_size", String(PAGE_SIZE));
-  return apiGet<Paginated<ProductCardData>>(`/api/catalog/products/?${p.toString()}`, init);
+  return apiGet<Paginated<ProductCardData>>(`/api/catalog/variant-products/?${p.toString()}`, init);
 }
 
 /** Vocabulary changes rarely; cache each category scope for a short revalidation window. */
