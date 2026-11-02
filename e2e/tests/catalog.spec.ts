@@ -17,13 +17,13 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
   test("فیلتر دسکتاپ به‌صورت سایدبار ثابت می‌ماند، حتی پس از ناوبری فیلتر", async ({ page }) => {
     await page.goto("/fa/products");
-    const sidebar = page.locator('dialog[aria-label="فیلترها"]');
+    const sidebar = page.locator('div[aria-label="فیلترها"]');
     await expect(sidebar).toBeVisible();
-    await expect(sidebar).not.toHaveAttribute("open");
+    await expect(page.locator('dialog[aria-label="فیلترها"]')).toBeHidden();
 
     await page.goto("/fa/products?category=hoodies&filters_open=1");
     await expect(sidebar).toBeVisible();
-    await expect(sidebar).not.toHaveAttribute("open");
+    await expect(page.locator('dialog[aria-label="فیلترها"]')).toBeHidden();
     await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
   });
 
