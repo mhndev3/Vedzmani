@@ -172,6 +172,7 @@ export type ProductDetail = {
     id: number;
     name: string;
     slug: string;
+    product_code: string | null;
     hex_color: string;
     images: {
       url: string;
