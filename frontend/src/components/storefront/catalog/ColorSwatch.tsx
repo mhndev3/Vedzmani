@@ -32,11 +32,13 @@ export function ColorSwatch({
   hexColor,
   className = "size-3.5",
   productCode,
+  colorIndex,
 }: {
   name: string;
   hexColor?: string | null;
   className?: string;
   productCode?: string | null;
+  colorIndex?: number;
 }) {
   const code = productCode?.trim().split(/[.-]/)[0];
   const twoToneColors: Record<string, [string, string]> = {
@@ -45,9 +47,11 @@ export function ColorSwatch({
     "04": ["#171717", "#dc2626"],
   };
   const twoTone = code ? twoToneColors[code] : undefined;
+  const isSkyBlueFirst = code === "05" && colorIndex === 0 && normalize(name) === "آبی آسمانی";
+  const isShirtWhiteSecond = code === "01" && colorIndex === 1;
   const style: CSSProperties = twoTone
     ? { background: `linear-gradient(135deg, ${twoTone[0]} 0 50%, ${twoTone[1]} 50% 100%)` }
-    : { backgroundColor: resolveColor(hexColor, name) };
+    : { backgroundColor: isSkyBlueFirst ? "#a8d8f0" : isShirtWhiteSecond ? "#e5e7eb" : resolveColor(hexColor, name) };
   return (
     <span
       aria-hidden="true"
