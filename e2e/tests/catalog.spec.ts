@@ -15,6 +15,18 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByText("صفحه ۱ از ۳")).toBeVisible();
   });
 
+  test("هر رنگ در فهرست کارت مستقل با تصویر همان رنگ دارد", async ({ page }) => {
+    await page.goto("/fa/products?search=E2E-HOODIE-01");
+    const blackCard = page.locator('a[href="/fa/products/e2e-hoodie-01?color=black"]');
+    const whiteCard = page.locator('a[href="/fa/products/e2e-hoodie-01?color=white"]');
+    await expect(blackCard).toBeVisible();
+    await expect(whiteCard).toBeVisible();
+    await expect(blackCard.getByRole("img")).toHaveAttribute("alt", "Hoodie 01 Black front");
+    await expect(whiteCard.getByRole("img")).toHaveAttribute("alt", "Hoodie 01 White front");
+    await expect(blackCard).toContainText("Black");
+    await expect(whiteCard).toContainText("White");
+  });
+
   test("فیلتر دسکتاپ به‌صورت سایدبار ثابت می‌ماند، حتی پس از ناوبری فیلتر", async ({ page }) => {
     await page.goto("/fa/products");
     const sidebar = page.locator('div[aria-label="فیلترها"]');
@@ -49,7 +61,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
     await input.fill("E2E-HOODIE-07");
-    const result = page.locator("#navbar-search-results").getByRole("button", { name: /کد: E2E-HOODIE-07/ });
+    const result = page.locator("#navbar-search-results").getByRole("button", { name: /کد: E2E-HOODIE-07/ }).first();
     await expect(result).toContainText("Hoodie 07");
     await input.press("Enter");
     await expect(page).toHaveURL(/search=E2E-HOODIE-07/);
@@ -61,7 +73,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
     await input.fill("Hoodie 07");
-    const result = page.locator("#navbar-search-results").getByRole("button", { name: /Hoodie 07/ });
+    const result = page.locator("#navbar-search-results").getByRole("button", { name: /Hoodie 07/ }).first();
     await expect(result).toBeVisible();
     await result.click();
     await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07\?color=black$/);
@@ -139,7 +151,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByText("صفحه ۲ از ۳")).toBeVisible();
     await expect(cards(page)).toHaveCount(24);
     await page.goBack();
-    await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
+    await expect(page.getByText("صفحه ۱ از ۳")).toBeVisible();
   });
 
   test("صفحه خارج از محدوده به صفحه اول برمی‌گردد", async ({ page }) => {
