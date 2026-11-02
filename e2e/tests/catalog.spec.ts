@@ -17,13 +17,13 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
   test("فیلتر دسکتاپ به‌صورت سایدبار ثابت می‌ماند، حتی پس از ناوبری فیلتر", async ({ page }) => {
     await page.goto("/fa/products");
-    const sidebar = page.locator('dialog[aria-label="فیلترها"]');
+    const sidebar = page.locator('div[aria-label="فیلترها"]');
     await expect(sidebar).toBeVisible();
-    await expect(sidebar).not.toHaveAttribute("open");
+    await expect(page.locator('dialog[aria-label="فیلترها"]')).toBeHidden();
 
     await page.goto("/fa/products?category=hoodies&filters_open=1");
     await expect(sidebar).toBeVisible();
-    await expect(sidebar).not.toHaveAttribute("open");
+    await expect(page.locator('dialog[aria-label="فیلترها"]')).toBeHidden();
     await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
   });
 
@@ -113,8 +113,9 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
   test("فیلتر بازه قیمت در سمت سرور اعمال می‌شود", async ({ page }) => {
     await page.goto("/fa/products?category=hoodies&min_price=14000&max_price=15500");
-    await expect(page.getByLabel("حداقل قیمت")).toHaveValue("14000");
-    await expect(page.getByTestId("price-range-control").locator('input[type="range"]')).toHaveCount(2);
+    const sidebar = page.locator('div[aria-label="فیلترها"]');
+    await expect(sidebar.getByLabel("حداقل قیمت")).toHaveValue("14000");
+    await expect(sidebar.getByTestId("price-range-control").locator('input[type="range"]')).toHaveCount(2);
     await expect(cards(page)).toHaveCount(2);
   });
 
@@ -235,8 +236,16 @@ test.describe("کاتالوگ موبایل", () => {
     await page.getByRole("button", { name: "فیلترها" }).click();
     await dialog.getByRole("checkbox", { name: "تی شرت" }).check();
     await expect(page).toHaveURL(/category=t-shirts/);
-    await expect(dialog).toBeVisible();
+    await expect(page).not.toHaveURL(/filters_open=1/);
+    await expect(dialog).toBeHidden();
     await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
+
+    // Reopen the drawer to continue with dependent filters for the chosen category.
+    await page.getByRole("button", { name: "فیلترها" }).click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("checkbox", { name: "تی شرت" })).toBeChecked();
+    await expect(dialog.getByRole("group", { name: "رنگ" })).toBeVisible();
+    await expect(dialog.getByRole("group", { name: "سایز" })).toBeVisible();
   });
 
   test("صفحه جزئیات محصول در موبایل سرریز افقی ندارد", async ({ page }) => {

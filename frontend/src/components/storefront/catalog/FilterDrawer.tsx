@@ -3,10 +3,8 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 /**
- * The only client code in the catalog. One <dialog> serves both layouts:
- * below `lg` it is a native modal sheet (focus trap, Esc and backdrop come
- * from the platform); from `lg` up it is displayed statically as the sidebar.
- * The filter form inside is server-rendered, so there is a single DOM copy.
+ * Desktop uses a permanent, right-side filter card matching the original
+ * catalog layout. Mobile keeps the modal drawer and its existing behavior.
  */
 export function FilterDrawer({
   children,
@@ -25,8 +23,7 @@ export function FilterDrawer({
 
   useEffect(() => {
     const dialog = ref.current;
-    // URL state is used to preserve the mobile drawer after server navigation.
-    // Never turn the desktop sidebar into a full-screen modal.
+    // Preserve the mobile drawer across filter navigation, never on desktop.
     if (
       openOnLoad &&
       dialog &&
@@ -39,6 +36,15 @@ export function FilterDrawer({
 
   return (
     <>
+      {/* Desktop: static sidebar, never a dialog or full-screen overlay. */}
+      <div
+        aria-label={title}
+        className="hidden rounded-2xl border border-border bg-card p-4 text-foreground shadow-sm lg:block"
+      >
+        {children}
+      </div>
+
+      {/* Mobile: retain the existing modal drawer interaction. */}
       <button
         type="button"
         aria-haspopup="dialog"
@@ -62,9 +68,9 @@ export function FilterDrawer({
         onClick={(e) => {
           if (e.target === ref.current) ref.current?.close();
         }}
-        className="fixed inset-y-0 start-0 m-0 h-dvh max-h-dvh w-80 max-w-[88vw] overflow-y-auto rounded-e-3xl border border-border bg-background p-4 text-foreground shadow-2xl backdrop:bg-black/50 lg:static lg:block lg:h-auto lg:max-h-none lg:w-full lg:max-w-none lg:overflow-visible lg:rounded-2xl lg:bg-card lg:p-4 lg:shadow-sm"
+        className="fixed inset-y-0 start-0 m-0 h-dvh max-h-dvh w-80 max-w-[88vw] overflow-y-auto rounded-e-3xl border border-border bg-background p-4 text-foreground shadow-2xl backdrop:bg-black/50 lg:hidden"
       >
-        <div className="mb-4 flex items-center justify-between lg:hidden">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">{title}</h2>
           <button
             type="button"

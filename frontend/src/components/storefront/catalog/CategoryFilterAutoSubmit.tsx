@@ -23,6 +23,10 @@ export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) 
       else field.value = "";
     });
 
+    // A category choice is the first step, not the whole filtering session.
+    // Submit it without filters_open so the mobile drawer closes after the
+    // refreshed category results and the user can reopen it for colour/size.
+    form.querySelector<HTMLInputElement>('input[name="filters_open"]')?.remove();
     form.requestSubmit();
   }
 
