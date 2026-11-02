@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { MobileNav } from "./MobileNav";
@@ -37,6 +38,9 @@ export function navItems(locale: Locale, t: Dictionary) {
 
 export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   const [visible, setVisible] = useState(true);
+  const [searchOpenedOnPath, setSearchOpenedOnPath] = useState<string | null>(null);
+  const pathname = usePathname();
+  const searchExpanded = searchOpenedOnPath === pathname;
   const hideTimer = useRef<number | undefined>(undefined);
   const items = navItems(locale, t);
   const categoryItems = categories.map((category) => ({
@@ -47,6 +51,10 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   useEffect(() => {
     let frame = 0;
     const onScroll = () => {
+      if (searchExpanded) {
+        setVisible(true);
+        return;
+      }
       if (!frame) {
         frame = window.requestAnimationFrame(() => {
           setVisible((current) => (current ? false : current));
@@ -62,7 +70,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
       if (frame) window.cancelAnimationFrame(frame);
       if (hideTimer.current !== undefined) window.clearTimeout(hideTimer.current);
     };
-  }, []);
+  }, [searchExpanded]);
 
   return (
     <header
@@ -70,7 +78,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
       inert={!visible}
       className={"sticky top-0 z-40 transition-transform duration-150 motion-reduce:transition-none " + (visible ? "translate-y-0" : "-translate-y-full")}
     >
-      <div className="mx-auto my-2 flex h-16 max-w-6xl items-center gap-3 rounded-full border border-border bg-background/95 px-3 shadow-sm sm:px-4">
+      <div className={"flex items-center gap-3 border border-border bg-background/95 shadow-sm transition-[height,width,max-width,border-radius,margin,padding] duration-200 " + (searchExpanded ? "my-0 h-20 w-full max-w-none rounded-b-2xl rounded-t-none px-3 sm:px-5" : "mx-auto my-2 h-16 max-w-6xl rounded-full px-3 sm:px-4")}>
         <MobileNav
           items={items}
           categories={categoryItems}
@@ -115,8 +123,8 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
             </Link>
           ))}
         </nav>
-        <div className="ms-auto flex shrink-0 items-center gap-1">
-          <SearchButton locale={locale} />
+        <div className={"ms-auto flex items-center gap-1 " + (searchExpanded ? "min-w-0 flex-1" : "shrink-0")}>
+          <SearchButton locale={locale} expanded={searchExpanded} onExpandedChange={(value) => setSearchOpenedOnPath(value ? pathname : null)} />
           <CartButton locale={locale} />
           <Link href={"/" + locale + "/profile"} prefetch={false} aria-label="حساب کاربری" title="حساب کاربری" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
