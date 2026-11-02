@@ -83,5 +83,8 @@ def test_search_matches_variant_color_name_and_category_is_preserved():
 def test_inactive_variants_and_products_are_not_listed():
     product = make_product()
     ColorVariant.objects.filter(product=product, slug="white").update(is_active=False)
+    response = Client().get(URL).json()
+    assert response["count"] == 1
+    assert response["results"][0]["color"]["slug"] == "black"
     Product.objects.filter(pk=product.pk).update(is_active=False)
     assert Client().get(URL).json()["count"] == 0
