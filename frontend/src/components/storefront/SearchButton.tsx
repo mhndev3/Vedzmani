@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import { SearchIcon, CloseIcon } from "./icons";
 
-type SearchProduct = { id: number; name: string; slug: string; code: string | null };
+type SearchProduct = { id: number; variant_id: number; name: string; slug: string; code: string | null; color: { name: string; slug: string } };
 type SearchResponse = { results: SearchProduct[] };
 const HISTORY_KEY = "vedzmani:search-history";
 
@@ -60,7 +60,7 @@ export function SearchButton({
     const timer = window.setTimeout(async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/catalog/products/?search=${encodeURIComponent(term)}&page_size=8`, {
+        const response = await fetch(`/api/catalog/variant-products/?search=${encodeURIComponent(term)}&page_size=8`, {
           credentials: "same-origin",
           cache: "no-store",
           signal: controller.signal,
@@ -129,7 +129,7 @@ export function SearchButton({
   function choose(product: SearchProduct) {
     remember(query);
     close();
-    router.push(`/${locale}/products/${product.slug}`);
+    router.push(`/${locale}/products/${product.slug}?color=${encodeURIComponent(product.color.slug)}`);
   }
 
   const showPanel = expanded && (query.trim().length > 0 || history.length > 0);
@@ -223,13 +223,13 @@ export function SearchButton({
           ) : results.length > 0 ? (
             <ul className="space-y-1">
               {results.map((product) => (
-                <li key={product.id}>
+                <li key={product.variant_id}>
                   <button
                     type="button"
                     onClick={() => choose(product)}
                     className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-start transition hover:bg-muted"
                   >
-                    <span className="min-w-0 truncate text-sm font-medium">{product.name}</span>
+                    <span className="min-w-0 truncate text-sm font-medium">{product.name} · {product.color.name}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">کد: {product.code ?? "ثبت نشده"}</span>
                   </button>
                 </li>
