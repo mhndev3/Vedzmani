@@ -1,5 +1,6 @@
 import random
 
+from django.core.validators import RegexValidator
 from django.db import migrations, models
 
 
@@ -37,6 +38,7 @@ class Migration(migrations.Migration):
                 ("next_value", models.PositiveIntegerField(default=1)),
             ],
         ),
+        migrations.RunPython(assign_numeric_card_codes, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="colorvariant",
             name="product_code",
@@ -46,7 +48,7 @@ class Migration(migrations.Migration):
                 null=True,
                 unique=True,
                 validators=[
-                    models.RegexValidator(
+                    RegexValidator(
                         regex="^\\d+$",
                         message="کد کارت باید فقط شامل عدد باشد.",
                     )
@@ -54,5 +56,5 @@ class Migration(migrations.Migration):
                 verbose_name="کد کارت محصول",
             ),
         ),
-        migrations.RunPython(assign_numeric_card_codes, migrations.RunPython.noop),
+
     ]
