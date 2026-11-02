@@ -169,7 +169,7 @@ class ColorVariant(models.Model):
         unique=True,
         null=True,
         blank=True,
-        validators=[RegexValidator(r"^\\d+$", "کد کارت باید فقط شامل عدد باشد.")],
+        validators=[RegexValidator(r"^\d+$", "کد کارت باید فقط شامل عدد باشد.")],
     )
     hex_color = models.CharField(max_length=7, blank=True, validators=[validate_hex_color])
     is_active = models.BooleanField(default=True)
