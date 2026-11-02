@@ -88,16 +88,26 @@ export function ProductCard({
   eager,
   variant = "grid",
   removeAction,
+  "aria-hidden": ariaHidden,
+  inert,
 }: {
   product: ProductCardData;
   locale: Locale;
   t: Dictionary;
   eager?: boolean;
-  variant?: "grid" | "carousel";
+  variant?: "grid" | "carousel" | "carousel-wide";
   removeAction?: ReactNode;
+  "aria-hidden"?: boolean;
+  inert?: boolean;
 }) {
+  const variantClass = variant === "carousel"
+    ? "min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(25%-12px)]"
+    : variant === "carousel-wide"
+      ? "min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(50%-8px)]"
+      : "min-w-0";
+
   return (
-    <li className={(variant === "carousel" ? "min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(25%-12px)]" : "min-w-0") + " relative"}>
+    <li className={variantClass + " relative"} aria-hidden={ariaHidden} inert={inert}>
       {removeAction && <div className="absolute end-4 top-4 z-20">{removeAction}</div>}
       <Link
         href={"/" + locale + "/products/" + product.slug + "?color=" + encodeURIComponent(product.color.slug)}

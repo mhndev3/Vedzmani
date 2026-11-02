@@ -92,11 +92,11 @@ export function SavedProducts({ locale, t }: { locale: Locale; t: Dictionary }) 
                 locale={locale}
                 t={t}
                 eager={index === 0}
-                variant="carousel"
+                variant="carousel-wide"
                 removeAction={removeButton(item)}
               />
             ) : (
-              <li key={item.product_id} className="relative min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(25%-12px)]">
+              <li key={item.product_id} className="relative min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(50%-8px)]">
                 <div className="h-full rounded-2xl border border-border bg-card p-4 pt-14 shadow-sm">
                   <div className="absolute end-4 top-4 z-20">{removeButton(item)}</div>
                   <Link href={`/${locale}/products/${item.product_slug}`} className="font-semibold hover:underline">
