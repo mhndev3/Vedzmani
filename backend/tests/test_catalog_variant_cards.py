@@ -1,5 +1,6 @@
-import pytest
 from decimal import Decimal
+
+import pytest
 from django.test import Client
 
 from apps.catalog.models import Category, ColorVariant, Product, Size, VariantImage, VariantSize
