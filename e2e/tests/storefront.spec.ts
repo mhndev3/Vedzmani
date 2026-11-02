@@ -241,8 +241,8 @@ test("header hides while scrolling and returns after scrolling stops", async ({ 
 test("header search opens and blank search does not show products", async ({ page }) => {
   await page.goto("/fa");
   await page.getByRole("button", { name: "جستجوی محصولات" }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("list")).toHaveCount(0);
-  await expect(dialog.getByText("جستجوهای اخیر")).toHaveCount(0);
+  const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
+  await expect(input).toBeVisible();
+  await expect(page.locator("#navbar-search-results")).toHaveCount(0);
+  await expect(page.getByText("جستجوهای اخیر")).toHaveCount(0);
 });

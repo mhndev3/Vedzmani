@@ -47,10 +47,9 @@ test.describe("کاتالوگ دسکتاپ", () => {
   test("جست‌وجو با کد محصول و نام از آیکون هدر انجام می‌شود", async ({ page }) => {
     await page.goto("/fa/products");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
-    const dialog = page.getByRole("dialog");
-    const input = dialog.getByRole("searchbox", { name: "نام یا کد محصول" });
+    const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
     await input.fill("E2E-HOODIE-07");
-    const result = dialog.getByRole("button", { name: /کد: E2E-HOODIE-07/ });
+    const result = page.locator("#navbar-search-results").getByRole("button", { name: /کد: E2E-HOODIE-07/ });
     await expect(result).toContainText("Hoodie 07");
     await input.press("Enter");
     await expect(page).toHaveURL(/search=E2E-HOODIE-07/);
@@ -60,10 +59,9 @@ test.describe("کاتالوگ دسکتاپ", () => {
   test("انتخاب نتیجه جست‌وجو و سابقه جست‌وجو کار می‌کند", async ({ page }) => {
     await page.goto("/fa");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
-    const dialog = page.getByRole("dialog");
-    const input = dialog.getByRole("searchbox", { name: "نام یا کد محصول" });
+    const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
     await input.fill("Hoodie 07");
-    const result = dialog.getByRole("button", { name: /Hoodie 07/ });
+    const result = page.locator("#navbar-search-results").getByRole("button", { name: /Hoodie 07/ });
     await expect(result).toBeVisible();
     await result.click();
     await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07$/);
