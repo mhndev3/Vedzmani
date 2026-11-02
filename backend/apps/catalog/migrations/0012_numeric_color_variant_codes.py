@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="ColorVariantCodeCounter",
             fields=[
-                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("next_value", models.PositiveIntegerField(default=1)),
             ],
         ),
@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
                 unique=True,
                 validators=[
                     RegexValidator(
-                        regex="^\\d+$",
+                        regex=r"^\d+$",
                         message="کد کارت باید فقط شامل عدد باشد.",
                     )
                 ],
