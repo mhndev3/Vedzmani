@@ -39,7 +39,9 @@ export default async function ProductsPage({ params, searchParams }: Props) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
-  const state = parseCatalogState(await searchParams);
+  const rawSearchParams = await searchParams;
+  const state = parseCatalogState(rawSearchParams);
+  const keepFiltersOpen = rawSearchParams.filters_open === "1" || (Array.isArray(rawSearchParams.filters_open) && rawSearchParams.filters_open.includes("1"));
 
   // Both requests start together; the filter vocabulary is optional (the page works without it).
   const optionsPromise: Promise<FilterOptions | null> = getFilterOptions(state.category.join(",")).catch(() => null);
@@ -79,6 +81,7 @@ export default async function ProductsPage({ params, searchParams }: Props) {
               title={t.catalog.filters}
               closeLabel={t.catalog.closeFilters}
               activeCount={activeFilterCount}
+              openOnLoad={keepFiltersOpen}
             >
               <CategoryFilterAutoSubmit>
                 <FilterForm locale={locale} t={t} state={state} options={options} />

@@ -30,7 +30,7 @@ def test_filter_options_only_include_published_data():
     assert [c["slug"] for c in data["categories"]] == ["hoodie"]
     assert [c["slug"] for c in data["collections"]] == ["winter"]
     assert sorted(c["slug"] for c in data["colors"]) == ["black", "white"]
-    assert sorted(s["code"] for s in data["sizes"]) == ["l", "m", "s"]
+    assert sorted(s["code"] for s in data["sizes"]) == ["m", "s"]
 
 
 def test_filter_options_ignore_inactive_variants():
@@ -74,3 +74,11 @@ def test_dependent_filter_options_accept_multiple_selected_categories():
     assert sorted(c["slug"] for c in data["collections"]) == ["summer", "winter"]
     assert sorted(c["slug"] for c in data["colors"]) == ["black", "red"]
     assert sorted(s["code"] for s in data["sizes"]) == ["m", "xl"]
+
+
+def test_filter_options_exclude_sizes_with_zero_stock():
+    make("live", category="hoodie", variants={"black": {"m": 2, "xxxl": 0}})
+
+    data = Client().get(URL, {"category": "hoodie"}).json()
+
+    assert [s["code"] for s in data["sizes"]] == ["m"]

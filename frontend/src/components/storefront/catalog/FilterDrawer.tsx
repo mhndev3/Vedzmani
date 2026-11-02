@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 /**
  * The only client code in the catalog. One <dialog> serves both layouts:
@@ -13,19 +13,30 @@ export function FilterDrawer({
   title,
   closeLabel,
   activeCount,
+  openOnLoad = false,
 }: {
   children: ReactNode;
   title: string;
   closeLabel: string;
   activeCount: number;
+  openOnLoad?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (openOnLoad && dialog && !dialog.open) dialog.showModal();
+  }, [openOnLoad]);
+
   return (
     <>
       <button
         type="button"
         aria-haspopup="dialog"
-        onClick={() => ref.current?.showModal()}
+        onClick={() => {
+          const dialog = ref.current;
+          if (dialog && !dialog.open) dialog.showModal();
+        }}
         className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:bg-muted lg:hidden"
       >
         {title}
