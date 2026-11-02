@@ -67,6 +67,7 @@ class ColorVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ColorVariant
         fields = ["id", "name", "slug", "product_code", "hex_color", "images", "sizes"]
+        read_only_fields = ["product_code"]
 
 
 class CategorySerializer(serializers.ModelSerializer):
