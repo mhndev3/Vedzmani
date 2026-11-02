@@ -82,3 +82,28 @@ def test_filter_options_exclude_sizes_with_zero_stock():
     data = Client().get(URL, {"category": "hoodie"}).json()
 
     assert [s["code"] for s in data["sizes"]] == ["m"]
+
+
+def test_product_size_filter_never_matches_zero_stock_sizes():
+    make(
+        "hoodie-stock-facets",
+        category="hoodie",
+        variants={"black": {"m": 2, "xxxl": 0}},
+    )
+
+    response = Client().get("/api/catalog/products/", {"category": "hoodie", "size": "xxxl"})
+
+    assert response.status_code == 200
+    assert response.json()["count"] == 0
+    assert response.json()["results"] == []
+
+
+def test_filter_color_swatch_prefers_non_empty_hex_when_slug_is_shared():
+    make("hoodie-color-with-hex", category="hoodie", variants={"sage": {"m": 1}})
+    make("hoodie-color-without-hex", category="hoodie", variants={"sage": {"m": 1}})
+    ColorVariant.objects.filter(product__slug="hoodie-color-without-hex").update(hex_color="")
+
+    data = Client().get(URL, {"category": "hoodie"}).json()
+    sage = next(color for color in data["colors"] if color["slug"] == "sage")
+
+    assert sage["hex_color"] == "#000000"

@@ -15,6 +15,18 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
   });
 
+  test("فیلتر دسکتاپ به‌صورت سایدبار ثابت می‌ماند، حتی پس از ناوبری فیلتر", async ({ page }) => {
+    await page.goto("/fa/products");
+    const sidebar = page.locator('dialog[aria-label="فیلترها"]');
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).not.toHaveAttribute("open");
+
+    await page.goto("/fa/products?category=hoodies&filters_open=1");
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).not.toHaveAttribute("open");
+    await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
+  });
+
   test("منوی کشویی دسته‌بندی دسکتاپ به صفحه همان دسته می‌رود", async ({ page }) => {
     await page.goto("/fa");
     const nav = page.getByRole("navigation", { name: "ناوبری اصلی" });
