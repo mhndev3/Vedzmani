@@ -48,6 +48,10 @@ def test_catalog_returns_one_independent_card_per_active_color_with_its_own_imag
     black, white = body["results"]
     assert black["id"] == white["id"] == product.id
     assert black["variant_id"] != white["variant_id"]
+    assert black["code"] and white["code"]
+    assert black["code"] != white["code"]
+    assert black["code"].startswith(product.product_code)
+    assert white["code"].startswith(product.product_code)
     assert black["slug"] == white["slug"] == product.slug
     assert black["category"] == white["category"] == {"name": "بافت", "slug": "knitwear"}
     assert black["color"] == {"name": "مشکی", "slug": "black", "hex_color": "#111111"}
@@ -56,6 +60,15 @@ def test_catalog_returns_one_independent_card_per_active_color_with_its_own_imag
     assert white["image"]["url"] == f"/media/knit/{product.slug.removeprefix('collared-knit-')}-white.webp"
     assert black["in_stock"] is True
     assert white["in_stock"] is False
+
+    detail = Client().get(f"/api/catalog/products/{product.slug}/").json()
+    detail_codes = {color["slug"]: color["product_code"] for color in detail["colors"]}
+    assert detail_codes == {"black": black["code"], "white": white["code"]}
+
+    code_search = Client().get(URL, {"search": white["code"]}).json()
+    assert code_search["count"] == 1
+    assert code_search["results"][0]["code"] == white["code"]
+
     for item in body["results"]:
         assert set(item) == {
             "id", "variant_id", "name", "slug", "code", "price", "sale_price",
