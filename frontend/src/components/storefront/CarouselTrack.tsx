@@ -10,7 +10,15 @@ import {
   type ReactNode,
 } from "react";
 
-export function CarouselTrack({ children, itemCount }: { children: ReactNode; itemCount: number }) {
+export function CarouselTrack({
+  children,
+  itemCount,
+  ariaLabel = "جدیدترین محصولات",
+}: {
+  children: ReactNode;
+  itemCount: number;
+  ariaLabel?: string;
+}) {
   const viewport = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLUListElement>(null);
   const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -141,7 +149,7 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
         <div
           ref={viewport}
           dir="rtl"
-          aria-label="جدیدترین محصولات"
+          aria-label={ariaLabel}
           className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <ul ref={track} className="flex w-full min-w-0 snap-x snap-mandatory gap-3 pb-3 sm:gap-4">

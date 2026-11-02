@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { type CatalogImage, type ProductCardData } from "@/lib/catalog";
@@ -86,15 +87,18 @@ export function ProductCard({
   t,
   eager,
   variant = "grid",
+  removeAction,
 }: {
   product: ProductCardData;
   locale: Locale;
   t: Dictionary;
   eager?: boolean;
   variant?: "grid" | "carousel";
+  removeAction?: ReactNode;
 }) {
   return (
-    <li className={variant === "carousel" ? "min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(25%-12px)]" : "min-w-0"}>
+    <li className={(variant === "carousel" ? "min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(25%-12px)]" : "min-w-0") + " relative"}>
+      {removeAction && <div className="absolute end-4 top-4 z-20">{removeAction}</div>}
       <Link
         href={"/" + locale + "/products/" + product.slug + "?color=" + encodeURIComponent(product.color.slug)}
         prefetch={false}

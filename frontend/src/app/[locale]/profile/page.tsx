@@ -52,7 +52,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             <dd className="mt-1" dir="ltr" style={{ textAlign: "start" }}>{state.profile.phone}</dd>
           </dl>
           <ProfileForm initialProfile={state.profile} locale={locale} continueTo={continueTo} />
-          <SavedProducts locale={locale} />
+          <SavedProducts locale={locale} t={t} />
         </>
       )}
       {state.kind === "anonymous" && (

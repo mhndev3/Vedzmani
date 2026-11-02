@@ -3,11 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
+import type { Dictionary } from "@/i18n/dictionaries";
+import { ProductCard } from "@/components/storefront/catalog/ProductCard";
+import { CarouselTrack } from "@/components/storefront/CarouselTrack";
+import type { ProductCardData } from "@/lib/catalog";
 import { apiRequest } from "@/lib/browser-api";
 
-type Favorite = { product_id: number; product_slug: string; product_name: string };
+type Favorite = {
+  product_id: number;
+  product_slug: string;
+  product_name: string;
+  card: ProductCardData | null;
+};
 
-export function SavedProducts({ locale }: { locale: Locale }) {
+export function SavedProducts({ locale, t }: { locale: Locale; t: Dictionary }) {
   const [items, setItems] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -37,24 +46,96 @@ export function SavedProducts({ locale }: { locale: Locale }) {
     }
   }
 
+  function removeButton(item: Favorite) {
+    return (
+      <button
+        type="button"
+        onClick={() => void remove(item.product_slug)}
+        disabled={removing !== null}
+        aria-label={`حذف ${item.product_name} از نشان‌شده‌ها`}
+        title="حذف از نشان‌شده‌ها"
+        className="inline-flex size-9 items-center justify-center rounded-full border border-border bg-card/95 text-foreground shadow-md backdrop-blur transition hover:border-destructive/50 hover:bg-destructive hover:text-destructive-foreground disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {removing === item.product_slug ? (
+          <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
+        ) : (
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none">
+            <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        )}
+      </button>
+    );
+  }
+
+  const useCarousel = items.length > 2;
+
   return (
-    <section className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-sm" aria-labelledby="saved-products-title">
-      <h2 id="saved-products-title" className="text-lg font-semibold">نشان‌شده‌ها</h2>
-      {loading ? <p className="mt-3 text-sm text-muted-foreground">در حال بارگذاری…</p> :
-        items.length ? (
-          <ul className="mt-3 divide-y divide-border">
-            {items.map((item) => (
-              <li key={item.product_id} className="flex items-center justify-between gap-3 py-3">
-                <Link href={`/${locale}/products/${item.product_slug}`} className="min-w-0 font-medium transition hover:text-muted-foreground">{item.product_name}</Link>
-                <button type="button" onClick={() => void remove(item.product_slug)} disabled={removing !== null}
-                  className="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs transition hover:bg-muted disabled:opacity-60">
-                  {removing === item.product_slug ? "در حال حذف…" : "حذف"}
-                </button>
+    <section className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6" aria-labelledby="saved-products-title">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <h2 id="saved-products-title" className="text-lg font-semibold">نشان‌شده‌ها</h2>
+          {!loading && items.length > 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">{items.length.toLocaleString("fa-IR")} محصول</p>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="py-6 text-sm text-muted-foreground">در حال بارگذاری…</p>
+      ) : items.length ? (
+        useCarousel ? (
+          <CarouselTrack itemCount={items.length} ariaLabel="محصولات نشان‌شده">
+            {items.map((item, index) => item.card ? (
+              <ProductCard
+                key={item.product_id}
+                product={item.card}
+                locale={locale}
+                t={t}
+                eager={index === 0}
+                variant="carousel"
+                removeAction={removeButton(item)}
+              />
+            ) : (
+              <li key={item.product_id} className="relative min-w-0 shrink-0 basis-[70%] snap-start sm:basis-[40%] lg:basis-[calc(25%-12px)]">
+                <div className="h-full rounded-2xl border border-border bg-card p-4 pt-14 shadow-sm">
+                  <div className="absolute end-4 top-4 z-20">{removeButton(item)}</div>
+                  <Link href={`/${locale}/products/${item.product_slug}`} className="font-semibold hover:underline">
+                    {item.product_name}
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </CarouselTrack>
+        ) : (
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {items.map((item, index) => item.card ? (
+              <ProductCard
+                key={item.product_id}
+                product={item.card}
+                locale={locale}
+                t={t}
+                eager={index === 0}
+                removeAction={removeButton(item)}
+              />
+            ) : (
+              <li key={item.product_id} className="relative min-w-0">
+                <div className="h-full rounded-2xl border border-border bg-card p-4 pt-14 shadow-sm">
+                  <div className="absolute end-4 top-4 z-20">{removeButton(item)}</div>
+                  <Link href={`/${locale}/products/${item.product_slug}`} className="font-semibold hover:underline">
+                    {item.product_name}
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>
-        ) : <p className="mt-3 text-sm text-muted-foreground">هنوز محصولی نشان نکرده‌اید.</p>}
-      {message && <p role="status" className="mt-2 text-xs text-muted-foreground">{message}</p>}
+        )
+      ) : (
+        <p className="rounded-xl border border-dashed border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+          هنوز محصولی نشان نکرده‌اید.
+        </p>
+      )}
+
+      {message && <p role="status" className="mt-3 text-xs text-muted-foreground">{message}</p>}
     </section>
   );
 }
