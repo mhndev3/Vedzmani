@@ -27,9 +27,13 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(whiteCard).toContainText("White");
     const blackCode = await blackCard.locator("p").filter({ hasText: "کد محصول:" }).textContent();
     const whiteCode = await whiteCard.locator("p").filter({ hasText: "کد محصول:" }).textContent();
-    expect(blackCode).toBeTruthy();
-    expect(whiteCode).toBeTruthy();
-    expect(blackCode).not.toEqual(whiteCode);
+    expect(blackCode).toMatch(/کد محصول:\s*\d+/);
+    expect(whiteCode).toMatch(/کد محصول:\s*\d+/);
+    const blackNumericCode = blackCode?.match(/کد محصول:\s*(\d+)/)?.[1];
+    const whiteNumericCode = whiteCode?.match(/کد محصول:\s*(\d+)/)?.[1];
+    expect(blackNumericCode).toBeTruthy();
+    expect(whiteNumericCode).toBeTruthy();
+    expect(blackNumericCode).not.toEqual(whiteNumericCode);
   });
 
   test("فیلتر دسکتاپ به‌صورت سایدبار ثابت می‌ماند، حتی پس از ناوبری فیلتر", async ({ page }) => {
@@ -61,16 +65,22 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByRole("heading", { level: 1, name: "بافت" })).toBeVisible();
   });
 
-  test("جست‌وجو با کد محصول و نام از آیکون هدر انجام می‌شود", async ({ page }) => {
-    await page.goto("/fa/products");
+  test("جست‌وجو با کد عددی کارت رنگ از آیکون هدر انجام می‌شود", async ({ page }) => {
+    await page.goto("/fa/products?search=Hoodie%2007");
+    const blackCard = page.locator('a[href="/fa/products/e2e-hoodie-07?color=black"]');
+    await expect(blackCard).toBeVisible();
+    const cardCode = await blackCard.locator("p").filter({ hasText: "کد محصول:" }).textContent();
+    const numericCode = cardCode?.match(/کد محصول:\s*(\d+)/)?.[1];
+    expect(numericCode).toBeTruthy();
+
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
-    await input.fill("E2E-HOODIE-07");
-    const result = page.locator("#navbar-search-results").getByRole("button", { name: /کد: E2E-HOODIE-07/ }).first();
+    await input.fill(numericCode!);
+    const result = page.locator("#navbar-search-results").getByRole("button", { name: new RegExp(`کد: ${numericCode}`) }).first();
     await expect(result).toContainText("Hoodie 07");
     await input.press("Enter");
-    await expect(page).toHaveURL(/search=E2E-HOODIE-07/);
-    await expect(cards(page)).toHaveCount(2);
+    await expect(page).toHaveURL(new RegExp(`search=${numericCode}`));
+    await expect(cards(page)).toHaveCount(1);
   });
 
   test("انتخاب نتیجه جست‌وجو و سابقه جست‌وجو کار می‌کند", async ({ page }) => {

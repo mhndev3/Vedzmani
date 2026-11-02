@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from django.test import Client
 
-from apps.catalog.models import Category, ColorVariant, Product, Size, VariantImage, VariantSize
+from apps.catalog.models import Category, ColorVariant, ColorVariantCodeCounter, Product, Size, VariantImage, VariantSize
 
 pytestmark = pytest.mark.django_db
 
@@ -50,8 +50,8 @@ def test_catalog_returns_one_independent_card_per_active_color_with_its_own_imag
     assert black["variant_id"] != white["variant_id"]
     assert black["code"] and white["code"]
     assert black["code"] != white["code"]
-    assert black["code"].startswith(product.product_code)
-    assert white["code"].startswith(product.product_code)
+    assert black["code"].isdigit()
+    assert white["code"].isdigit()
     assert black["slug"] == white["slug"] == product.slug
     assert black["category"] == white["category"] == {"name": "بافت", "slug": "knitwear"}
     assert black["color"] == {"name": "مشکی", "slug": "black", "hex_color": "#111111"}
@@ -103,3 +103,27 @@ def test_inactive_variants_and_products_are_not_listed():
     assert response["results"][0]["color"]["slug"] == "black"
     Product.objects.filter(pk=product.pk).update(is_active=False)
     assert Client().get(URL).json()["count"] == 0
+
+
+
+def test_new_color_card_receives_the_next_global_numeric_code():
+    product = make_product()
+    next_value = ColorVariantCodeCounter.objects.get(pk=1).next_value
+    extra = ColorVariant.objects.create(product=product, name="سرمه‌ای", slug="navy")
+    assert extra.product_code == str(next_value).zfill(2)
+    assert extra.product_code.isdigit()
+
+
+def test_variant_code_counter_is_recreated_when_missing():
+    product = make_product()
+    ColorVariant.objects.filter(product=product).delete()
+    ColorVariantCodeCounter.objects.all().delete()
+
+    variant = ColorVariant.objects.create(
+        product=product,
+        name="سرمه‌ای",
+        slug="navy",
+    )
+
+    assert variant.product_code == "01"
+    assert ColorVariantCodeCounter.objects.get(pk=1).next_value == 2
