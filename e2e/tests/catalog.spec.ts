@@ -59,8 +59,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
   test("انتخاب نتیجه جست‌وجو و سابقه جست‌وجو کار می‌کند", async ({ page }) => {
     await page.goto("/fa");
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
-    const dialog = page.getByRole("dialog");
-    const input = dialog.getByRole("searchbox", { name: "نام یا کد محصول" });
+    const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
     await input.fill("Hoodie 07");
     const result = page.locator("#navbar-search-results").getByRole("button", { name: /Hoodie 07/ });
     await expect(result).toBeVisible();
