@@ -21,7 +21,7 @@ for (const viewport of [{ name: "دسکتاپ", width: 1280, height: 800 }, { na
     await input.fill("Hoodie 07");
 
     const panel = page.getByTestId("navbar-search-panel");
-    const result = panel.getByRole("button", { name: /Hoodie 07/ });
+    const result = panel.getByRole("button", { name: /Hoodie 07/ }).first();
     await expect(result).toBeVisible();
 
     const expandedHeader = await headerBar.boundingBox();
