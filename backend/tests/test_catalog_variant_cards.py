@@ -112,3 +112,18 @@ def test_new_color_card_receives_the_next_global_numeric_code():
     extra = ColorVariant.objects.create(product=product, name="سرمه‌ای", slug="navy")
     assert extra.product_code == str(next_value).zfill(2)
     assert extra.product_code.isdigit()
+
+
+def test_variant_code_counter_is_recreated_when_missing():
+    product = make_product()
+    ColorVariant.objects.filter(product=product).delete()
+    ColorVariantCodeCounter.objects.all().delete()
+
+    variant = ColorVariant.objects.create(
+        product=product,
+        name="سرمه‌ای",
+        slug="navy",
+    )
+
+    assert variant.product_code == "01"
+    assert ColorVariantCodeCounter.objects.get(pk=1).next_value == 2
