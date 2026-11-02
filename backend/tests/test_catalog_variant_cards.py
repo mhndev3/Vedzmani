@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from django.test import Client
@@ -11,12 +12,13 @@ URL = "/api/catalog/variant-products/"
 
 
 def make_product():
-    category = Category.objects.create(name="بافت", slug="knitwear")
+    suffix = uuid4().hex[:10]
+    category, _ = Category.objects.get_or_create(slug="knitwear", defaults={"name": "بافت"})
     product = Product.objects.create(
         category=category,
-        product_code="VZ-KNIT-01",
+        product_code=f"VZ-KNIT-{suffix.upper()}",
         name="بافت یقه‌دار",
-        slug="collared-knit",
+        slug=f"collared-knit-{suffix}",
         description="بافت گرم",
         price=Decimal("1250000"),
         is_active=True,
@@ -25,15 +27,15 @@ def make_product():
     black = ColorVariant.objects.create(product=product, name="مشکی", slug="black", hex_color="#111111", position=0)
     white = ColorVariant.objects.create(product=product, name="سفید", slug="white", hex_color="#ffffff", position=1)
     VariantImage.objects.create(
-        variant=black, storage_key="knit/black.webp", alt_text="بافت یقه‌دار مشکی",
+        variant=black, storage_key=f"knit/{suffix}-black.webp", alt_text="بافت یقه‌دار مشکی",
         position=0, is_primary=True, width=600, height=800,
     )
     VariantImage.objects.create(
-        variant=white, storage_key="knit/white.webp", alt_text="بافت یقه‌دار سفید",
+        variant=white, storage_key=f"knit/{suffix}-white.webp", alt_text="بافت یقه‌دار سفید",
         position=0, is_primary=True, width=600, height=800,
     )
-    VariantSize.objects.create(variant=black, size=size, sku="KNIT-BLK-M", stock_quantity=4)
-    VariantSize.objects.create(variant=white, size=size, sku="KNIT-WHT-M", stock_quantity=0)
+    VariantSize.objects.create(variant=black, size=size, sku=f"KNIT-{suffix}-BLK-M", stock_quantity=4)
+    VariantSize.objects.create(variant=white, size=size, sku=f"KNIT-{suffix}-WHT-M", stock_quantity=0)
     return product
 
 
@@ -50,8 +52,8 @@ def test_catalog_returns_one_independent_card_per_active_color_with_its_own_imag
     assert black["category"] == white["category"] == {"name": "بافت", "slug": "knitwear"}
     assert black["color"] == {"name": "مشکی", "slug": "black", "hex_color": "#111111"}
     assert white["color"] == {"name": "سفید", "slug": "white", "hex_color": "#ffffff"}
-    assert black["image"]["url"] == "/media/knit/black.webp"
-    assert white["image"]["url"] == "/media/knit/white.webp"
+    assert black["image"]["url"] == f"/media/knit/{product.slug.removeprefix('collared-knit-')}-black.webp"
+    assert white["image"]["url"] == f"/media/knit/{product.slug.removeprefix('collared-knit-')}-white.webp"
     assert black["in_stock"] is True
     assert white["in_stock"] is False
     for item in body["results"]:
