@@ -1,7 +1,7 @@
 import pytest
 from django.test import Client
 
-from apps.catalog.models import Category, Favorite, Product
+from apps.catalog.models import Category, ColorVariant, Favorite, Product
 
 pytestmark = pytest.mark.django_db
 
@@ -17,6 +17,7 @@ def test_favorites_require_authentication():
 
 def test_customer_can_save_list_and_remove_own_favorite(api):
     product = make_product()
+    variant = ColorVariant.objects.create(product=product, name="مشکی", slug="black", hex_color="#000000")
     api.login("09123456780")
     created = api.post("/api/catalog/favorites/", {"product_id": product.pk})
     assert created.status_code == 201
@@ -27,7 +28,11 @@ def test_customer_can_save_list_and_remove_own_favorite(api):
 
     listing = api.get("/api/catalog/favorites/")
     assert listing.status_code == 200
-    assert listing.json()[0]["product_id"] == product.pk
+    favorite = listing.json()[0]
+    assert favorite["product_id"] == product.pk
+    assert favorite["card"]["variant_id"] == variant.pk
+    assert favorite["card"]["slug"] == product.slug
+    assert favorite["card"]["color"]["slug"] == "black"
     response = api.client.delete(f"/api/catalog/favorites/{product.slug}/", HTTP_X_CSRFTOKEN=api._token())
     assert response.status_code == 204
     assert Favorite.objects.count() == 0

@@ -147,17 +147,28 @@ class FavoriteListView(APIView):
     """List and create favorites for the authenticated customer only."""
 
     def get(self, request):
-        rows = Favorite.objects.filter(
+        rows = list(Favorite.objects.filter(
             user=request.user,
             product__is_active=True,
             product__category__is_active=True,
-        ).select_related("product")
+        ).select_related("product"))
+        product_ids = [row.product_id for row in rows]
+        cards = {}
+        if product_ids:
+            variants = build_variant_queryset({}).filter(product_id__in=product_ids).order_by(
+                "product_id", "position", "id"
+            )
+            for variant in variants:
+                if variant.product_id not in cards:
+                    cards[variant.product_id] = VariantProductListSerializer(variant).data
+
         return Response([
             {
                 "product_id": row.product_id,
                 "product_slug": row.product.slug,
                 "product_name": row.product.name,
                 "created_at": row.created_at,
+                "card": cards.get(row.product_id),
             }
             for row in rows
         ])
