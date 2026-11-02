@@ -230,6 +230,26 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.locator("del")).toHaveCount(0);
   });
 
+  test("اشتراک‌گذاری محصول لینک صفحه همان محصول را در پنجره کپی می‌کند", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/fa/products/e2e-hoodie-01?color=white");
+
+    await page.getByRole("button", { name: "اشتراک‌گذاری" }).click();
+    const dialog = page.getByRole("dialog", { name: "اشتراک‌گذاری محصول" });
+    await expect(dialog).toBeVisible();
+
+    const expectedUrl = new URL("/fa/products/e2e-hoodie-01?color=white", page.url()).toString();
+    const telegram = new URL((await dialog.getByRole("link", { name: "تلگرام" }).getAttribute("href"))!);
+    expect(telegram.searchParams.get("url")).toBe(expectedUrl);
+
+    await dialog.getByRole("button", { name: "کپی لینک محصول" }).click();
+    await expect(dialog.getByRole("status")).toHaveText("لینک محصول کپی شد.");
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(expectedUrl);
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  });
+
   test("محصول ناشناخته 404 است", async ({ page }) => {
     const response = await page.goto("/fa/products/does-not-exist");
     expect(response?.status()).toBe(404);
