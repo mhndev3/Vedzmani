@@ -30,7 +30,14 @@ for (const viewport of [{ name: "دسکتاپ", width: 1280, height: 800 }, { na
     expect(expandedHeader).not.toBeNull();
     expect(expandedSearch).not.toBeNull();
     expect(panelBox).not.toBeNull();
-    expect((expandedHeader?.width ?? 0)).toBeGreaterThan((beforeHeader?.width ?? 0));
+    expect((expandedHeader?.height ?? 0)).toBeGreaterThan((beforeHeader?.height ?? 0));
+    if (viewport.width < 768) {
+      // On narrow screens the header already spans the viewport in its normal state.
+      // Expansion is expressed by height and shape, not impossible extra width.
+      expect(expandedHeader?.width).toBeCloseTo(beforeHeader?.width ?? 0, 0);
+    } else {
+      expect((expandedHeader?.width ?? 0)).toBeGreaterThan((beforeHeader?.width ?? 0));
+    }
     expect((expandedSearch?.width ?? 0)).toBeGreaterThan((beforeSearch?.width ?? 0));
     expect(Math.abs((panelBox?.x ?? 0) + (panelBox?.width ?? 0) / 2 - viewport.width / 2)).toBeLessThanOrEqual(2);
     expect(await noHorizontalOverflow(page)).toBe(true);
