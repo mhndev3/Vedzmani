@@ -56,6 +56,7 @@ class ColorVariantInline(admin.TabularInline):
     model = ColorVariant
     extra = 0
     fields = ("name", "slug", "product_code", "hex_color", "position", "is_active")
+    readonly_fields = ("product_code",)
     prepopulated_fields = {"slug": ("name",)}
     show_change_link = True  # sizes / images are edited on the variant page
 
@@ -203,7 +204,7 @@ class ColorVariantAdmin(admin.ModelAdmin):
     ordering = ("product__name", "position", "id")
     autocomplete_fields = ("product",)
     prepopulated_fields = {"slug": ("name",)}
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("product_code", "created_at", "updated_at")
     inlines = [VariantSizeInline, VariantImageInline]
 
     def get_queryset(self, request):
