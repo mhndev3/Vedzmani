@@ -32,7 +32,7 @@ export function NewestProductsCarousel({
       {products.length ? (
         <CarouselTrack itemCount={products.length}>
           {products.map((product, index) => (
-            <ProductCard key={product.id} product={product} locale={locale} t={t} eager={index === 0} variant="carousel" />
+            <ProductCard key={product.variant_id} product={product} locale={locale} t={t} eager={index === 0} variant="carousel" />
           ))}
         </CarouselTrack>
       ) : (
