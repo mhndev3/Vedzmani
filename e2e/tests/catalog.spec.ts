@@ -113,8 +113,9 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
   test("فیلتر بازه قیمت در سمت سرور اعمال می‌شود", async ({ page }) => {
     await page.goto("/fa/products?category=hoodies&min_price=14000&max_price=15500");
-    await expect(page.getByLabel("حداقل قیمت")).toHaveValue("14000");
-    await expect(page.getByTestId("price-range-control").locator('input[type="range"]')).toHaveCount(2);
+    const sidebar = page.locator('div[aria-label="فیلترها"]');
+    await expect(sidebar.getByLabel("حداقل قیمت")).toHaveValue("14000");
+    await expect(sidebar.getByTestId("price-range-control").locator('input[type="range"]')).toHaveCount(2);
     await expect(cards(page)).toHaveCount(2);
   });
 
