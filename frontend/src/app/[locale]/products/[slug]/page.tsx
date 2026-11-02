@@ -41,7 +41,7 @@ async function RelatedProductsSection({
       <h2 id="related-products-title" className="mb-4 text-xl font-semibold tracking-tight">محصولات مشابه</h2>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {relatedProducts.map((item, index) => (
-          <ProductCard key={item.id} product={item} locale={locale} t={t} eager={index < 2} />
+          <ProductCard key={item.variant_id} product={item} locale={locale} t={t} eager={index < 2} />
         ))}
       </ul>
     </section>
