@@ -77,7 +77,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
       inert={!visible}
       className={"sticky top-0 z-40 transition-transform duration-150 motion-reduce:transition-none " + (visible ? "translate-y-0" : "-translate-y-full")}
     >
-      <div className="mx-auto my-2 flex h-16 max-w-6xl items-center gap-3 rounded-full border border-border bg-background/95 px-3 shadow-sm sm:px-4">
+      <div className={"flex items-center gap-3 border border-border bg-background/95 shadow-sm transition-[height,width,max-width,border-radius,margin,padding] duration-200 " + (searchExpanded ? "my-0 h-20 w-full max-w-none rounded-b-2xl rounded-t-none px-3 sm:px-5" : "mx-auto my-2 h-16 max-w-6xl rounded-full px-3 sm:px-4")}>
         <MobileNav
           items={items}
           categories={categoryItems}
