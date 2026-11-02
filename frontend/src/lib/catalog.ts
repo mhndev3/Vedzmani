@@ -129,7 +129,7 @@ export type CatalogImage = {
   width: number;
   height: number;
 };
-export type Swatch = { name: string; slug: string; hex_color: string };
+export type Swatch = { name: string; slug: string; hex_color: string | null };
 
 export type ProductCardData = {
   id: number;
