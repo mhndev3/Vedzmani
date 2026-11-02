@@ -25,7 +25,16 @@ export function FilterDrawer({
 
   useEffect(() => {
     const dialog = ref.current;
-    if (openOnLoad && dialog && !dialog.open) dialog.showModal();
+    // URL state is used to preserve the mobile drawer after server navigation.
+    // Never turn the desktop sidebar into a full-screen modal.
+    if (
+      openOnLoad &&
+      dialog &&
+      !dialog.open &&
+      window.matchMedia("(max-width: 1023px)").matches
+    ) {
+      dialog.showModal();
+    }
   }, [openOnLoad]);
 
   return (
