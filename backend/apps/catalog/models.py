@@ -184,7 +184,10 @@ class ColorVariant(models.Model):
             return super().save(*args, **kwargs)
 
         with transaction.atomic():
-            counter = ColorVariantCodeCounter.objects.select_for_update().get(pk=1)
+            counter, _ = ColorVariantCodeCounter.objects.select_for_update().get_or_create(
+                pk=1,
+                defaults={"next_value": 1},
+            )
             self.product_code = str(counter.next_value).zfill(2)
             counter.next_value += 1
             counter.save(update_fields=["next_value"])
