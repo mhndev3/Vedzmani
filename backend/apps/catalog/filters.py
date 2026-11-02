@@ -1,8 +1,9 @@
-"""Catalog listing query: parameter validation, filtering, search and sorting.
+"""Catalog listing query builders: parameter validation, filtering, search and sorting.
 
-Everything is done database-side. Joins that could multiply rows (collections,
-variants, sizes) are expressed as `Exists` sub-queries, so a product can never
-appear twice in a page and `count` is accurate.
+The compatibility product endpoint pages Product rows without join fan-out. The storefront
+variant endpoint pages ColorVariant rows, intentionally returning one card per active color.
+Both builders keep filters and ordering in SQL; related collections and purchasable sizes use
+Exists subqueries so each endpoint has an accurate count and no accidental row multiplication.
 """
 
 import re
