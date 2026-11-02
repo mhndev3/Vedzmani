@@ -82,3 +82,17 @@ def test_filter_options_exclude_sizes_with_zero_stock():
     data = Client().get(URL, {"category": "hoodie"}).json()
 
     assert [s["code"] for s in data["sizes"]] == ["m"]
+
+
+def test_product_size_filter_never_matches_zero_stock_sizes():
+    make(
+        "hoodie-stock-facets",
+        category="hoodie",
+        variants={"black": {"m": 2, "xxxl": 0}},
+    )
+
+    response = Client().get("/api/catalog/products/", {"category": "hoodie", "size": "xxxl"})
+
+    assert response.status_code == 200
+    assert response.json()["count"] == 0
+    assert response.json()["results"] == []
