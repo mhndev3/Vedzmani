@@ -16,6 +16,12 @@ const NAMED_COLORS: Record<string, string> = {
   "طلایی": "#c9a227", "نقره ای": "#c0c0c0", "نقره‌ای": "#c0c0c0",
 };
 
+const NAMED_TWO_TONE: Record<string, [string, string]> = {
+  "سبز سفید": ["#16a34a", "#ffffff"],
+  "طوسی مشکی": ["#888888", "#171717"],
+  "مشکی قرمز": ["#171717", "#dc2626"],
+};
+
 function normalize(value: string): string {
   return value.trim().replace(/[يى]/g, "ی").replace(/ك/g, "ک").replace(/\s+/g, " ");
 }
@@ -41,17 +47,21 @@ export function ColorSwatch({
   colorIndex?: number;
 }) {
   const code = productCode?.trim().split(/[.-]/)[0];
-  const twoToneColors: Record<string, [string, string]> = {
+  const twoToneByCode: Record<string, [string, string]> = {
     "02": ["#ffffff", "#006b4f"],
     "03": ["#9ca3af", "#343a40"],
     "04": ["#171717", "#dc2626"],
   };
-  const twoTone = code ? twoToneColors[code] : undefined;
-  const isSkyBlueFirst = code === "05" && colorIndex === 0 && normalize(name) === "آبی آسمانی";
+  const normalizedName = normalize(name);
+  const twoTone =
+    (code ? twoToneByCode[code] : undefined) ??
+    NAMED_TWO_TONE[normalizedName];
+  const isSkyBlueFirst = code === "05" && colorIndex === 0 && normalizedName === "آبی آسمانی";
   const isShirtWhiteSecond = code === "01" && colorIndex === 1;
   const style: CSSProperties = twoTone
     ? { background: `linear-gradient(135deg, ${twoTone[0]} 0 50%, ${twoTone[1]} 50% 100%)` }
     : { backgroundColor: isSkyBlueFirst ? "#a8d8f0" : isShirtWhiteSecond ? "#e5e7eb" : resolveColor(hexColor, name) };
+
   return (
     <span
       aria-hidden="true"

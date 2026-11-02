@@ -25,6 +25,11 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(whiteCard.getByRole("img")).toHaveAttribute("alt", "Hoodie 01 White front");
     await expect(blackCard).toContainText("Black");
     await expect(whiteCard).toContainText("White");
+    const blackCode = await blackCard.locator("p").filter({ hasText: "کد محصول:" }).textContent();
+    const whiteCode = await whiteCard.locator("p").filter({ hasText: "کد محصول:" }).textContent();
+    expect(blackCode).toBeTruthy();
+    expect(whiteCode).toBeTruthy();
+    expect(blackCode).not.toEqual(whiteCode);
   });
 
   test("فیلتر دسکتاپ به‌صورت سایدبار ثابت می‌ماند، حتی پس از ناوبری فیلتر", async ({ page }) => {

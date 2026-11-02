@@ -159,6 +159,7 @@ def _variant_search_q(term: str) -> Q:
         Q(product__name__icontains=term)
         | Q(name__icontains=term)
         | Q(slug__icontains=term)
+        | Q(product_code__icontains=term)
         | Q(product__product_code__icontains=term)
         | Q(product__slug__icontains=term)
         | Q(product__description__icontains=term)

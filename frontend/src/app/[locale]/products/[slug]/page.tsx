@@ -142,7 +142,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
         <section className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{product.name}</h1>
-          {product.code && <p className="mt-1 text-sm text-muted-foreground">کد محصول: {product.code}</p>}
+          {(color?.product_code ?? product.code) && <p className="mt-1 text-sm text-muted-foreground">کد محصول: {color?.product_code ?? product.code}</p>}
           <Price
             price={product.price}
             salePrice={product.sale_price}

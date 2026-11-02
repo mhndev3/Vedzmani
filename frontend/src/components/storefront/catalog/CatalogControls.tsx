@@ -74,7 +74,7 @@ function CheckGroup({
 }: {
   legend: string;
   name: string;
-  items: { value: string; label: string; hex?: string }[];
+  items: { value: string; label: string; hex?: string | null }[];
   selected: string[];
   swatch?: boolean;
 }) {

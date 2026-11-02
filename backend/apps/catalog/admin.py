@@ -55,7 +55,7 @@ class ProductSizeDescriptionInline(admin.TabularInline):
 class ColorVariantInline(admin.TabularInline):
     model = ColorVariant
     extra = 0
-    fields = ("name", "slug", "hex_color", "position", "is_active")
+    fields = ("name", "slug", "product_code", "hex_color", "position", "is_active")
     prepopulated_fields = {"slug": ("name",)}
     show_change_link = True  # sizes / images are edited on the variant page
 
@@ -160,7 +160,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_editable = ("is_active",)
     list_filter = ("is_active", "category", "collections")
     list_select_related = ("category",)
-    search_fields = ("product_code", "name", "slug", "color_variants__sizes__sku")
+    search_fields = ("product_code", "name", "slug", "color_variants__product_code", "color_variants__sizes__sku")
     ordering = ("-created_at", "-id")
     autocomplete_fields = ("category",)
     filter_horizontal = ("collections",)
@@ -196,10 +196,10 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(ColorVariant)
 class ColorVariantAdmin(admin.ModelAdmin):
-    list_display = ("name", "product", "slug", "is_active", "position", "size_count", "image_count")
+    list_display = ("product_code", "name", "product", "slug", "is_active", "position", "size_count", "image_count")
     list_filter = ("is_active", "product__category")
     list_select_related = ("product",)
-    search_fields = ("name", "slug", "product__name", "sizes__sku")
+    search_fields = ("product_code", "name", "slug", "product__name", "sizes__sku")
     ordering = ("product__name", "position", "id")
     autocomplete_fields = ("product",)
     prepopulated_fields = {"slug": ("name",)}

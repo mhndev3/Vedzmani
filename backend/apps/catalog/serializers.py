@@ -66,7 +66,7 @@ class ColorVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ColorVariant
-        fields = ["id", "name", "slug", "hex_color", "images", "sizes"]
+        fields = ["id", "name", "slug", "product_code", "hex_color", "images", "sizes"]
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -143,7 +143,7 @@ class VariantProductListSerializer(serializers.ModelSerializer):
     variant_id = serializers.IntegerField(source="pk", read_only=True)
     name = serializers.CharField(source="product.name", read_only=True)
     slug = serializers.CharField(source="product.slug", read_only=True)
-    code = serializers.CharField(source="product.product_code", read_only=True, allow_null=True)
+    code = serializers.CharField(source="product_code", read_only=True, allow_null=True)
     price = serializers.DecimalField(source="product.price", max_digits=14, decimal_places=0, read_only=True)
     sale_price = serializers.DecimalField(source="product.sale_price", max_digits=14, decimal_places=0, read_only=True, allow_null=True)
     category = CategorySerializer(source="product.category", read_only=True)
