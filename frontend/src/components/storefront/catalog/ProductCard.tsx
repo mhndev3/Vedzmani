@@ -123,7 +123,7 @@ export function ProductCard({
           <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={t.catalog.availableColors}>
             {product.colors.map((c) => (
               <li key={c.slug}>
-                <ColorSwatch name={c.name} hexColor={c.hex_color} />
+                <ColorSwatch name={c.name} hexColor={c.hex_color} productCode={product.code} />
                 <span className="sr-only">{c.name}</span>
               </li>
             ))}
