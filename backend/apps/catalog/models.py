@@ -156,11 +156,40 @@ class ColorVariant(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="color_variants")
     name = models.CharField(max_length=60)
     slug = models.SlugField(max_length=80)
+    product_code = models.CharField("کد محصول / رنگ", max_length=40, unique=True, null=True, blank=True)
     hex_color = models.CharField(max_length=7, blank=True, validators=[validate_hex_color])
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def _generated_product_code(self) -> str:
+        base = self.product.product_code or f"VZ-{self.product_id}"
+        suffix = f"-{self.slug.upper()}"
+        if len(suffix) >= 40:
+            suffix = f"-V{self.pk}"
+        candidate = f"{base[:40 - len(suffix)]}{suffix}"
+        if type(self).objects.exclude(pk=self.pk).filter(product_code=candidate).exists():
+            suffix = f"-V{self.pk}"
+            candidate = f"{base[:40 - len(suffix)]}{suffix}"
+        counter = 2
+        while type(self).objects.exclude(pk=self.pk).filter(product_code=candidate).exists():
+            suffix = f"-V{self.pk}-{counter}"
+            candidate = f"{base[:40 - len(suffix)]}{suffix}"
+            counter += 1
+        return candidate
+
+    def save(self, *args, **kwargs):
+        if not self.product_code:
+            if self.pk is None:
+                super().save(*args, **kwargs)
+                self.product_code = self._generated_product_code()
+                super().save(update_fields=["product_code"])
+                return
+            self.product_code = self._generated_product_code()
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"product_code"}
+        return super().save(*args, **kwargs)
 
     class Meta:
         ordering = ["position", "id"]
