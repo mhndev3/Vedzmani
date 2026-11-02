@@ -27,8 +27,8 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(whiteCard).toContainText("White");
     const blackCode = await blackCard.locator("p").filter({ hasText: "کد محصول:" }).textContent();
     const whiteCode = await whiteCard.locator("p").filter({ hasText: "کد محصول:" }).textContent();
-    expect(blackCode).toBeTruthy();
-    expect(whiteCode).toBeTruthy();
+    expect(blackCode).toMatch(/\\d+/);
+    expect(whiteCode).toMatch(/\\d+/);
     expect(blackCode).not.toEqual(whiteCode);
   });
 
