@@ -67,8 +67,8 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
           : 0;
 
         if (delta > 0 && loopDistance > element.clientWidth + 2) {
-          // 50px per second: clearly visible while remaining smooth.
-          element.scrollLeft -= delta * 0.05;
+          // 100px per second: clearly visible while remaining smooth.
+          element.scrollLeft -= delta * 0.1;
           if (element.scrollLeft <= -loopDistance) {
             element.scrollLeft += loopDistance;
           }
