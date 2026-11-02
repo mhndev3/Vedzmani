@@ -135,3 +135,40 @@ class ProductListSerializer(serializers.ModelSerializer):
             "width": obj.image_width,
             "height": obj.image_height,
         }
+
+
+class VariantProductListSerializer(serializers.ModelSerializer):
+    """One catalog card per color; every displayed asset and stock flag belongs to this variant."""
+    id = serializers.IntegerField(source="product_id", read_only=True)
+    variant_id = serializers.IntegerField(source="pk", read_only=True)
+    name = serializers.CharField(source="product.name", read_only=True)
+    slug = serializers.CharField(source="product.slug", read_only=True)
+    code = serializers.CharField(source="product.product_code", read_only=True, allow_null=True)
+    price = serializers.DecimalField(source="product.price", max_digits=14, decimal_places=0, read_only=True)
+    sale_price = serializers.DecimalField(source="product.sale_price", max_digits=14, decimal_places=0, read_only=True, allow_null=True)
+    category = CategorySerializer(source="product.category", read_only=True)
+    color = serializers.SerializerMethodField()
+    in_stock = serializers.BooleanField(read_only=True)
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ColorVariant
+        fields = [
+            "id", "variant_id", "name", "slug", "code", "price", "sale_price",
+            "category", "color", "in_stock", "image",
+        ]
+
+    def get_color(self, obj: ColorVariant):
+        return {"name": obj.name, "slug": obj.slug, "hex_color": obj.hex_color}
+
+    def get_image(self, obj: ColorVariant):
+        if not obj.image_key:
+            return None
+        image_key = obj.image_key
+        return {
+            "url": public_image_url(image_key),
+            "thumbnail_url": public_image_url(obj.image_thumbnail_key or image_key),
+            "alt_text": obj.image_alt,
+            "width": obj.image_width,
+            "height": obj.image_height,
+        }
