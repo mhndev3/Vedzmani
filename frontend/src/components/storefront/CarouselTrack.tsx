@@ -50,6 +50,7 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
 
     let frame = 0;
     let visible = true;
+    const desktopViewport = window.matchMedia("(min-width: 768px)");
 
     const observer = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
@@ -67,8 +68,8 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
           : 0;
 
         if (delta > 0 && loopDistance > element.clientWidth + 2) {
-          // 100px per second: clearly visible while remaining smooth.
-          element.scrollLeft -= delta * 0.1;
+          // Keep mobile at 50px/s; use 100px/s on desktop.
+          element.scrollLeft -= delta * (desktopViewport.matches ? 0.1 : 0.05);
           if (element.scrollLeft <= -loopDistance) {
             element.scrollLeft += loopDistance;
           }
