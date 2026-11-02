@@ -47,15 +47,11 @@ export function SearchButton({ locale }: { locale: Locale }) {
 
   useEffect(() => {
     const term = query.trim();
-    if (!expanded || !term) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
+    if (!expanded || !term) return;
 
     const controller = new AbortController();
-    setLoading(true);
     const timer = window.setTimeout(async () => {
+      setLoading(true);
       try {
         const response = await fetch(`/api/catalog/products/?search=${encodeURIComponent(term)}&page_size=8`, {
           credentials: "same-origin",
@@ -166,12 +162,14 @@ export function SearchButton({ locale }: { locale: Locale }) {
             autoComplete="off"
             enterKeyHint="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setResults([]);
+              setLoading(false);
+            }}
             onFocus={() => { if (!expanded) open(); }}
             placeholder="جستجوی نام یا کد محصول"
             aria-label="جستجوی نام یا کد محصول"
-            aria-expanded={expanded}
-            aria-controls="navbar-search-results"
             maxLength={100}
             tabIndex={expanded ? 0 : -1}
             className={
