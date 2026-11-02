@@ -10,9 +10,9 @@ test.describe("کاتالوگ دسکتاپ", () => {
   test("همه محصولات منتشرشده با صفحه‌بندی نمایش داده می‌شوند", async ({ page }) => {
     await page.goto("/fa/products");
     await expect(page.getByRole("heading", { level: 1, name: "همه محصولات" })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "۶۰ محصول" })).toBeVisible();
     await expect(cards(page)).toHaveCount(24);
-    await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
+    await expect(page.getByText("صفحه ۱ از ۳")).toBeVisible();
   });
 
   test("فیلتر دسکتاپ به‌صورت سایدبار ثابت می‌ماند، حتی پس از ناوبری فیلتر", async ({ page }) => {
@@ -78,13 +78,13 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await menu.getByRole("link", { name: "تی شرت" }).click();
     await expect(page).toHaveURL(/\/fa\/categories\/t-shirts$/);
     await expect(page.getByRole("heading", { level: 1, name: "تی شرت" })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: "۱۵ محصول" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "۶۰ محصول" })).toBeVisible();
 
     await page.goto("/fa/products?category=hoodies");
     await page.getByRole("checkbox", { name: "فقط کالاهای موجود" }).check();
     await page.getByRole("button", { name: "اعمال فیلترها" }).click();
     await expect(page).toHaveURL(/in_stock=true/);
-    await expect(page.getByRole("heading", { level: 2, name: "۱۴ محصول" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "۲۷ محصول" })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
   });
 
@@ -136,8 +136,8 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.getByRole("link", { name: "بعدی" }).click();
     await expect(page).toHaveURL(/page=2/);
     await expect(page).toHaveURL(/sort=price_asc/);
-    await expect(page.getByText("صفحه ۲ از ۲")).toBeVisible();
-    await expect(cards(page)).toHaveCount(6);
+    await expect(page.getByText("صفحه ۲ از ۳")).toBeVisible();
+    await expect(cards(page)).toHaveCount(24);
     await page.goBack();
     await expect(page.getByText("صفحه ۱ از ۲")).toBeVisible();
   });
