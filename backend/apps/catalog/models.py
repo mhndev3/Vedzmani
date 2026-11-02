@@ -13,8 +13,9 @@ from decimal import Decimal
 
 from django.conf import settings
 
-from django.core.validators import MinValueValidator, validate_slug
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, RegexValidator, validate_slug
+from django.db import models, transaction
 from django.db.models import F, Q
 
 from .storage import ALLOWED_IMAGE_CONTENT_TYPES, public_image_url
@@ -152,44 +153,44 @@ class ProductSizeDescription(models.Model):
         return f"{self.product_id}:{self.size_id}"
 
 
+class ColorVariantCodeCounter(models.Model):
+    """Transactional counter for globally unique numeric storefront card codes."""
+
+    next_value = models.PositiveIntegerField(default=1)
+
+
 class ColorVariant(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="color_variants")
     name = models.CharField(max_length=60)
     slug = models.SlugField(max_length=80)
-    product_code = models.CharField("کد محصول / رنگ", max_length=40, unique=True, null=True, blank=True)
+    product_code = models.CharField(
+        "کد کارت محصول",
+        max_length=12,
+        unique=True,
+        null=True,
+        blank=True,
+        validators=[RegexValidator(r"^\\d+$", "کد کارت باید فقط شامل عدد باشد.")],
+    )
     hex_color = models.CharField(max_length=7, blank=True, validators=[validate_hex_color])
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def _generated_product_code(self) -> str:
-        base = self.product.product_code or f"VZ-{self.product_id}"
-        suffix = f"-{self.slug.upper()}"
-        if len(suffix) >= 40:
-            suffix = f"-V{self.pk}"
-        candidate = f"{base[:40 - len(suffix)]}{suffix}"
-        if type(self).objects.exclude(pk=self.pk).filter(product_code=candidate).exists():
-            suffix = f"-V{self.pk}"
-            candidate = f"{base[:40 - len(suffix)]}{suffix}"
-        counter = 2
-        while type(self).objects.exclude(pk=self.pk).filter(product_code=candidate).exists():
-            suffix = f"-V{self.pk}-{counter}"
-            candidate = f"{base[:40 - len(suffix)]}{suffix}"
-            counter += 1
-        return candidate
-
     def save(self, *args, **kwargs):
-        if not self.product_code:
-            if self.pk is None:
-                super().save(*args, **kwargs)
-                self.product_code = self._generated_product_code()
-                super().save(update_fields=["product_code"])
-                return
-            self.product_code = self._generated_product_code()
+        if self.product_code and not self.product_code.isdecimal():
+            raise ValidationError({"product_code": "کد کارت باید فقط شامل عدد باشد."})
+        if self.product_code:
+            return super().save(*args, **kwargs)
+
+        with transaction.atomic():
+            counter = ColorVariantCodeCounter.objects.select_for_update().get(pk=1)
+            self.product_code = str(counter.next_value).zfill(2)
+            counter.next_value += 1
+            counter.save(update_fields=["next_value"])
             if kwargs.get("update_fields") is not None:
                 kwargs["update_fields"] = set(kwargs["update_fields"]) | {"product_code"}
-        return super().save(*args, **kwargs)
+            return super().save(*args, **kwargs)
 
     class Meta:
         ordering = ["position", "id"]
