@@ -8,9 +8,9 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 
 from .models import Category, Collection, ColorVariant, Favorite, Product, ProductSizeMeasurement, Size, VariantImage, VariantSize
-from .filters import CatalogQuerySerializer, active_colors_queryset, build_product_queryset
+from .filters import CatalogQuerySerializer, active_colors_queryset, build_product_queryset, build_variant_queryset
 from .pagination import CatalogPagination
-from .serializers import ProductDetailSerializer, ProductListSerializer
+from .serializers import ProductDetailSerializer, ProductListSerializer, VariantProductListSerializer
 
 
 class ProductDetailView(RetrieveAPIView):
@@ -194,3 +194,17 @@ class FavoriteDetailView(APIView):
         )
         favorite.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+class VariantProductListView(ListAPIView):
+    """Public catalog listing with one result per active color variant."""
+    serializer_class = VariantProductListSerializer
+    pagination_class = CatalogPagination
+    authentication_classes: list = []
+    permission_classes: list = []
+
+    def get_queryset(self):
+        params = CatalogQuerySerializer(data=self.request.query_params, partial=True)
+        params.is_valid(raise_exception=True)
+        return build_variant_queryset(params.validated_data)
