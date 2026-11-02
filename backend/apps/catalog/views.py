@@ -1,4 +1,4 @@
-from django.db.models import Exists, Min, OuterRef, Prefetch
+from django.db.models import Exists, Min, OuterRef, Prefetch, Q
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework import status
 from rest_framework.response import Response
@@ -114,7 +114,7 @@ class FilterOptionsView(APIView):
         colors = (
             live_variants.order_by()
             .values("slug")
-            .annotate(name=Min("name"), hex_color=Min("hex_color"))
+            .annotate(name=Min("name"), hex_color=Min("hex_color", filter=~Q(hex_color="")))
             .order_by("name", "slug")
             .values("name", "slug", "hex_color")
         )
