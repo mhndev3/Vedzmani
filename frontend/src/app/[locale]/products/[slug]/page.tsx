@@ -177,7 +177,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
                           current ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-muted"
                         }`}
                       >
-                        <ColorSwatch name={c.name} hexColor={c.hex_color} className="size-3.5 transition-transform duration-150 hover:scale-110" />
+                        <ColorSwatch name={c.name} hexColor={c.hex_color} productCode={product.code} className="size-3.5 transition-transform duration-150 hover:scale-110" />
                       </Link>
                     </li>
                   );
