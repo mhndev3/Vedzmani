@@ -97,7 +97,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
             height={48}
             priority
             sizes="48px"
-            className="size-12 rounded-full object-cover"
+            className="size-12 rounded-full object-cover invert dark:invert-0"
           />
         </Link>
         <nav aria-label={t.a11y.mainNav} className="hidden flex-1 items-center justify-center gap-3 text-sm md:flex">
