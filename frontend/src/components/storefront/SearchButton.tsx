@@ -22,10 +22,20 @@ export function SearchButton({ locale }: { locale: Locale }) {
   useEffect(() => {
     if (!expanded) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && !root.current?.contains(event.target)) {\n        setExpanded(false);\n        setQuery("");\n        setResults([]);\n        setLoading(false);\n      }
+      if (event.target instanceof Node && !root.current?.contains(event.target)) {
+        setExpanded(false);
+        setQuery("");
+        setResults([]);
+        setLoading(false);
+      }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {\n        setExpanded(false);\n        setQuery("");\n        setResults([]);\n        setLoading(false);\n      }
+      if (event.key === "Escape") {
+        setExpanded(false);
+        setQuery("");
+        setResults([]);
+        setLoading(false);
+      }
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
