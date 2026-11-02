@@ -119,6 +119,7 @@ class FilterOptionsView(APIView):
         )
         live_sizes = VariantSize.objects.filter(
             is_active=True,
+            stock_quantity__gt=0,
             variant__is_active=True,
             variant__product__is_active=True,
             variant__product__category__is_active=True,
