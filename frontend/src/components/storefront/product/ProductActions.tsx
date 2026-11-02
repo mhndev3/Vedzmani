@@ -36,6 +36,7 @@ export function ProductActions({ productId, productSlug, productName, locale }: 
   const [needsSignIn, setNeedsSignIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
   const shareDialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -112,8 +113,7 @@ export function ProductActions({ productId, productSlug, productName, locale }: 
     }
   }
 
-  const currentUrl = typeof window === "undefined" ? "" : productPageUrl(locale, productSlug);
-  const links = shareLinks(currentUrl, productName);
+  const links = shareLinks(shareUrl, productName);
   const signInTarget = `/${locale}/sign-in?next=${encodeURIComponent(`/${locale}/products/${productSlug}`)}`;
 
   return (
@@ -122,7 +122,7 @@ export function ProductActions({ productId, productSlug, productName, locale }: 
         className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:bg-muted disabled:opacity-60">
         <span aria-hidden="true">{saved ? "♥" : "♡"}</span>{saved ? "نشان‌شده" : "نشان کردن"}
       </button>
-      <button type="button" onClick={() => { setCopied(false); setShareOpen(true); }} aria-expanded={shareOpen}
+      <button type="button" onClick={() => { setCopied(false); setShareUrl(productPageUrl(locale, productSlug)); setShareOpen(true); }} aria-expanded={shareOpen}
         aria-haspopup="dialog"
         className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:bg-muted">
         <span aria-hidden="true">↗</span> اشتراک‌گذاری
