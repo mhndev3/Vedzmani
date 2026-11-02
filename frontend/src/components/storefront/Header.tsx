@@ -54,6 +54,10 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   useEffect(() => {
     let frame = 0;
     const onScroll = () => {
+      if (searchExpanded) {
+        setVisible(true);
+        return;
+      }
       if (!frame) {
         frame = window.requestAnimationFrame(() => {
           setVisible((current) => (current ? false : current));
@@ -69,7 +73,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
       if (frame) window.cancelAnimationFrame(frame);
       if (hideTimer.current !== undefined) window.clearTimeout(hideTimer.current);
     };
-  }, []);
+  }, [searchExpanded]);
 
   return (
     <header
