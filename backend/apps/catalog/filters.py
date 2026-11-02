@@ -129,7 +129,7 @@ def build_product_queryset(params: dict):
     if params.get("color"):
         unit, needs_unit = unit.filter(variant__slug__in=params["color"]), True
     if params.get("size"):
-        unit, needs_unit = unit.filter(size__code__in=params["size"]), True
+        unit, needs_unit = unit.filter(size__code__in=params["size"], stock_quantity__gt=0), True
     if params.get("in_stock"):
         unit, needs_unit = unit.filter(stock_quantity__gt=0), True
     if needs_unit:
