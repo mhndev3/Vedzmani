@@ -112,3 +112,21 @@ All state is in the URL; filters/search are plain GET forms (`next/form`), sort/
 The product gallery orders the primary image first and slides through the selected color's images. Selecting another color
 keeps URL state and cross-fades to that color's gallery. The size selector shows exact stock quantities; zero-stock sizes
 are red and disabled. After a size is selected, its resolved size description and measurement rows appear and update when the customer changes size; color + size descriptions override the product + size description, and no empty section/table is shown when no data was entered. All storefront prices are formatted in Toman. E2E fixtures: `e2e/seed_catalog.py` (throwaway DB only).
+
+
+### Color-level storefront cards
+
+The storefront listing uses `GET /api/catalog/variant-products/`. Unlike the legacy product-level
+`/products/` response documented above, this endpoint returns **one row per active ColorVariant**.
+Each row carries the parent product identity, category and price plus the exact color's
+`variant_id`, color label/slug, representative image and stock flag. Image selection is scoped
+strictly to that variant; a card never borrows another color's image. Search also matches the color
+name, and color/size/in-stock filters apply to the same variant. Pagination counts color cards, not
+parent products.
+
+The storefront links each card to the existing product detail route with `?color=<variant-slug>`.
+The detail page continues to use the existing product and variant records, so size-specific stock,
+SKU, measurements, descriptions, guest-cart snapshots and cart `VariantSize` references remain
+unchanged. No product rows, variant rows, inventory quantities or media files are duplicated.
+Products with one active color still produce one card; inactive colors and unpublished products
+remain hidden. The legacy `/products/` endpoint remains available for compatibility.
