@@ -67,8 +67,8 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
           : 0;
 
         if (delta > 0 && loopDistance > element.clientWidth + 2) {
-          // About 18px per second: deliberately slower than a typical storefront carousel.
-          element.scrollLeft -= delta * 0.018;
+          // 50px per second: clearly visible while remaining smooth.
+          element.scrollLeft -= delta * 0.05;
           if (element.scrollLeft <= -loopDistance) {
             element.scrollLeft += loopDistance;
           }
@@ -143,7 +143,7 @@ export function CarouselTrack({ children, itemCount }: { children: ReactNode; it
           aria-label="جدیدترین محصولات"
           className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <ul ref={track} className="flex w-max min-w-full snap-x snap-mandatory gap-3 pb-3 sm:gap-4">
+          <ul ref={track} className="flex w-full min-w-0 snap-x snap-mandatory gap-3 pb-3 sm:gap-4">
             {children}
             {duplicateChildren}
           </ul>
