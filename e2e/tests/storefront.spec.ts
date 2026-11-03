@@ -92,6 +92,34 @@ test("homepage product carousel scrolls internally without widening the page", a
   expect(after.pageWidth).toBeLessThanOrEqual(after.viewportWidth + 1);
 });
 
+test("homepage newest carousel resumes three seconds after the last pointer movement", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/fa");
+
+  const section = page.locator("section[aria-labelledby='home-newest-products']");
+  await section.scrollIntoViewIfNeeded();
+  const track = section.locator("[dir='rtl']");
+  const interactionArea = track.locator("xpath=..");
+  await expect(track).toBeVisible();
+  await expect.poll(() => track.evaluate((element) => element.scrollLeft)).not.toBe(0);
+
+  const bounds = await interactionArea.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.move(bounds!.x + 12, bounds!.y + 12);
+  await page.waitForTimeout(2400);
+
+  // A later pointer movement restarts the inactivity window.
+  await page.mouse.move(bounds!.x + 24, bounds!.y + 12);
+  const pausedAt = await track.evaluate((element) => element.scrollLeft);
+  await page.waitForTimeout(2500);
+  expect(await track.evaluate((element) => element.scrollLeft)).toBeCloseTo(pausedAt, 1);
+
+  await expect.poll(
+    async () => Math.abs((await track.evaluate((element) => element.scrollLeft)) - pausedAt),
+    { timeout: 1500 },
+  ).toBeGreaterThan(0.1);
+});
+
 test("hero banner uses supplied VZ artwork and is not a link", async ({ page }) => {
   await page.goto("/fa");
   const hero = page.locator("section[aria-label='بنر ویژه ودزمانی']");
