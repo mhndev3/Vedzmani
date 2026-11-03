@@ -54,5 +54,5 @@ export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) 
     }
   }
 
-  return <div onChange={handleChange} onSubmit={handleSubmit}>{children}</div>;
+  return <div onChange={handleChange} onSubmitCapture={handleSubmit}>{children}</div>;
 }
