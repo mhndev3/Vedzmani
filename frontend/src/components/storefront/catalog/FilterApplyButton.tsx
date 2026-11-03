@@ -33,10 +33,10 @@ export function FilterApplyButton({ label, className }: Props) {
             value.trim() !== "" &&
             key !== "filters_open" &&
             key !== "filter_preview" &&
-            key !== "draft_category" &&
             !key.startsWith("applied_")
           ) {
-            params.append(key, value);
+            // Count the selected preview category as the category being prepared.
+            params.append(key === "draft_category" ? "category" : key, value);
           }
         }
         params.set("page_size", "1");

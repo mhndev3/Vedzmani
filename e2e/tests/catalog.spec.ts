@@ -127,13 +127,15 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByRole("group", { name: "کالکشن" })).toContainText("Winter");
     await expect(page.getByRole("group", { name: "رنگ" })).toContainText("Black");
     await expect(page.getByRole("group", { name: "سایز" })).toContainText("M");
-    await expect(page.getByRole("button", { name: /اعمال فیلترها \(/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "اعمال فیلترها (۳۰)" })).toBeVisible();
 
     await page.getByRole("button", { name: /اعمال فیلترها/ }).click();
     await expect(page).toHaveURL(/category=hoodies/);
     await expect(page).not.toHaveURL(/draft_category=/);
     await expect(page).not.toHaveURL(/filter_preview=1/);
-    await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
+    await expect(page.locator("h2[aria-live='polite']")).toHaveText("۳۰ محصول");
+    await expect(page.locator('a[href^="/fa/products/e2e-hoodie-"]')).toHaveCount(24);
+    await expect(page.locator('a[href^="/fa/products/e2e-tee-"]')).toHaveCount(0);
   });
 
   test("پاک کردن همه فیلترها تمام وضعیت URL و فرم را پاک می‌کند", async ({ page }) => {
@@ -314,14 +316,16 @@ test.describe("کاتالوگ موبایل", () => {
     await expect(dialog.getByRole("checkbox", { name: "تی شرت" })).toBeChecked();
     await expect(dialog.getByRole("group", { name: "رنگ" })).toBeVisible();
     await expect(dialog.getByRole("group", { name: "سایز" })).toBeVisible();
-    await expect(dialog.getByRole("button", { name: /اعمال فیلترها \(/ })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "اعمال فیلترها (۳۰)" })).toBeVisible();
 
     await dialog.getByRole("button", { name: /اعمال فیلترها/ }).click();
     await expect(page).toHaveURL(/category=t-shirts/);
     await expect(page).not.toHaveURL(/draft_category=/);
     await expect(page).not.toHaveURL(/filter_preview=1/);
     await expect(dialog).toBeHidden();
-    await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
+    await expect(page.locator("h2[aria-live='polite']")).toHaveText("۳۰ محصول");
+    await expect(page.locator('a[href^="/fa/products/e2e-tee-"]')).toHaveCount(24);
+    await expect(page.locator('a[href^="/fa/products/e2e-hoodie-"]')).toHaveCount(0);
   });
 
   test("صفحه جزئیات محصول در موبایل سرریز افقی ندارد", async ({ page }) => {
