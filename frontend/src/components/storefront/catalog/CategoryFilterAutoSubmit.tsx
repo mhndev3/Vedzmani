@@ -1,13 +1,16 @@
 "use client";
 
-import type { ChangeEvent, FormEvent, ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import type { ChangeEvent, ReactNode } from "react";
 
 /**
  * A category selection is a facet-preview step, not an applied product filter.
- * Submit draft_category so the server can refresh dependent options while the
- * product result query remains unchanged. The mobile drawer stays open for preview.
+ * Navigate with a draft URL instead of mutating React-owned form nodes. The
+ * applied URL state is carried in applied_* fields so results remain unchanged.
  */
 export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) {
+  const router = useRouter();
+
   function handleChange(event: ChangeEvent<HTMLDivElement>) {
     const target = event.target;
     if (!(target instanceof HTMLInputElement) || target.name !== "category" || target.type !== "checkbox") return;
@@ -15,44 +18,37 @@ export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) 
     const form = target.form;
     if (!form) return;
 
-    const dependentFields = form.querySelectorAll<HTMLInputElement>(
-      'input[name="collection"], input[name="color"], input[name="size"], input[name="min_price"], input[name="max_price"], input[name="in_stock"]',
-    );
-    dependentFields.forEach((field) => {
-      if (field.type === "checkbox") field.checked = false;
-      else field.value = "";
-    });
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+    const excluded = new Set([
+      "category",
+      "draft_category",
+      "collection",
+      "color",
+      "size",
+      "min_price",
+      "max_price",
+      "in_stock",
+      "filter_preview",
+    ]);
 
-    form.querySelectorAll<HTMLInputElement>('input[name="category"]').forEach((field) => {
-      field.name = "draft_category";
-    });
-
-    let preview = form.querySelector<HTMLInputElement>('input[name="filter_preview"]');
-    if (!preview) {
-      preview = document.createElement("input");
-      preview.type = "hidden";
-      preview.name = "filter_preview";
-      preview.value = "1";
-      form.appendChild(preview);
+    for (const [key, value] of formData.entries()) {
+      if (typeof value === "string" && value.trim() && !excluded.has(key)) {
+        params.append(key, value);
+      }
     }
 
-    form.requestSubmit();
-  }
-
-  function handleSubmit(event: FormEvent<HTMLDivElement>) {
-    const form = event.target;
-    if (!(form instanceof HTMLFormElement)) return;
-    // requestSubmit() without a submitter is the category-preview navigation.
-    // A real submit button means the customer is applying the finished filters.
-    const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    if (submitter) {
-      form.querySelector<HTMLInputElement>('input[name="filter_preview"]')?.remove();
-      form.querySelectorAll<HTMLInputElement>('input[name="draft_category"]').forEach((field) => {
-        field.name = "category";
-      });
-      form.querySelector<HTMLInputElement>('input[name="filters_open"]')?.remove();
+    for (const value of formData.getAll("category")) {
+      if (typeof value === "string" && value.trim()) {
+        params.append("draft_category", value);
+      }
     }
+
+    params.set("filter_preview", "1");
+
+    const destination = new URL(form.action, window.location.href);
+    router.push(destination.pathname + "?" + params.toString());
   }
 
-  return <div onChange={handleChange} onSubmitCapture={handleSubmit}>{children}</div>;
+  return <div onChange={handleChange}>{children}</div>;
 }
