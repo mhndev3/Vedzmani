@@ -67,7 +67,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
   test("جست‌وجو با کد عددی کارت رنگ از آیکون هدر انجام می‌شود", async ({ page }) => {
     await page.goto("/fa/products?search=Hoodie%2007");
-    const blackCard = page.locator('a[href="/fa/products/e2e-hoodie-07?color=black"]');
+    const blackCard = page.locator('a[href="/fa/products/e2e-hoodie-07/black"]');
     await expect(blackCard).toBeVisible();
     const cardCode = await blackCard.locator("p").filter({ hasText: "کد محصول:" }).textContent();
     const numericCode = cardCode?.match(/کد محصول:\s*(\d+)/)?.[1];

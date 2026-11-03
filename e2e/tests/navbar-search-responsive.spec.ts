@@ -64,7 +64,7 @@ test("انتخاب نتیجه، صفحه را عوض می‌کند و Navbar ر�
   const result = page.getByTestId("navbar-search-panel").getByRole("button", { name: /Hoodie 07/ }).first();
   await expect(result).toBeVisible();
   await result.click();
-  await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07\?color=black$/);
+  await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07\/black$/);
   await expect(headerBar).toHaveClass(/rounded-full/);
   const after = await headerBar.boundingBox();
   expect(after?.width).toBeCloseTo(before?.width ?? 0, 0);

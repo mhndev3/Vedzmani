@@ -185,7 +185,7 @@ function GuestCartLineView({
           fill sizes="96px" loading="lazy" unoptimized className="object-cover" />}
       </div>
       <div className="min-w-0 flex-1">
-        <Link href={`/${locale}/products/${item.product.slug}?color=${item.color.slug}`} className="font-medium hover:underline">{name}</Link>
+        <Link href={`/${locale}/products/${item.product.slug}/${item.color.slug}`} className="font-medium hover:underline">{name}</Link>
         <p className="mt-1 text-sm text-muted-foreground">{t.colorLabel}: {item.color.name} · {t.sizeLabel}: {item.variant_size.label}</p>
         <p className="mt-1 text-sm">{t.unitPrice}: {formatCurrency(item.unit_price, locale)}</p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -219,7 +219,7 @@ function CartLine({
           fill sizes="96px" loading="lazy" unoptimized className="object-cover" />}
       </div>
       <div className="min-w-0 flex-1">
-        <Link href={`/${locale}/products/${item.product.slug}?color=${item.color.slug}`} className="font-medium hover:underline">{name}</Link>
+        <Link href={`/${locale}/products/${item.product.slug}/${item.color.slug}`} className="font-medium hover:underline">{name}</Link>
         <p className="mt-1 text-sm text-muted-foreground">{t.colorLabel}: {item.color.name} · {t.sizeLabel}: {item.variant_size.label}</p>
         <p className="mt-1 text-sm">{t.unitPrice}: {formatCurrency(item.unit_price, locale)}</p>
         {item.availability === "insufficient_stock" && <p className="mt-2 text-sm font-medium">{t.insufficientStock}</p>}
