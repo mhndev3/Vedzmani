@@ -37,30 +37,20 @@ export function ColorSwatch({
   name,
   hexColor,
   className = "size-3.5",
-  productCode,
-  colorIndex,
 }: {
   name: string;
   hexColor?: string | null;
   className?: string;
-  productCode?: string | null;
-  colorIndex?: number;
 }) {
-  const code = productCode?.trim().split(/[.-]/)[0];
-  const twoToneByCode: Record<string, [string, string]> = {
-    "02": ["#ffffff", "#006b4f"],
-    "03": ["#9ca3af", "#343a40"],
-    "04": ["#171717", "#dc2626"],
-  };
+  // The variant's saved hex value is authoritative. Name-based fallbacks are
+  // used only for legacy records that do not have a valid hex color.
+  const hex = hexColor?.trim() ?? "";
+  const hasExplicitHex = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex);
   const normalizedName = normalize(name);
-  const twoTone =
-    (code ? twoToneByCode[code] : undefined) ??
-    NAMED_TWO_TONE[normalizedName];
-  const isSkyBlueFirst = code === "05" && colorIndex === 0 && normalizedName === "آبی آسمانی";
-  const isShirtWhiteSecond = code === "01" && colorIndex === 1;
-  const style: CSSProperties = twoTone
-    ? { background: `linear-gradient(135deg, ${twoTone[0]} 0 50%, ${twoTone[1]} 50% 100%)` }
-    : { backgroundColor: isSkyBlueFirst ? "#a8d8f0" : isShirtWhiteSecond ? "#e5e7eb" : resolveColor(hexColor, name) };
+  const namedTwoTone = hasExplicitHex ? undefined : NAMED_TWO_TONE[normalizedName];
+  const style: CSSProperties = namedTwoTone
+    ? { background: `linear-gradient(135deg, ${namedTwoTone[0]} 0 50%, ${namedTwoTone[1]} 50% 100%)` }
+    : { backgroundColor: resolveColor(hexColor, name) };
 
   return (
     <span
