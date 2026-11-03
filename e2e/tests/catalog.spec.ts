@@ -4,6 +4,25 @@ const cards = (page: Page) => page.locator('a[href^="/fa/products/e2e-"]');
 const noHorizontalOverflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
+const captureBrowserDiagnostics = (page: Page) => {
+  const diagnostics: string[] = [];
+  page.on("requestfailed", (request) => {
+    if (request.url().includes("/fa/products")) {
+      diagnostics.push("requestfailed " + request.url() + " " + (request.failure()?.errorText ?? ""));
+    }
+  });
+  page.on("response", (response) => {
+    if (response.url().includes("/fa/products") && response.status() >= 400) {
+      diagnostics.push("response " + response.status() + " " + response.url());
+    }
+  });
+  page.on("pageerror", (error) => diagnostics.push("pageerror " + error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") diagnostics.push("console " + message.text());
+  });
+  return diagnostics;
+};
+
 test.describe("کاتالوگ دسکتاپ", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -129,6 +148,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByRole("group", { name: "سایز" })).toContainText("M");
     await expect(page.getByRole("button", { name: "اعمال فیلترها (۳۰)" })).toBeVisible();
 
+    const browserDiagnostics = captureBrowserDiagnostics(page);
     await page.getByRole("button", { name: /اعمال فیلترها/ }).click();
     await expect(page).toHaveURL(/category=hoodies/);
     await expect(page).not.toHaveURL(/draft_category=/);
@@ -329,21 +349,7 @@ test.describe("کاتالوگ موبایل", () => {
     await expect(dialog.getByRole("group", { name: "سایز" })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "اعمال فیلترها (۳۰)" })).toBeVisible();
 
-    const browserDiagnostics: string[] = [];
-    page.on("requestfailed", (request) => {
-      if (request.url().includes("/fa/products")) {
-        browserDiagnostics.push("requestfailed " + request.url() + " " + (request.failure()?.errorText ?? ""));
-      }
-    });
-    page.on("response", (response) => {
-      if (response.url().includes("/fa/products") && response.status() >= 400) {
-        browserDiagnostics.push("response " + response.status() + " " + response.url());
-      }
-    });
-    page.on("pageerror", (error) => browserDiagnostics.push("pageerror " + error.message));
-    page.on("console", (message) => {
-      if (message.type() === "error") browserDiagnostics.push("console " + message.text());
-    });
+    const browserDiagnostics = captureBrowserDiagnostics(page);
     await dialog.getByRole("button", { name: /اعمال فیلترها/ }).click();
     await expect(page).toHaveURL(/category=t-shirts/);
     await expect(page).not.toHaveURL(/draft_category=/);
@@ -360,7 +366,7 @@ test.describe("کاتالوگ موبایل", () => {
       alerts: Array.from(body.querySelectorAll('[role="alert"]')).map((alert) => alert.textContent),
     }));
     const renderedCardHrefs = await page.locator("ul.grid a").evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute("href")));
-    expect(renderedCardHrefs, "Rendered catalog state after applying t-shirts: " + JSON.stringify(renderedPageState)).toHaveLength(24);
+    expect(renderedCardHrefs, "Rendered catalog state after applying t-shirts: " + JSON.stringify({ ...renderedPageState, browserDiagnostics })).toHaveLength(24);
     expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-tee-")), "Unexpected rendered catalog cards: " + JSON.stringify(renderedCardHrefs)).toHaveLength(24);
     expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-hoodie-")), "Hoodie cards leaked into t-shirt results: " + JSON.stringify(renderedCardHrefs)).toHaveLength(0);
   });
