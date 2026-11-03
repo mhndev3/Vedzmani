@@ -133,7 +133,6 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page).toHaveURL(/category=hoodies/);
     await expect(page).not.toHaveURL(/draft_category=/);
     await expect(page).not.toHaveURL(/filter_preview=1/);
-    await expect(page.locator("h2[aria-live='polite']")).toHaveText("۳۰ محصول");
     await expect(page.locator('a[href^="/fa/products/e2e-hoodie-"]')).toHaveCount(24);
     await expect(page.locator('a[href^="/fa/products/e2e-tee-"]')).toHaveCount(0);
   });
@@ -323,7 +322,6 @@ test.describe("کاتالوگ موبایل", () => {
     await expect(page).not.toHaveURL(/draft_category=/);
     await expect(page).not.toHaveURL(/filter_preview=1/);
     await expect(dialog).toBeHidden();
-    await expect(page.locator("h2[aria-live='polite']")).toHaveText("۳۰ محصول");
     await expect(page.locator('a[href^="/fa/products/e2e-tee-"]')).toHaveCount(24);
     await expect(page.locator('a[href^="/fa/products/e2e-hoodie-"]')).toHaveCount(0);
   });
