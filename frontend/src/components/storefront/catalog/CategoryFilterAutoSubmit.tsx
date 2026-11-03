@@ -42,9 +42,14 @@ export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) 
   function handleSubmit(event: FormEvent<HTMLDivElement>) {
     const form = event.target;
     if (!(form instanceof HTMLFormElement)) return;
-    // Keep the drawer open only during the category-facet preview. Applying
-    // the finished filters closes it on mobile.
-    if (!form.querySelector('input[name="filter_preview"]')) {
+    // requestSubmit() without a submitter is the category-preview navigation.
+    // A real submit button means the customer is applying the finished filters.
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    if (submitter) {
+      form.querySelector<HTMLInputElement>('input[name="filter_preview"]')?.remove();
+      form.querySelectorAll<HTMLInputElement>('input[name="draft_category"]').forEach((field) => {
+        field.name = "category";
+      });
       form.querySelector<HTMLInputElement>('input[name="filters_open"]')?.remove();
     }
   }

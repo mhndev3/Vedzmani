@@ -132,6 +132,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.getByRole("button", { name: /اعمال فیلترها/ }).click();
     await expect(page).toHaveURL(/category=hoodies/);
     await expect(page).not.toHaveURL(/draft_category=/);
+    await expect(page).not.toHaveURL(/filter_preview=1/);
     await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
   });
 
@@ -236,14 +237,14 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Hoodie 01" })).toBeVisible();
     let gallery = page.getByRole("region", { name: "تصاویر محصول" });
     await expect(gallery.getByRole("img")).toHaveAttribute("alt", "Hoodie 01 Black front");
-    await expect(page.getByText("Black", { exact: true })).toBeVisible();
+    await expect(page.locator("section.min-w-0 > div.mt-2").getByText("Black", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "انتخاب رنگ White" })).toHaveCount(0);
     await expect(page.getByRole("radio", { name: "M" })).toBeEnabled();
 
     await page.goto("/fa/products/e2e-hoodie-01/white");
     gallery = page.getByRole("region", { name: "تصاویر محصول" });
     await expect(gallery.getByRole("img")).toHaveAttribute("alt", "Hoodie 01 White front");
-    await expect(page.getByText("White", { exact: true })).toBeVisible();
+    await expect(page.locator("section.min-w-0 > div.mt-2").getByText("White", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "انتخاب رنگ Black" })).toHaveCount(0);
     await expect(page.getByRole("radio", { name: "M" })).toBeDisabled();
   });
@@ -318,6 +319,7 @@ test.describe("کاتالوگ موبایل", () => {
     await dialog.getByRole("button", { name: /اعمال فیلترها/ }).click();
     await expect(page).toHaveURL(/category=t-shirts/);
     await expect(page).not.toHaveURL(/draft_category=/);
+    await expect(page).not.toHaveURL(/filter_preview=1/);
     await expect(dialog).toBeHidden();
     await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
   });
