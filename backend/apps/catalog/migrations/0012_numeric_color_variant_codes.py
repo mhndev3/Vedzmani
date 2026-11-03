@@ -1,6 +1,5 @@
 import random
 
-from django.core.validators import RegexValidator
 from django.db import migrations, models
 
 
@@ -13,6 +12,8 @@ def assign_numeric_card_codes(apps, schema_editor):
     # Clear legacy values first so no old manually-entered numeric code can collide.
     ColorVariant.objects.using(db).all().update(product_code=None)
 
+    # Use a stable random permutation so every deployment assigns the same unique
+    # 01..N sequence without exposing ordering by product or variant ID.
     random.Random("vedzmani-card-codes-v1").shuffle(variants)
     for number, variant in enumerate(variants, start=1):
         ColorVariant.objects.using(db).filter(pk=variant.pk).update(
@@ -39,22 +40,4 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunPython(assign_numeric_card_codes, migrations.RunPython.noop),
-        migrations.AlterField(
-            model_name="colorvariant",
-            name="product_code",
-            field=models.CharField(
-                blank=True,
-                max_length=12,
-                null=True,
-                unique=True,
-                validators=[
-                    RegexValidator(
-                        regex=r"^\d+$",
-                        message="کد کارت باید فقط شامل عدد باشد.",
-                    )
-                ],
-                verbose_name="کد کارت محصول",
-            ),
-        ),
-
     ]
