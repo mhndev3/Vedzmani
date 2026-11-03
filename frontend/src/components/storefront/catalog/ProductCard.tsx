@@ -123,7 +123,7 @@ export function ProductCard({
         />
         <h3 className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold">{product.name}</h3>
         <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-          <ColorSwatch name={product.color.name} hexColor={product.color.hex_color} productCode={product.code} colorIndex={0} />
+          <ColorSwatch name={product.color.name} hexColor={product.color.hex_color} />
           <span>{product.color.name}</span>
         </p>
         {product.code && <p className="mt-1 text-xs text-muted-foreground">کد محصول: {product.code}</p>}
