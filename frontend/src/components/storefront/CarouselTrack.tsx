@@ -1,7 +1,5 @@
 "use client";
 
-const INTERACTION_RESUME_DELAY_MS = 3000;
-
 import {
   Children,
   cloneElement,
@@ -11,6 +9,8 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+
+const INTERACTION_RESUME_DELAY_MS = 3000;
 
 export function CarouselTrack({
   children,
