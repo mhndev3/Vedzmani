@@ -133,8 +133,10 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page).toHaveURL(/category=hoodies/);
     await expect(page).not.toHaveURL(/draft_category=/);
     await expect(page).not.toHaveURL(/filter_preview=1/);
-    await expect(page.locator('a[href^="/fa/products/e2e-hoodie-"]')).toHaveCount(24);
-    await expect(page.locator('a[href^="/fa/products/e2e-tee-"]')).toHaveCount(0);
+    const renderedCardHrefs = await page.locator("ul.grid a").evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute("href")));
+    expect(renderedCardHrefs, "Rendered catalog card hrefs after applying hoodies: " + JSON.stringify(renderedCardHrefs)).toHaveLength(24);
+    expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-hoodie-")), "Unexpected rendered catalog cards: " + JSON.stringify(renderedCardHrefs)).toHaveLength(24);
+    expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-tee-")), "T-shirt cards leaked into hoodie results: " + JSON.stringify(renderedCardHrefs)).toHaveLength(0);
   });
 
   test("پاک کردن همه فیلترها تمام وضعیت URL و فرم را پاک می‌کند", async ({ page }) => {
@@ -322,8 +324,10 @@ test.describe("کاتالوگ موبایل", () => {
     await expect(page).not.toHaveURL(/draft_category=/);
     await expect(page).not.toHaveURL(/filter_preview=1/);
     await expect(dialog).toBeHidden();
-    await expect(page.locator('a[href^="/fa/products/e2e-tee-"]')).toHaveCount(24);
-    await expect(page.locator('a[href^="/fa/products/e2e-hoodie-"]')).toHaveCount(0);
+    const renderedCardHrefs = await page.locator("ul.grid a").evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute("href")));
+    expect(renderedCardHrefs, "Rendered catalog card hrefs after applying t-shirts: " + JSON.stringify(renderedCardHrefs)).toHaveLength(24);
+    expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-tee-")), "Unexpected rendered catalog cards: " + JSON.stringify(renderedCardHrefs)).toHaveLength(24);
+    expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-hoodie-")), "Hoodie cards leaked into t-shirt results: " + JSON.stringify(renderedCardHrefs)).toHaveLength(0);
   });
 
   test("صفحه جزئیات محصول در موبایل سرریز افقی ندارد", async ({ page }) => {
