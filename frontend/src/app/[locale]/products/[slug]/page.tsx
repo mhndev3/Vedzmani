@@ -162,7 +162,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
                 {t.product.colors}: <span className="font-normal">{color.name}</span>
               </h2>
               <ul className="mt-2 flex flex-wrap gap-2">
-                {product.colors.map((c, index) => {
+                {product.colors.map((c) => {
                   const current = c.slug === color.slug;
                   return (
                     <li key={c.slug}>
