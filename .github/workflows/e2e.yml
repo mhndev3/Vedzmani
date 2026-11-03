@@ -186,6 +186,11 @@ jobs:
 
       # The raw log is written to a temp file and is NEVER printed: only the redacted output is. If redaction
       # fails or finds sensitive-shaped content left over (fail closed), a one-line notice is printed instead.
+      - name: Show frontend logs on failure (sanitized by omission of environment)
+        if: failure()
+        run: |
+          docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.test.yml" logs --no-color --tail=160 frontend 2>&1 | tail -160
+
       - name: Show backend logs on failure (OTP delivery lines dropped, phone numbers and secrets redacted)
         if: failure()
         run: |

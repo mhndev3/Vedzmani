@@ -144,7 +144,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
       alerts: Array.from(body.querySelectorAll('[role="alert"]')).map((alert) => alert.textContent),
     }));
     const renderedCardHrefs = await page.locator("ul.grid a").evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute("href")));
-    expect(renderedCardHrefs, "Rendered catalog state after applying hoodies: " + JSON.stringify(renderedPageState)).toHaveLength(24);
+    expect(renderedCardHrefs, "Rendered catalog state after applying hoodies: " + JSON.stringify({ ...renderedPageState, browserDiagnostics })).toHaveLength(24);
     expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-hoodie-")), "Unexpected rendered catalog cards: " + JSON.stringify(renderedCardHrefs)).toHaveLength(24);
     expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-tee-")), "T-shirt cards leaked into hoodie results: " + JSON.stringify(renderedCardHrefs)).toHaveLength(0);
   });
@@ -329,6 +329,21 @@ test.describe("کاتالوگ موبایل", () => {
     await expect(dialog.getByRole("group", { name: "سایز" })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "اعمال فیلترها (۳۰)" })).toBeVisible();
 
+    const browserDiagnostics: string[] = [];
+    page.on("requestfailed", (request) => {
+      if (request.url().includes("/fa/products")) {
+        browserDiagnostics.push("requestfailed " + request.url() + " " + (request.failure()?.errorText ?? ""));
+      }
+    });
+    page.on("response", (response) => {
+      if (response.url().includes("/fa/products") && response.status() >= 400) {
+        browserDiagnostics.push("response " + response.status() + " " + response.url());
+      }
+    });
+    page.on("pageerror", (error) => browserDiagnostics.push("pageerror " + error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error") browserDiagnostics.push("console " + message.text());
+    });
     await dialog.getByRole("button", { name: /اعمال فیلترها/ }).click();
     await expect(page).toHaveURL(/category=t-shirts/);
     await expect(page).not.toHaveURL(/draft_category=/);
