@@ -16,7 +16,7 @@ export function FilterApplyButton({ label, className }: Props) {
     const form = buttonRef.current?.form;
     if (!form) return;
 
-    let timer: ReturnType<typeof window.setTimeout> | undefined;
+    let timer: number | undefined;
     let controller: AbortController | null = null;
 
     const refreshCount = () => {
