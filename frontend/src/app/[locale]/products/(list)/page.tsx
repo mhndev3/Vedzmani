@@ -40,8 +40,20 @@ export default async function ProductsPage({ params, searchParams }: Props) {
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
   const rawSearchParams = await searchParams;
-  const state = parseCatalogState(rawSearchParams);
   const filterPreview = rawSearchParams.filter_preview === "1" || (Array.isArray(rawSearchParams.filter_preview) && rawSearchParams.filter_preview.includes("1"));
+  const parsedState = parseCatalogState(rawSearchParams);
+  const state = filterPreview
+    ? parseCatalogState({
+        ...rawSearchParams,
+        category: rawSearchParams.applied_category,
+        collection: rawSearchParams.applied_collection,
+        color: rawSearchParams.applied_color,
+        size: rawSearchParams.applied_size,
+        min_price: rawSearchParams.applied_min_price,
+        max_price: rawSearchParams.applied_max_price,
+        in_stock: rawSearchParams.applied_in_stock,
+      })
+    : parsedState;
   const draftCategory = filterPreview
     ? parseCatalogState({ ...rawSearchParams, category: rawSearchParams.draft_category }).category
     : state.category;
@@ -91,7 +103,7 @@ export default async function ProductsPage({ params, searchParams }: Props) {
               openOnLoad={keepFiltersOpen}
             >
               <CategoryFilterAutoSubmit>
-                <FilterForm locale={locale} t={t} state={filterState} options={options} />
+                <FilterForm locale={locale} t={t} state={filterState} options={options} appliedState={state} />
               </CategoryFilterAutoSubmit>
             </FilterDrawer>
           </aside>

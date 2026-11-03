@@ -33,7 +33,8 @@ export function FilterApplyButton({ label, className }: Props) {
             value.trim() !== "" &&
             key !== "filters_open" &&
             key !== "filter_preview" &&
-            key !== "draft_category"
+            key !== "draft_category" &&
+            !key.startsWith("applied_")
           ) {
             params.append(key, value);
           }
