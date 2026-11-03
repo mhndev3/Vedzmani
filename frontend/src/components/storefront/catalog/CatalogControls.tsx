@@ -2,6 +2,7 @@ import Form from "next/form";
 import Link from "next/link";
 import { PriceRange } from "./PriceRange";
 import { ColorSwatch } from "./ColorSwatch";
+import { FilterApplyButton } from "./FilterApplyButton";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import {
@@ -168,9 +169,7 @@ export function FilterForm({
       ) : (
         <p className="rounded-xl border border-dashed border-border bg-muted/50 p-3 text-xs text-muted-foreground">ابتدا دسته‌بندی موردنظر را انتخاب کنید تا فیلترهای مربوط به آن نمایش داده شوند.</p>
       )}
-      <button type="submit" className={buttonClass}>
-        {t.catalog.applyFilters}
-      </button>
+      <FilterApplyButton label={t.catalog.applyFilters} className={buttonClass} />
     </Form>
   );
 }

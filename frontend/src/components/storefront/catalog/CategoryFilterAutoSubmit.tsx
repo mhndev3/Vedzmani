@@ -1,11 +1,11 @@
 "use client";
 
-import type { ChangeEvent, ReactNode } from "react";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
 
 /**
- * Selecting a top-level category immediately refreshes the server-rendered
- * facet vocabulary. Dependent selections are cleared so a colour/size from a
- * previous category cannot silently make the new category look empty.
+ * A category selection is a facet-preview step, not an applied product filter.
+ * Submit draft_category so the server can refresh dependent options while the
+ * product result query remains unchanged. The mobile drawer stays open for preview.
  */
 export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) {
   function handleChange(event: ChangeEvent<HTMLDivElement>) {
@@ -23,12 +23,31 @@ export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) 
       else field.value = "";
     });
 
-    // A category choice is the first step, not the whole filtering session.
-    // Submit it without filters_open so the mobile drawer closes after the
-    // refreshed category results and the user can reopen it for colour/size.
-    form.querySelector<HTMLInputElement>('input[name="filters_open"]')?.remove();
+    form.querySelectorAll<HTMLInputElement>('input[name="category"]').forEach((field) => {
+      field.name = "draft_category";
+    });
+
+    let preview = form.querySelector<HTMLInputElement>('input[name="filter_preview"]');
+    if (!preview) {
+      preview = document.createElement("input");
+      preview.type = "hidden";
+      preview.name = "filter_preview";
+      preview.value = "1";
+      form.appendChild(preview);
+    }
+
     form.requestSubmit();
   }
 
-  return <div onChange={handleChange}>{children}</div>;
+  function handleSubmit(event: FormEvent<HTMLDivElement>) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    // Keep the drawer open only during the category-facet preview. Applying
+    // the finished filters closes it on mobile.
+    if (!form.querySelector('input[name="filter_preview"]')) {
+      form.querySelector<HTMLInputElement>('input[name="filters_open"]')?.remove();
+    }
+  }
+
+  return <div onChange={handleChange} onSubmit={handleSubmit}>{children}</div>;
 }

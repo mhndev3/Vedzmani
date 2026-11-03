@@ -17,8 +17,8 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
   test("هر رنگ در فهرست کارت مستقل با تصویر همان رنگ دارد", async ({ page }) => {
     await page.goto("/fa/products?search=E2E-HOODIE-01");
-    const blackCard = page.locator('a[href="/fa/products/e2e-hoodie-01?color=black"]');
-    const whiteCard = page.locator('a[href="/fa/products/e2e-hoodie-01?color=white"]');
+    const blackCard = page.locator('a[href="/fa/products/e2e-hoodie-01/black"]');
+    const whiteCard = page.locator('a[href="/fa/products/e2e-hoodie-01/white"]');
     await expect(blackCard).toBeVisible();
     await expect(whiteCard).toBeVisible();
     await expect(blackCard.getByRole("img")).toHaveAttribute("alt", "Hoodie 01 Black front");
@@ -91,7 +91,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     const result = page.locator("#navbar-search-results").getByRole("button", { name: /Hoodie 07/ }).first();
     await expect(result).toBeVisible();
     await result.click();
-    await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07\?color=black$/);
+    await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07\/black$/);
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     await expect(page.getByText("جستجوهای اخیر")).toBeVisible();
     await expect(page.getByRole("button", { name: "Hoodie 07" })).toBeVisible();
@@ -109,7 +109,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
     await page.goto("/fa/products?category=hoodies");
     await page.getByRole("checkbox", { name: "فقط کالاهای موجود" }).check();
-    await page.getByRole("button", { name: "اعمال فیلترها" }).click();
+    await page.getByRole("button", { name: /اعمال فیلترها/ }).click();
     await expect(page).toHaveURL(/in_stock=true/);
     await expect(page.getByRole("heading", { level: 2, name: "۲۷ محصول" })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
@@ -117,14 +117,22 @@ test.describe("کاتالوگ دسکتاپ", () => {
 
 
 
-  test("انتخاب دسته‌بندی در همان لحظه فیلترهای وابسته را تازه می‌کند", async ({ page }) => {
+  test("انتخاب دسته‌بندی فقط جزئیات فیلتر را باز می‌کند و نتایج با اعمال فیلتر تغییر می‌کنند", async ({ page }) => {
     await page.goto("/fa/products");
     await page.getByRole("checkbox", { name: "هودی" }).check();
-    await expect(page).toHaveURL(/category=hoodies/);
+    await expect(page).toHaveURL(/draft_category=hoodies/);
+    await expect(page).toHaveURL(/filter_preview=1/);
+    await expect(page.getByRole("heading", { level: 2, name: "۶۰ محصول" })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: "هودی" })).toBeChecked();
     await expect(page.getByRole("group", { name: "کالکشن" })).toContainText("Winter");
     await expect(page.getByRole("group", { name: "رنگ" })).toContainText("Black");
     await expect(page.getByRole("group", { name: "سایز" })).toContainText("M");
+    await expect(page.getByRole("button", { name: /اعمال فیلترها \(/ })).toBeVisible();
+
+    await page.getByRole("button", { name: /اعمال فیلترها/ }).click();
+    await expect(page).toHaveURL(/category=hoodies/);
+    await expect(page).not.toHaveURL(/draft_category=/);
+    await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
   });
 
   test("پاک کردن همه فیلترها تمام وضعیت URL و فرم را پاک می‌کند", async ({ page }) => {
@@ -223,6 +231,23 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page).toHaveURL(/\/fa\/products$/);
   });
 
+  test("هر کارت رنگی صفحه مستقل دارد و فقط سایزهای همان رنگ را نمایش می‌دهد", async ({ page }) => {
+    await page.goto("/fa/products/e2e-hoodie-01/black");
+    await expect(page.getByRole("heading", { level: 1, name: "Hoodie 01" })).toBeVisible();
+    let gallery = page.getByRole("region", { name: "تصاویر محصول" });
+    await expect(gallery.getByRole("img")).toHaveAttribute("alt", "Hoodie 01 Black front");
+    await expect(page.getByText("Black", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "انتخاب رنگ White" })).toHaveCount(0);
+    await expect(page.getByRole("radio", { name: "M" })).toBeEnabled();
+
+    await page.goto("/fa/products/e2e-hoodie-01/white");
+    gallery = page.getByRole("region", { name: "تصاویر محصول" });
+    await expect(gallery.getByRole("img")).toHaveAttribute("alt", "Hoodie 01 White front");
+    await expect(page.getByText("White", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "انتخاب رنگ Black" })).toHaveCount(0);
+    await expect(page.getByRole("radio", { name: "M" })).toBeDisabled();
+  });
+
   test("قیمت تخفیف‌خورده فقط در صورت وجود نشان داده می‌شود", async ({ page }) => {
     await page.goto("/fa/products/e2e-hoodie-02");
     await expect(page.locator("del")).toHaveCount(1);
@@ -280,17 +305,21 @@ test.describe("کاتالوگ موبایل", () => {
     await expect(dialog).toBeHidden();
     await page.getByRole("button", { name: "فیلترها" }).click();
     await dialog.getByRole("checkbox", { name: "تی شرت" }).check();
-    await expect(page).toHaveURL(/category=t-shirts/);
-    await expect(page).not.toHaveURL(/filters_open=1/);
-    await expect(dialog).toBeHidden();
-    await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
-
-    // Reopen the drawer to continue with dependent filters for the chosen category.
-    await page.getByRole("button", { name: "فیلترها" }).click();
+    await expect(page).toHaveURL(/draft_category=t-shirts/);
+    await expect(page).toHaveURL(/filter_preview=1/);
+    await expect(page).toHaveURL(/filters_open=1/);
     await expect(dialog).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "۶۰ محصول" })).toBeVisible();
     await expect(dialog.getByRole("checkbox", { name: "تی شرت" })).toBeChecked();
     await expect(dialog.getByRole("group", { name: "رنگ" })).toBeVisible();
     await expect(dialog.getByRole("group", { name: "سایز" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /اعمال فیلترها \(/ })).toBeVisible();
+
+    await dialog.getByRole("button", { name: /اعمال فیلترها/ }).click();
+    await expect(page).toHaveURL(/category=t-shirts/);
+    await expect(page).not.toHaveURL(/draft_category=/);
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole("heading", { level: 2, name: "۳۰ محصول" })).toBeVisible();
   });
 
   test("صفحه جزئیات محصول در موبایل سرریز افقی ندارد", async ({ page }) => {

@@ -107,8 +107,9 @@ category set; the top-level category list remains global so customers can change
 queries regardless of catalog size or selected category count. Added so the storefront never offers fake filter values. Colors are de-duplicated by slug.
 
 ### Storefront (frontend) notes
-Routes: `/[locale]/products` (listing) and `/[locale]/products/[slug]` (detail, `?color=<slug>` selects a variant).
-All state is in the URL; filters/search are plain GET forms (`next/form`), sort/pagination/color are links. The listing remains server-rendered; `FilterDrawer`, `AddToCart` and the product-detail `ProductGallery` are client components.
+Routes: `/[locale]/products` (listing), `/[locale]/products/[slug]` (legacy detail) and `/[locale]/products/[slug]/[variant]` (one color variant per detail page).
+Each color card links to its own variant route; the page shows only that variant's gallery, stock and size options. Legacy product URLs remain supported.
+Filters use a staged GET flow: choosing a category refreshes dependent facets through a draft URL parameter without changing the visible results. The customer chooses collections, colors, sizes and price constraints, sees the matching count on the apply button, and only then submits the applied filters. The listing remains server-rendered; `FilterDrawer`, `AddToCart` and the product-detail `ProductGallery` are client components.
 The product gallery orders the primary image first and slides through the selected color's images. Selecting another color
 keeps URL state and cross-fades to that color's gallery. The size selector shows exact stock quantities; zero-stock sizes
 are red and disabled. After a size is selected, its resolved size description and measurement rows appear and update when the customer changes size; color + size descriptions override the product + size description, and no empty section/table is shown when no data was entered. All storefront prices are formatted in Toman. E2E fixtures: `e2e/seed_catalog.py` (throwaway DB only).
@@ -124,9 +125,9 @@ strictly to that variant; a card never borrows another color's image. Search als
 name, and color/size/in-stock filters apply to the same variant. Pagination counts color cards, not
 parent products.
 
-The storefront links each card to the existing product detail route with `?color=<variant-slug>`.
-The detail page continues to use the existing product and variant records, so size-specific stock,
-SKU, measurements, descriptions, guest-cart snapshots and cart `VariantSize` references remain
-unchanged. No product rows, variant rows, inventory quantities or media files are duplicated.
+The storefront links each card to `/[locale]/products/<product-slug>/<variant-slug>`.
+The variant detail page resolves the existing parent product and the exact `ColorVariant`, showing
+only its images and `VariantSize` rows. Size-specific stock, SKU, measurements, descriptions,
+guest-cart snapshots and cart `VariantSize` references remain unchanged. No product rows, variant rows, inventory quantities or media files are duplicated.
 Products with one active color still produce one card; inactive colors and unpublished products
 remain hidden. The legacy `/products/` endpoint remains available for compatibility.

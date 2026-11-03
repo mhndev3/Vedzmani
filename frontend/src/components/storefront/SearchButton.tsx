@@ -129,7 +129,7 @@ export function SearchButton({
   function choose(product: SearchProduct) {
     remember(query);
     close();
-    router.push(`/${locale}/products/${product.slug}?color=${encodeURIComponent(product.color.slug)}`);
+    router.push(`/${locale}/products/${product.slug}/${encodeURIComponent(product.color.slug)}`);
   }
 
   const showPanel = expanded && (query.trim().length > 0 || history.length > 0);
