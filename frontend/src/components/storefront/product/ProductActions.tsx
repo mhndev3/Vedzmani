@@ -7,10 +7,15 @@ import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 
 type Favorite = { product_id: number; product_slug: string; product_name: string };
 
-function productPageUrl(locale: Locale, productSlug: string) {
-  const url = new URL(`/${locale}/products/${encodeURIComponent(productSlug)}`, window.location.origin);
-  const color = new URL(window.location.href).searchParams.get("color");
-  if (color) url.searchParams.set("color", color);
+function productPageUrl(locale: Locale, productSlug: string, variantSlug?: string) {
+  const path = variantSlug
+    ? `/${locale}/products/${encodeURIComponent(productSlug)}/${encodeURIComponent(variantSlug)}`
+    : `/${locale}/products/${encodeURIComponent(productSlug)}`;
+  const url = new URL(path, window.location.origin);
+  if (!variantSlug) {
+    const color = new URL(window.location.href).searchParams.get("color");
+    if (color) url.searchParams.set("color", color);
+  }
   return url.toString();
 }
 
@@ -24,11 +29,12 @@ function shareLinks(url: string, title: string) {
   };
 }
 
-export function ProductActions({ productId, productSlug, productName, locale }: {
+export function ProductActions({ productId, productSlug, productName, locale, variantSlug }: {
   productId: number;
   productSlug: string;
   productName: string;
   locale: Locale;
+  variantSlug?: string;
 }) {
   const [saved, setSaved] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -79,7 +85,7 @@ export function ProductActions({ productId, productSlug, productName, locale }: 
   }
 
   async function copyLink() {
-    const url = productPageUrl(locale, productSlug);
+    const url = productPageUrl(locale, productSlug, variantSlug);
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
@@ -104,7 +110,7 @@ export function ProductActions({ productId, productSlug, productName, locale }: 
   }
 
   async function nativeShare() {
-    const url = productPageUrl(locale, productSlug);
+    const url = productPageUrl(locale, productSlug, variantSlug);
     if (!navigator.share) return copyLink();
     try {
       await navigator.share({ title: productName, text: productName, url });
@@ -114,7 +120,10 @@ export function ProductActions({ productId, productSlug, productName, locale }: 
   }
 
   const links = shareLinks(shareUrl, productName);
-  const signInTarget = `/${locale}/sign-in?next=${encodeURIComponent(`/${locale}/products/${productSlug}`)}`;
+  const productTarget = variantSlug
+    ? `/${locale}/products/${productSlug}/${variantSlug}`
+    : `/${locale}/products/${productSlug}`;
+  const signInTarget = `/${locale}/sign-in?next=${encodeURIComponent(productTarget)}`;
 
   return (
     <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -122,7 +131,7 @@ export function ProductActions({ productId, productSlug, productName, locale }: 
         className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:bg-muted disabled:opacity-60">
         <span aria-hidden="true">{saved ? "♥" : "♡"}</span>{saved ? "نشان‌شده" : "نشان کردن"}
       </button>
-      <button type="button" onClick={() => { setCopied(false); setShareUrl(productPageUrl(locale, productSlug)); setShareOpen(true); }} aria-expanded={shareOpen}
+      <button type="button" onClick={() => { setCopied(false); setShareUrl(productPageUrl(locale, productSlug, variantSlug)); setShareOpen(true); }} aria-expanded={shareOpen}
         aria-haspopup="dialog"
         className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:bg-muted">
         <span aria-hidden="true">↗</span> اشتراک‌گذاری

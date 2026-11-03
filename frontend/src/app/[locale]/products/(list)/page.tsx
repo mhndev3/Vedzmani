@@ -40,11 +40,30 @@ export default async function ProductsPage({ params, searchParams }: Props) {
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
   const rawSearchParams = await searchParams;
-  const state = parseCatalogState(rawSearchParams);
+  const filterPreview = rawSearchParams.filter_preview === "1" || (Array.isArray(rawSearchParams.filter_preview) && rawSearchParams.filter_preview.includes("1"));
+  const parsedState = parseCatalogState(rawSearchParams);
+  const state = filterPreview
+    ? parseCatalogState({
+        ...rawSearchParams,
+        category: rawSearchParams.applied_category,
+        collection: rawSearchParams.applied_collection,
+        color: rawSearchParams.applied_color,
+        size: rawSearchParams.applied_size,
+        min_price: rawSearchParams.applied_min_price,
+        max_price: rawSearchParams.applied_max_price,
+        in_stock: rawSearchParams.applied_in_stock,
+      })
+    : parsedState;
+  const draftCategory = filterPreview
+    ? parseCatalogState({ ...rawSearchParams, category: rawSearchParams.draft_category }).category
+    : state.category;
+  const filterState = filterPreview
+    ? { ...state, category: draftCategory, collection: [], color: [], size: [], minPrice: "", maxPrice: "", inStock: false, page: 1 }
+    : state;
   const keepFiltersOpen = rawSearchParams.filters_open === "1" || (Array.isArray(rawSearchParams.filters_open) && rawSearchParams.filters_open.includes("1"));
 
-  // Both requests start together; the filter vocabulary is optional (the page works without it).
-  const optionsPromise: Promise<FilterOptions | null> = getFilterOptions(state.category.join(",")).catch(() => null);
+  // A draft category refreshes only dependent facet options; results still use the applied URL state.
+  const optionsPromise: Promise<FilterOptions | null> = getFilterOptions(draftCategory.join(",")).catch(() => null);
   let data: Paginated<ProductCardData> | null = null;
   let pageOutOfRange = false;
   try {
@@ -84,7 +103,7 @@ export default async function ProductsPage({ params, searchParams }: Props) {
               openOnLoad={keepFiltersOpen}
             >
               <CategoryFilterAutoSubmit>
-                <FilterForm locale={locale} t={t} state={state} options={options} />
+                <FilterForm locale={locale} t={t} state={filterState} options={options} appliedState={state} />
               </CategoryFilterAutoSubmit>
             </FilterDrawer>
           </aside>

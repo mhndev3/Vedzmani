@@ -1,13 +1,21 @@
 "use client";
 
-import type { ChangeEvent, ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
 
 /**
- * Selecting a top-level category immediately refreshes the server-rendered
- * facet vocabulary. Dependent selections are cleared so a colour/size from a
- * previous category cannot silently make the new category look empty.
+ * Category selection previews dependent facets without applying the filter.
+ * Both preview and apply navigations are built from FormData; React-owned
+ * inputs are never renamed, removed, or appended imperatively.
  */
 export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) {
+  const router = useRouter();
+
+  function destinationFor(form: HTMLFormElement, params: URLSearchParams) {
+    const destination = new URL(form.action, window.location.href);
+    return destination.pathname + (params.size ? "?" + params.toString() : "");
+  }
+
   function handleChange(event: ChangeEvent<HTMLDivElement>) {
     const target = event.target;
     if (!(target instanceof HTMLInputElement) || target.name !== "category" || target.type !== "checkbox") return;
@@ -15,20 +23,58 @@ export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) 
     const form = target.form;
     if (!form) return;
 
-    const dependentFields = form.querySelectorAll<HTMLInputElement>(
-      'input[name="collection"], input[name="color"], input[name="size"], input[name="min_price"], input[name="max_price"], input[name="in_stock"]',
-    );
-    dependentFields.forEach((field) => {
-      if (field.type === "checkbox") field.checked = false;
-      else field.value = "";
-    });
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+    const excluded = new Set([
+      "category",
+      "draft_category",
+      "collection",
+      "color",
+      "size",
+      "min_price",
+      "max_price",
+      "in_stock",
+      "filter_preview",
+    ]);
 
-    // A category choice is the first step, not the whole filtering session.
-    // Submit it without filters_open so the mobile drawer closes after the
-    // refreshed category results and the user can reopen it for colour/size.
-    form.querySelector<HTMLInputElement>('input[name="filters_open"]')?.remove();
-    form.requestSubmit();
+    for (const [key, value] of formData.entries()) {
+      if (typeof value === "string" && value.trim() && !excluded.has(key)) {
+        params.append(key, value);
+      }
+    }
+
+    for (const value of formData.getAll("category")) {
+      if (typeof value === "string" && value.trim()) {
+        params.append("draft_category", value);
+      }
+    }
+
+    params.set("filter_preview", "1");
+    router.push(destinationFor(form, params));
   }
 
-  return <div onChange={handleChange}>{children}</div>;
+  function handleSubmit(event: FormEvent<HTMLDivElement>) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    if (!submitter) return;
+
+    event.preventDefault();
+    const params = new URLSearchParams();
+    for (const [key, value] of new FormData(form).entries()) {
+      if (
+        typeof value === "string" &&
+        value.trim() &&
+        key !== "filters_open" &&
+        key !== "filter_preview" &&
+        key !== "draft_category" &&
+        !key.startsWith("applied_")
+      ) {
+        params.append(key, value);
+      }
+    }
+    router.push(destinationFor(form, params));
+  }
+
+  return <div onChange={handleChange} onSubmitCapture={handleSubmit}>{children}</div>;
 }

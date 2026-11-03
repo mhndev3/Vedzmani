@@ -110,7 +110,7 @@ export function ProductCard({
     <li className={variantClass + " relative"} aria-hidden={ariaHidden} inert={inert}>
       {removeAction && <div className="absolute end-4 top-4 z-20">{removeAction}</div>}
       <Link
-        href={"/" + locale + "/products/" + product.slug + "?color=" + encodeURIComponent(product.color.slug)}
+        href={"/" + locale + "/products/" + product.slug + "/" + encodeURIComponent(product.color.slug)}
         prefetch={false}
         className="group block h-full rounded-2xl border border-border bg-card p-2.5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
       >

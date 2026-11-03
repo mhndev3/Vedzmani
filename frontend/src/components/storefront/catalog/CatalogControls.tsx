@@ -2,6 +2,7 @@ import Form from "next/form";
 import Link from "next/link";
 import { PriceRange } from "./PriceRange";
 import { ColorSwatch } from "./ColorSwatch";
+import { FilterApplyButton } from "./FilterApplyButton";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import {
@@ -111,11 +112,13 @@ export function FilterForm({
   t,
   state,
   options,
+  appliedState,
 }: {
   locale: Locale;
   t: Dictionary;
   state: CatalogState;
   options: FilterOptions;
+  appliedState: CatalogState;
 }) {
   return (
     <Form
@@ -124,6 +127,13 @@ export function FilterForm({
       className="flex flex-col gap-4"
     >
       {carry(state, "filters")}
+      {appliedState.category.map((value, index) => <input key={"applied-category-" + index} type="hidden" name="applied_category" value={value} />)}
+      {appliedState.collection.map((value, index) => <input key={"applied-collection-" + index} type="hidden" name="applied_collection" value={value} />)}
+      {appliedState.color.map((value, index) => <input key={"applied-color-" + index} type="hidden" name="applied_color" value={value} />)}
+      {appliedState.size.map((value, index) => <input key={"applied-size-" + index} type="hidden" name="applied_size" value={value} />)}
+      {appliedState.minPrice && <input type="hidden" name="applied_min_price" value={appliedState.minPrice} />}
+      {appliedState.maxPrice && <input type="hidden" name="applied_max_price" value={appliedState.maxPrice} />}
+      {appliedState.inStock && <input type="hidden" name="applied_in_stock" value="true" />}
       <input type="hidden" name="filters_open" value="1" />
       <Link prefetch={false} href={catalogHref(locale, emptyState) + "?filters_open=1"} className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-muted/60 px-3 text-sm font-semibold transition hover:bg-muted">حذف همه فیلترها</Link>
       <CheckGroup
@@ -168,9 +178,7 @@ export function FilterForm({
       ) : (
         <p className="rounded-xl border border-dashed border-border bg-muted/50 p-3 text-xs text-muted-foreground">ابتدا دسته‌بندی موردنظر را انتخاب کنید تا فیلترهای مربوط به آن نمایش داده شوند.</p>
       )}
-      <button type="submit" className={buttonClass}>
-        {t.catalog.applyFilters}
-      </button>
+      <FilterApplyButton label={t.catalog.applyFilters} className={buttonClass} />
     </Form>
   );
 }
