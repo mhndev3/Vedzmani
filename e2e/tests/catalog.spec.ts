@@ -153,7 +153,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await expect(page).toHaveURL(/category=hoodies/);
     await expect(page).not.toHaveURL(/draft_category=/);
     await expect(page).not.toHaveURL(/filter_preview=1/);
-    await expect(page.locator("ul.grid a")).toHaveCount(24, { timeout: 3000 }).catch(() => undefined);
+    await expect(cards(page)).toHaveCount(24, { timeout: 3000 }).catch(() => undefined);
     const renderedPageState = await page.locator("body").evaluate((body) => ({
       url: window.location.href,
       text: body.innerText.slice(0, 3000),
@@ -163,7 +163,7 @@ test.describe("کاتالوگ دسکتاپ", () => {
       })),
       alerts: Array.from(body.querySelectorAll('[role="alert"]')).map((alert) => alert.textContent),
     }));
-    const renderedCardHrefs = await page.locator("ul.grid a").evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute("href")));
+    const renderedCardHrefs = await cards(page).evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute("href")));
     expect(renderedCardHrefs, "Rendered catalog state after applying hoodies: " + JSON.stringify({ ...renderedPageState, browserDiagnostics })).toHaveLength(24);
     expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-hoodie-")), "Unexpected rendered catalog cards: " + JSON.stringify(renderedCardHrefs)).toHaveLength(24);
     expect(renderedCardHrefs.filter((href) => href?.includes("/e2e-tee-")), "T-shirt cards leaked into hoodie results: " + JSON.stringify(renderedCardHrefs)).toHaveLength(0);

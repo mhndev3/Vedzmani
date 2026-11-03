@@ -1,15 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { ChangeEvent, ReactNode } from "react";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
 
 /**
- * A category selection is a facet-preview step, not an applied product filter.
- * Navigate with a draft URL instead of mutating React-owned form nodes. The
- * applied URL state is carried in applied_* fields so results remain unchanged.
+ * Category selection previews dependent facets without applying the filter.
+ * Both preview and apply navigations are built from FormData; React-owned
+ * inputs are never renamed, removed, or appended imperatively.
  */
 export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) {
   const router = useRouter();
+
+  function destinationFor(form: HTMLFormElement, params: URLSearchParams) {
+    const destination = new URL(form.action, window.location.href);
+    return destination.pathname + (params.size ? "?" + params.toString() : "");
+  }
 
   function handleChange(event: ChangeEvent<HTMLDivElement>) {
     const target = event.target;
@@ -45,10 +50,31 @@ export function CategoryFilterAutoSubmit({ children }: { children: ReactNode }) 
     }
 
     params.set("filter_preview", "1");
-
-    const destination = new URL(form.action, window.location.href);
-    router.push(destination.pathname + "?" + params.toString());
+    router.push(destinationFor(form, params));
   }
 
-  return <div onChange={handleChange}>{children}</div>;
+  function handleSubmit(event: FormEvent<HTMLDivElement>) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    if (!submitter) return;
+
+    event.preventDefault();
+    const params = new URLSearchParams();
+    for (const [key, value] of new FormData(form).entries()) {
+      if (
+        typeof value === "string" &&
+        value.trim() &&
+        key !== "filters_open" &&
+        key !== "filter_preview" &&
+        key !== "draft_category" &&
+        !key.startsWith("applied_")
+      ) {
+        params.append(key, value);
+      }
+    }
+    router.push(destinationFor(form, params));
+  }
+
+  return <div onChange={handleChange} onSubmitCapture={handleSubmit}>{children}</div>;
 }
