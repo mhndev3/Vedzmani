@@ -1,5 +1,7 @@
 "use client";
 
+const INTERACTION_RESUME_DELAY_MS = 3000;
+
 import {
   Children,
   cloneElement,
@@ -36,13 +38,14 @@ export function CarouselTrack({
   }
 
   function pauseAndResumeAfterInteraction() {
+    paused.current = true;
+    lastFrame.current = 0;
     if (resumeTimer.current) clearTimeout(resumeTimer.current);
     resumeTimer.current = setTimeout(() => {
       resumeTimer.current = null;
       paused.current = false;
       lastFrame.current = 0;
-    }, 6000);
-    paused.current = true;
+    }, INTERACTION_RESUME_DELAY_MS);
   }
 
   const paused = useRef(false);
@@ -134,12 +137,14 @@ export function CarouselTrack({
       </div>
       <div
         className="relative w-full min-w-0 max-w-full overflow-x-hidden [contain:paint]"
-        onMouseEnter={() => { paused.current = true; if (resumeTimer.current) clearTimeout(resumeTimer.current); }}
+        onMouseEnter={pauseAndResumeAfterInteraction}
+        onMouseMove={pauseAndResumeAfterInteraction}
         onMouseLeave={pauseAndResumeAfterInteraction}
-        onTouchStart={() => { paused.current = true; if (resumeTimer.current) clearTimeout(resumeTimer.current); }}
+        onTouchStart={pauseAndResumeAfterInteraction}
+        onTouchMove={pauseAndResumeAfterInteraction}
         onTouchEnd={pauseAndResumeAfterInteraction}
         onTouchCancel={pauseAndResumeAfterInteraction}
-        onFocusCapture={() => { paused.current = true; if (resumeTimer.current) clearTimeout(resumeTimer.current); }}
+        onFocusCapture={pauseAndResumeAfterInteraction}
         onBlurCapture={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
             pauseAndResumeAfterInteraction();
