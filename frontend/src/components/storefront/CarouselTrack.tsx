@@ -10,16 +10,18 @@ import {
   type ReactNode,
 } from "react";
 
-const INTERACTION_RESUME_DELAY_MS = 3000;
-
 export function CarouselTrack({
   children,
   itemCount,
   ariaLabel = "جدیدترین محصولات",
+  resumeAfterInteractionIdle = false,
+  interactionResumeDelayMs = 6000,
 }: {
   children: ReactNode;
   itemCount: number;
   ariaLabel?: string;
+  resumeAfterInteractionIdle?: boolean;
+  interactionResumeDelayMs?: number;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLUListElement>(null);
@@ -37,6 +39,13 @@ export function CarouselTrack({
     pauseAndResumeAfterInteraction();
   }
 
+  function pauseUntilInteractionEnds() {
+    paused.current = true;
+    lastFrame.current = 0;
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    resumeTimer.current = null;
+  }
+
   function pauseAndResumeAfterInteraction() {
     paused.current = true;
     lastFrame.current = 0;
@@ -45,7 +54,7 @@ export function CarouselTrack({
       resumeTimer.current = null;
       paused.current = false;
       lastFrame.current = 0;
-    }, INTERACTION_RESUME_DELAY_MS);
+    }, interactionResumeDelayMs);
   }
 
   const paused = useRef(false);
@@ -137,14 +146,14 @@ export function CarouselTrack({
       </div>
       <div
         className="relative w-full min-w-0 max-w-full overflow-x-hidden [contain:paint]"
-        onMouseEnter={pauseAndResumeAfterInteraction}
-        onMouseMove={pauseAndResumeAfterInteraction}
+        onMouseEnter={resumeAfterInteractionIdle ? pauseAndResumeAfterInteraction : pauseUntilInteractionEnds}
+        onMouseMove={resumeAfterInteractionIdle ? pauseAndResumeAfterInteraction : undefined}
         onMouseLeave={pauseAndResumeAfterInteraction}
-        onTouchStart={pauseAndResumeAfterInteraction}
-        onTouchMove={pauseAndResumeAfterInteraction}
+        onTouchStart={resumeAfterInteractionIdle ? pauseAndResumeAfterInteraction : pauseUntilInteractionEnds}
+        onTouchMove={resumeAfterInteractionIdle ? pauseAndResumeAfterInteraction : undefined}
         onTouchEnd={pauseAndResumeAfterInteraction}
         onTouchCancel={pauseAndResumeAfterInteraction}
-        onFocusCapture={pauseAndResumeAfterInteraction}
+        onFocusCapture={resumeAfterInteractionIdle ? pauseAndResumeAfterInteraction : pauseUntilInteractionEnds}
         onBlurCapture={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
             pauseAndResumeAfterInteraction();
