@@ -30,7 +30,7 @@ export function NewestProductsCarousel({
         </Link>
       </div>
       {products.length ? (
-        <CarouselTrack itemCount={products.length}>
+        <CarouselTrack itemCount={products.length} resumeAfterInteractionIdle interactionResumeDelayMs={3000}>
           {products.map((product, index) => (
             <ProductCard key={product.variant_id} product={product} locale={locale} t={t} eager={index === 0} variant="carousel" />
           ))}
