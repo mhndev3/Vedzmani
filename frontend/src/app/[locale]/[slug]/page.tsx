@@ -45,8 +45,13 @@ export default async function InfoPage({ params }: Props) {
   if (slug === "faq") {
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="mb-8 text-center text-3xl font-bold tracking-tight sm:mb-10 sm:text-4xl">
-          {t.pages.faq}
+        <h1
+          dir="ltr"
+          className="mb-8 flex items-center justify-center gap-3 text-center text-3xl font-bold tracking-tight sm:mb-10 sm:text-4xl"
+        >
+          <AboutHeadingDots />
+          <span dir="rtl">{t.pages.faq}</span>
+          <AboutHeadingDots reverse />
         </h1>
         <FAQAccordion />
       </div>
