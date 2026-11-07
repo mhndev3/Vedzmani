@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -43,6 +43,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const pathname = usePathname();
   const searchExpanded = searchOpenedOnPath === pathname;
+  const closeMobileSearch = useCallback(() => setMobileSearchOpen(false), []);
   const hideTimer = useRef<number | undefined>(undefined);
   const items = navItems(locale, t);
   const categoryItems = categories.map((category) => ({
