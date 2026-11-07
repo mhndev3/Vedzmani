@@ -20,11 +20,19 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
 
   useEffect(() => {
     if (!open) return;
+    let savedHistory: string[] = [];
     try {
       const saved: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
-      setHistory(Array.isArray(saved) ? saved.filter((item): item is string => typeof item === "string").slice(0, 8) : []);
-    } catch { setHistory([]); }
-    const frame = window.requestAnimationFrame(() => input.current?.focus());
+      savedHistory = Array.isArray(saved)
+        ? saved.filter((item): item is string => typeof item === "string").slice(0, 8)
+        : [];
+    } catch {
+      savedHistory = [];
+    }
+    const frame = window.requestAnimationFrame(() => {
+      setHistory(savedHistory);
+      input.current?.focus();
+    });
     const onPointerDown = (event: PointerEvent) => {
       if (event.target instanceof Node && !root.current?.contains(event.target)) onClose();
     };
@@ -40,7 +48,7 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
 
   useEffect(() => {
     const term = query.trim();
-    if (!open || !term) { setResults([]); setLoading(false); return; }
+    if (!open || !term) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setLoading(true);
@@ -106,7 +114,11 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
               enterKeyHint="search"
               maxLength={100}
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setResults([]);
+                setLoading(false);
+              }}
               className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
             <button type="button" onClick={() => { setQuery(""); setResults([]); onClose(); }} aria-label="بستن جستجو" className="inline-flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-muted">
