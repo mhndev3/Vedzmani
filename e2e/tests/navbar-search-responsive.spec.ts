@@ -17,7 +17,7 @@ for (const viewport of [{ name: "دسکتاپ", width: 1280, height: 800 }, { na
 
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
-    await expect(input).toHaveAttribute("placeholder", "جستجو");
+    await expect(input).toHaveAttribute("placeholder", viewport.width >= 768 ? "جستجو" : "جستجوی محصولات");
     await input.fill("Hoodie 07");
 
     const panel = page.getByTestId(viewport.width < 768 ? "mobile-search-panel" : "navbar-search-panel");
@@ -28,7 +28,7 @@ for (const viewport of [{ name: "دسکتاپ", width: 1280, height: 800 }, { na
     const expandedSearch = viewport.width >= 768 ? await searchRoot.boundingBox() : null;
     const panelBox = await panel.boundingBox();
     expect(expandedHeader).not.toBeNull();
-    expect(expandedSearch).not.toBeNull();
+    if (viewport.width >= 768) expect(expandedSearch).not.toBeNull();
     expect(panelBox).not.toBeNull();
     expect((expandedHeader?.height ?? 0)).toBeGreaterThan((beforeHeader?.height ?? 0));
     if (viewport.width < 768) {
