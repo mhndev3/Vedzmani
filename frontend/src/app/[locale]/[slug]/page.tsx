@@ -106,7 +106,96 @@ export default async function InfoPage({ params }: Props) {
             </p>
           </div>
         </section>
+      </div>
+    );
+  }
 
+  if (slug === "support") {
+    return (
+      <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
+        <h1
+          dir="ltr"
+          className="mb-6 flex items-center justify-center gap-3 text-center text-3xl font-bold tracking-tight sm:mb-8 sm:text-4xl"
+        >
+          <AboutHeadingDots />
+          <span dir="rtl">{t.pages.support}</span>
+          <AboutHeadingDots reverse />
+        </h1>
+
+        <section
+          aria-label="پشتیبانی ودزمانی"
+          dir="rtl"
+          className="rounded-3xl border border-border bg-muted/70 px-5 py-7 shadow-sm sm:px-8 sm:py-9 md:px-10 md:py-10"
+        >
+          <div className="mx-auto max-w-2xl space-y-7 text-center text-base leading-8 text-foreground sm:space-y-8 sm:text-lg sm:leading-9">
+            <div className="space-y-3">
+              <h2 className="text-xl font-bold sm:text-2xl">پشتیبانی ودزمانی</h2>
+              <p className="font-semibold">ما در ودزمانی همیشه کنار شما هستیم.</p>
+              <p>
+                رضایت شما اولویت ماست. اگر درباره محصولات، ثبت سفارش، پرداخت، ارسال یا پیگیری سفارش خود سؤالی دارید،
+                تیم پشتیبانی ودزمانی آماده پاسخ‌گویی و راهنمایی شماست.
+              </p>
+              <p>
+                هدف ما این است که تجربه‌ای آسان، مطمئن و لذت‌بخش از خرید آنلاین برای شما فراهم کنیم.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold sm:text-2xl">راه‌های ارتباط با ما</h2>
+              <p>
+                برای دریافت راهنمایی و ارتباط مستقیم با کارشناسان پشتیبانی، می‌توانید از طریق شماره‌های زیر با ما در تماس باشید:
+              </p>
+              <div className="mx-auto grid max-w-lg gap-4 sm:grid-cols-2">
+                <a
+                  href="tel:+989396368307"
+                  dir="rtl"
+                  className="rounded-2xl border border-border bg-background/70 px-4 py-4 transition-colors hover:bg-background"
+                >
+                  <span className="mb-1 block text-sm text-muted-foreground">📞 شماره تماس اول</span>
+                  <span className="font-semibold tabular-nums">۰۹۳۹۶۳۶۸۳۰۷</span>
+                </a>
+                <a
+                  href="tel:+989016241042"
+                  dir="rtl"
+                  className="rounded-2xl border border-border bg-background/70 px-4 py-4 transition-colors hover:bg-background"
+                >
+                  <span className="mb-1 block text-sm text-muted-foreground">📞 شماره تماس دوم</span>
+                  <span className="font-semibold tabular-nums">۰۹۰۱۶۲۴۱۰۴۲</span>
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="font-semibold">صفحه اینستاگرام ما:</p>
+              <a
+                href="https://www.instagram.com/vedzmani/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background/70 px-5 py-2.5 font-semibold transition-colors hover:bg-background"
+              >
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="5" />
+                  <circle cx="12" cy="12" r="4" />
+                  <circle cx="18" cy="6" r="1" fill="currentColor" stroke="none" />
+                </svg>
+                <span>صفحه اینستاگرام</span>
+              </a>
+            </div>
+
+            <div className="space-y-3 border-t border-border pt-6">
+              <h2 className="text-xl font-bold sm:text-2xl">همراه شما هستیم</h2>
+              <p>از انتخاب محصول تا دریافت سفارش، در تمام مراحل خرید همراه شما خواهیم بود.</p>
+              <p className="font-bold">ودزمانی؛ تجربه‌ای متفاوت از خرید آنلاین.</p>
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
