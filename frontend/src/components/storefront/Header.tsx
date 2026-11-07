@@ -140,7 +140,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
           </Link>
           <ThemeToggle label={t.a11y.toggleTheme} />
         </div>
-        <MobileSearchPanel locale={locale} open={mobileSearchOpen} onClose={() => setMobileSearchOpen(false)} />
+        <MobileSearchPanel locale={locale} open={mobileSearchOpen} onClose={closeMobileSearch} />
       </div>
     </header>
   );
