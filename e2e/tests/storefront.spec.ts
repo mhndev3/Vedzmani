@@ -25,7 +25,7 @@ test("About page shows the provisional brand story in a readable contrasting car
   await expect(story.locator("p")).toHaveCount(6);
   await expect(story).toHaveClass(/bg-muted\/70/);
   await expect(story).toHaveClass(/rounded-3xl/);
-  const storyText = story.locator("div").filter({ has: story.locator("p").first() });
+  const storyText = story.locator("div.space-y-6");
   await expect(storyText).toHaveClass(/text-center/);
   await expect(storyText).toHaveClass(/text-lg/);
   await expect(storyText).toHaveClass(/leading-9/);
