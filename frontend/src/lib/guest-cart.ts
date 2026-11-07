@@ -41,6 +41,8 @@ function readStored(): StoredGuestCart {
       item.variant_size_id > 0 &&
       Number.isSafeInteger(item.quantity) &&
       item.quantity > 0 &&
+      Number.isSafeInteger(item.stock_quantity) &&
+      item.stock_quantity >= 0 &&
       !!item.product && typeof item.product.slug === "string" &&
       !!item.color && typeof item.color.slug === "string" &&
       !!item.variant_size && typeof item.variant_size.label === "string" &&
