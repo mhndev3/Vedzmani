@@ -30,14 +30,26 @@ test("About page shows the provisional brand story in a readable contrasting car
   await expect(storyText).toHaveClass(/text-lg/);
   await expect(storyText).toHaveClass(/leading-9/);
 
-  const dotGroups = story.locator('[aria-hidden="true"]');
+  const dotGroups = page.locator(".about-dot-accent");
   await expect(dotGroups).toHaveCount(2);
+  await expect(story.locator('[aria-hidden="true"]')).toHaveCount(0);
   await expect(dotGroups.nth(0).locator("span")).toHaveCount(3);
   await expect(dotGroups.nth(1).locator("span")).toHaveCount(3);
   await expect(dotGroups.nth(0).locator("span").nth(0)).toHaveClass(/h-1\.5 w-1\.5/);
   await expect(dotGroups.nth(0).locator("span").nth(2)).toHaveClass(/h-3\.5 w-3\.5/);
   await expect(dotGroups.nth(1).locator("span").nth(0)).toHaveClass(/h-3\.5 w-3\.5/);
   await expect(dotGroups.nth(1).locator("span").nth(2)).toHaveClass(/h-1\.5 w-1\.5/);
+  const accentOrder = await page.evaluate(() => {
+    const storyElement = document.querySelector('[aria-label="داستان ودزمانی"]');
+    const accents = [...document.querySelectorAll(".about-dot-accent")];
+    return Boolean(
+      storyElement &&
+      accents.length === 2 &&
+      (accents[0].compareDocumentPosition(storyElement) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+      (storyElement.compareDocumentPosition(accents[1]) & Node.DOCUMENT_POSITION_FOLLOWING),
+    );
+  });
+  expect(accentOrder).toBe(true);
   await expect(story).toContainText("به ودزمانی خوش اومدی!");
   await expect(story).toContainText("انتخاب تو نشون دهنده بخشی از شخصیتته");
   await expect(story).toContainText("هدف ما فقط فروش لباس نیست!");
