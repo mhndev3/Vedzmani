@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { isLocale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { FAQAccordion } from "@/components/storefront/FAQAccordion";
+import { SupportPhoneCopy } from "@/components/storefront/SupportPhoneCopy";
 
 const slugs = ["about", "contact", "returns", "faq", "support"] as const;
 type Slug = (typeof slugs)[number];
@@ -146,22 +147,8 @@ export default async function InfoPage({ params }: Props) {
                 برای دریافت راهنمایی و ارتباط مستقیم با کارشناسان پشتیبانی، می‌توانید از طریق شماره‌های زیر با ما در تماس باشید:
               </p>
               <div className="mx-auto grid max-w-lg gap-4 sm:grid-cols-2">
-                <a
-                  href="tel:+989396368307"
-                  dir="rtl"
-                  className="rounded-2xl border border-border bg-background/70 px-4 py-4 transition-colors hover:bg-background"
-                >
-                  <span className="mb-1 block text-sm text-muted-foreground">📞 شماره تماس اول</span>
-                  <span className="font-semibold tabular-nums">۰۹۳۹۶۳۶۸۳۰۷</span>
-                </a>
-                <a
-                  href="tel:+989016241042"
-                  dir="rtl"
-                  className="rounded-2xl border border-border bg-background/70 px-4 py-4 transition-colors hover:bg-background"
-                >
-                  <span className="mb-1 block text-sm text-muted-foreground">📞 شماره تماس دوم</span>
-                  <span className="font-semibold tabular-nums">۰۹۰۱۶۲۴۱۰۴۲</span>
-                </a>
+                <SupportPhoneCopy phone="09396368307" displayPhone="۰۹۳۹۶۳۶۸۳۰۷" label="📞 شماره تماس اول" />
+                <SupportPhoneCopy phone="09016241042" displayPhone="۰۹۰۱۶۲۴۱۰۴۲" label="📞 شماره تماس دوم" />
               </div>
             </div>
 
