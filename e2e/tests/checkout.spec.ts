@@ -34,7 +34,7 @@ async function applySession(page: Page, session: Session, baseURL: string) {
 }
 async function setGuestCart(page: Page, variantSizeId: number, stockQuantity: number) {
   await page.goto("/fa");
-  await page.evaluate((id) => {
+  await page.evaluate(({ id, stockQuantity }) => {
     localStorage.setItem("vedzmani.guest-cart.v1", JSON.stringify({
       token: "54f7ac3d-09a8-46ba-ae19-e55f4c26a0f1",
       items: [{
@@ -48,7 +48,7 @@ async function setGuestCart(page: Page, variantSizeId: number, stockQuantity: nu
         image: null,
       }],
     }));
-  }, variantSizeId);
+  }, { id: variantSizeId, stockQuantity });
 }
 
 test.describe("guest cart and payment-safe checkout", () => {
