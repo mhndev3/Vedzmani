@@ -9,6 +9,7 @@ import type { Dictionary } from "@/i18n/dictionaries";
 import { MobileNav } from "./MobileNav";
 import { ThemeToggle } from "./ThemeToggle";
 import { SearchButton } from "./SearchButton";
+import { MobileSearchPanel } from "./MobileSearchPanel";
 import { CartButton } from "./CartButton";
 
 const categories = [
@@ -39,6 +40,7 @@ export function navItems(locale: Locale, t: Dictionary) {
 export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   const [visible, setVisible] = useState(true);
   const [searchOpenedOnPath, setSearchOpenedOnPath] = useState<string | null>(null);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const pathname = usePathname();
   const searchExpanded = searchOpenedOnPath === pathname;
   const hideTimer = useRef<number | undefined>(undefined);
@@ -78,7 +80,8 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
       inert={!visible}
       className={"sticky top-0 z-40 transition-transform duration-150 motion-reduce:transition-none " + (visible ? "translate-y-0" : "-translate-y-full")}
     >
-      <div className={"flex items-center gap-3 border border-border bg-background/95 shadow-sm transition-[height,width,max-width,border-radius,margin,padding] duration-200 " + (searchExpanded ? "my-0 h-20 w-full max-w-none rounded-b-2xl rounded-t-none px-3 sm:px-5" : "mx-auto my-2 h-16 max-w-6xl rounded-full px-3 sm:px-4")}>
+      <div className={"relative flex flex-col border border-border bg-background/95 shadow-sm transition-[height,width,max-width,border-radius,margin,padding] duration-200 md:flex-row md:items-center " + (searchExpanded ? "my-0 h-20 w-full max-w-none rounded-b-2xl rounded-t-none px-3 sm:px-5" : mobileSearchOpen ? "my-0 h-auto min-h-16 w-full max-w-none rounded-2xl px-0 md:mx-auto md:my-2 md:h-16 md:max-w-6xl md:rounded-full md:px-3" : "mx-auto my-2 h-16 max-w-6xl rounded-full px-3 sm:px-4")}>
+        <div className="flex h-16 w-full shrink-0 items-center gap-3 px-3 sm:px-4 md:h-full md:px-0">
         <MobileNav
           items={items}
           categories={categoryItems}
@@ -124,13 +127,19 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
           ))}
         </nav>
         <div className={"ms-auto flex items-center gap-1 " + (searchExpanded ? "min-w-0 flex-1" : "shrink-0")}>
-          <SearchButton locale={locale} expanded={searchExpanded} onExpandedChange={(value) => setSearchOpenedOnPath(value ? pathname : null)} />
+          <div className="hidden md:block">
+            <SearchButton locale={locale} expanded={searchExpanded} onExpandedChange={(value) => setSearchOpenedOnPath(value ? pathname : null)} />
+          </div>
+          <button type="button" onClick={() => setMobileSearchOpen((value) => !value)} aria-label="جستجوی محصولات" aria-expanded={mobileSearchOpen} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg hover:bg-muted md:hidden">
+            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></svg>
+          </button>
           <CartButton locale={locale} />
           <Link href={"/" + locale + "/profile"} prefetch={false} aria-label="حساب کاربری" title="حساب کاربری" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
           </Link>
           <ThemeToggle label={t.a11y.toggleTheme} />
         </div>
+        <MobileSearchPanel locale={locale} open={mobileSearchOpen} onClose={() => setMobileSearchOpen(false)} />
       </div>
     </header>
   );
