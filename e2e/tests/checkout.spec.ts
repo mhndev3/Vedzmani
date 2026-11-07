@@ -6,7 +6,7 @@ const backendDir = process.env.E2E_BACKEND_DIR;
 const python = process.env.E2E_PYTHON ?? "python";
 const helperPath = path.join(__dirname, "..", "e2e_helper.py");
 
-type Session = { sessionid: string; phone: string; variantSizeIds: Record<string, number> };
+type Session = { sessionid: string; phone: string; variantSizeIds: Record<string, number>; variantSizeStockQuantities: Record<string, number> };
 function helper<T>(env: Record<string, string>): T {
   if (!backendDir) throw new Error("E2E_BACKEND_DIR is required");
   const out = execFileSync(
@@ -32,7 +32,7 @@ async function applySession(page: Page, session: Session, baseURL: string) {
     { name: "sessionid", value: session.sessionid, url: baseURL, httpOnly: true, sameSite: "Lax" },
   ]);
 }
-async function setGuestCart(page: Page, variantSizeId: number) {
+async function setGuestCart(page: Page, variantSizeId: number, stockQuantity: number) {
   await page.goto("/fa");
   await page.evaluate((id) => {
     localStorage.setItem("vedzmani.guest-cart.v1", JSON.stringify({
@@ -40,6 +40,7 @@ async function setGuestCart(page: Page, variantSizeId: number) {
       items: [{
         variant_size_id: id,
         quantity: 2,
+        stock_quantity: stockQuantity,
         product: { id: 1, name: "تی‌شرت تست", slug: "e2e-tee-02" },
         color: { name: "مشکی", slug: "black", hex_color: "#000000" },
         variant_size: { id, sku: "e2e-tee-02-black-m", label: "M" },
@@ -80,7 +81,7 @@ test.describe("guest cart and payment-safe checkout", () => {
   test("guest cart is editable and checkout CTA sends the visitor to the OTP account flow", async ({ page }) => {
     test.skip(!backendDir, "E2E_BACKEND_DIR not set");
     const session = await createSession(); // get a real seeded variant ID, but do not set its session cookie
-    await setGuestCart(page, session.variantSizeIds["e2e-tee-02-black-m"]);
+    await setGuestCart(page, session.variantSizeIds["e2e-tee-02-black-m"], session.variantSizeStockQuantities["e2e-tee-02-black-m"]);
     await page.goto("/fa/cart");
     await expect(page.getByTestId("guest-cart-line")).toBeVisible();
     await expect(page.getByRole("link", { name: "تکمیل خرید" })).toHaveAttribute("href", /\/fa\/sign-in\?next=/);
@@ -97,7 +98,7 @@ test.describe("guest cart and payment-safe checkout", () => {
     test.skip(!backendDir, "E2E_BACKEND_DIR not set");
     const session = await createSession();
     await applySession(page, session, baseURL!);
-    await setGuestCart(page, session.variantSizeIds["e2e-tee-02-black-m"]);
+    await setGuestCart(page, session.variantSizeIds["e2e-tee-02-black-m"], session.variantSizeStockQuantities["e2e-tee-02-black-m"]);
     let merges = 0;
     let orderPosts = 0;
     page.on("request", (request) => {
