@@ -34,19 +34,19 @@ export default async function InfoPage({ params }: Props) {
           {t.pages.about}
         </h1>
 
+        <div
+          aria-hidden="true"
+          className="about-dot-accent mb-6 flex items-center justify-center gap-2"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-foreground/60" />
+          <span className="h-2.5 w-2.5 rounded-full bg-foreground/60" />
+          <span className="h-3.5 w-3.5 rounded-full bg-foreground/60" />
+        </div>
+
         <section
           aria-label="داستان ودزمانی"
           className="rounded-3xl border border-border bg-muted/70 px-5 py-7 shadow-sm sm:px-8 sm:py-9 md:px-10 md:py-10"
         >
-          <div
-            aria-hidden="true"
-            className="mb-6 flex items-center justify-center gap-2"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-foreground/60" />
-            <span className="h-2.5 w-2.5 rounded-full bg-foreground/60" />
-            <span className="h-3.5 w-3.5 rounded-full bg-foreground/60" />
-          </div>
-
           <div className="mx-auto max-w-2xl space-y-6 text-center text-lg leading-9 text-foreground sm:space-y-7 sm:text-xl sm:leading-10">
             <p>
               به ودزمانی خوش اومدی!
@@ -78,16 +78,16 @@ export default async function InfoPage({ params }: Props) {
               بهترین نسخه از استایل خودتو اینجا تجربه کن.
             </p>
           </div>
-
-          <div
-            aria-hidden="true"
-            className="mt-6 flex items-center justify-center gap-2"
-          >
-            <span className="h-3.5 w-3.5 rounded-full bg-foreground/60" />
-            <span className="h-2.5 w-2.5 rounded-full bg-foreground/60" />
-            <span className="h-1.5 w-1.5 rounded-full bg-foreground/60" />
-          </div>
         </section>
+
+        <div
+          aria-hidden="true"
+          className="about-dot-accent mt-6 flex items-center justify-center gap-2"
+        >
+          <span className="h-3.5 w-3.5 rounded-full bg-foreground/60" />
+          <span className="h-2.5 w-2.5 rounded-full bg-foreground/60" />
+          <span className="h-1.5 w-1.5 rounded-full bg-foreground/60" />
+        </div>
       </div>
     );
   }
