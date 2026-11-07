@@ -21,6 +21,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: getDictionary(locale).pages[slug] };
 }
 
+function AboutHeadingDots({ reverse = false }: { reverse?: boolean }) {
+  const sizes = reverse
+    ? ["h-2 w-2", "h-1.5 w-1.5", "h-1 w-1"]
+    : ["h-1 w-1", "h-1.5 w-1.5", "h-2 w-2"];
+
+  return (
+    <span aria-hidden="true" className="flex shrink-0 items-center gap-1">
+      {sizes.map((size, index) => (
+        <span key={index} className={`rounded-full bg-foreground ${size}`} />
+      ))}
+    </span>
+  );
+}
+
 /** The About page has its own provisional brand story; other info pages stay placeholders. */
 export default async function InfoPage({ params }: Props) {
   const { locale, slug } = await params;
@@ -30,18 +44,14 @@ export default async function InfoPage({ params }: Props) {
   if (slug === "about") {
     return (
       <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="mb-6 text-center text-3xl font-semibold tracking-tight sm:mb-8 sm:text-4xl">
-          {t.pages.about}
-        </h1>
-
-        <div
-          aria-hidden="true"
-          className="about-dot-accent mb-6 flex items-center justify-center gap-2"
+        <h1
+          dir="ltr"
+          className="mb-6 flex items-center justify-center gap-3 text-3xl font-bold tracking-tight sm:mb-8 sm:text-4xl"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-foreground/60" />
-          <span className="h-2.5 w-2.5 rounded-full bg-foreground/60" />
-          <span className="h-3.5 w-3.5 rounded-full bg-foreground/60" />
-        </div>
+          <AboutHeadingDots />
+          <span dir="rtl">{t.pages.about}</span>
+          <AboutHeadingDots reverse />
+        </h1>
 
         <section
           aria-label="داستان ودزمانی"
@@ -80,14 +90,6 @@ export default async function InfoPage({ params }: Props) {
           </div>
         </section>
 
-        <div
-          aria-hidden="true"
-          className="about-dot-accent mt-6 flex items-center justify-center gap-2"
-        >
-          <span className="h-3.5 w-3.5 rounded-full bg-foreground/60" />
-          <span className="h-2.5 w-2.5 rounded-full bg-foreground/60" />
-          <span className="h-1.5 w-1.5 rounded-full bg-foreground/60" />
-        </div>
       </div>
     );
   }
