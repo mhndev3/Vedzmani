@@ -21,7 +21,7 @@ export function AddToCart({
     measurements: { name: string; value: string; unit: string }[]; description: string }[];
   labels: AddToCartLabels;
   errors: Record<string, string>;
-  guestContext: Omit<GuestCartLine, "variant_size_id" | "variant_size" | "quantity">;
+  guestContext: Omit<GuestCartLine, "variant_size_id" | "variant_size" | "quantity" | "stock_quantity">;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
