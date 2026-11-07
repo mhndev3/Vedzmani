@@ -11,21 +11,21 @@ for (const viewport of [{ name: "دسکتاپ", width: 1280, height: 800 }, { na
     const headerBar = page.locator("header > div").first();
     const searchRoot = page.getByTestId("navbar-search-root");
     const beforeHeader = await headerBar.boundingBox();
-    const beforeSearch = await searchRoot.boundingBox();
+    const beforeSearch = viewport.width >= 768 ? await searchRoot.boundingBox() : null;
     expect(beforeHeader).not.toBeNull();
-    expect(beforeSearch).not.toBeNull();
+    if (viewport.width >= 768) expect(beforeSearch).not.toBeNull();
 
     await page.getByRole("button", { name: "جستجوی محصولات" }).click();
     const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
     await expect(input).toHaveAttribute("placeholder", "جستجو");
     await input.fill("Hoodie 07");
 
-    const panel = page.getByTestId("navbar-search-panel");
+    const panel = page.getByTestId(viewport.width < 768 ? "mobile-search-panel" : "navbar-search-panel");
     const result = panel.getByRole("button", { name: /Hoodie 07/ }).first();
     await expect(result).toBeVisible();
 
     const expandedHeader = await headerBar.boundingBox();
-    const expandedSearch = await searchRoot.boundingBox();
+    const expandedSearch = viewport.width >= 768 ? await searchRoot.boundingBox() : null;
     const panelBox = await panel.boundingBox();
     expect(expandedHeader).not.toBeNull();
     expect(expandedSearch).not.toBeNull();
@@ -38,7 +38,8 @@ for (const viewport of [{ name: "دسکتاپ", width: 1280, height: 800 }, { na
     } else {
       expect((expandedHeader?.width ?? 0)).toBeGreaterThan((beforeHeader?.width ?? 0));
     }
-    expect((expandedSearch?.width ?? 0)).toBeGreaterThan((beforeSearch?.width ?? 0));
+    if (viewport.width >= 768) expect((expandedSearch?.width ?? 0)).toBeGreaterThan((beforeSearch?.width ?? 0));
+    else await expect(page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" })).toBeVisible();
     expect(Math.abs((panelBox?.x ?? 0) + (panelBox?.width ?? 0) / 2 - viewport.width / 2)).toBeLessThanOrEqual(2);
     expect(await noHorizontalOverflow(page)).toBe(true);
 
@@ -61,7 +62,7 @@ test("انتخاب نتیجه، صفحه را عوض می‌کند و Navbar ر�
   const input = page.getByRole("searchbox", { name: "جستجوی نام یا کد محصول" });
   await input.fill("Hoodie 07");
 
-  const result = page.getByTestId("navbar-search-panel").getByRole("button", { name: /Hoodie 07/ }).first();
+  const result = page.getByTestId("mobile-search-panel").getByRole("button", { name: /Hoodie 07/ }).first();
   await expect(result).toBeVisible();
   await result.click();
   await expect(page).toHaveURL(/\/fa\/products\/e2e-hoodie-07\/black$/);
