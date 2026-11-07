@@ -1,4 +1,3 @@
-from django.conf import settings
 from rest_framework import serializers
 
 from .services import MAX_BIGINT
@@ -8,22 +7,14 @@ class AddItemSerializer(serializers.Serializer):
     variant_size_id = serializers.IntegerField(min_value=1, max_value=MAX_BIGINT)
     quantity = serializers.IntegerField(min_value=1, default=1)
 
-    def validate_quantity(self, value):
-        if value > settings.CART_MAX_ITEM_QUANTITY:
-            raise serializers.ValidationError(
-                f"At most {settings.CART_MAX_ITEM_QUANTITY} units per item.", code="max_quantity"
-            )
-        return value
-
 
 class UpdateItemSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1)
-    validate_quantity = AddItemSerializer.validate_quantity
 
 
 class GuestCartMergeItemSerializer(serializers.Serializer):
     variant_size_id = serializers.IntegerField(min_value=1, max_value=MAX_BIGINT)
-    quantity = serializers.IntegerField(min_value=1, max_value=settings.CART_MAX_ITEM_QUANTITY)
+    quantity = serializers.IntegerField(min_value=1)
 
 
 class GuestCartMergeSerializer(serializers.Serializer):
@@ -74,6 +65,7 @@ class _ImageSerializer(serializers.Serializer):
 class CartItemSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     quantity = serializers.IntegerField()
+    stock_quantity = serializers.IntegerField()
     availability = serializers.CharField()
     unit_price = serializers.DecimalField(**_MONEY)
     subtotal = serializers.DecimalField(**_MONEY)
