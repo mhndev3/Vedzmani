@@ -53,7 +53,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   useEffect(() => {
     let frame = 0;
     const onScroll = () => {
-      if (searchExpanded) {
+      if (searchExpanded || mobileSearchOpen) {
         setVisible(true);
         return;
       }
@@ -72,7 +72,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
       if (frame) window.cancelAnimationFrame(frame);
       if (hideTimer.current !== undefined) window.clearTimeout(hideTimer.current);
     };
-  }, [searchExpanded]);
+  }, [searchExpanded, mobileSearchOpen]);
 
   return (
     <header
