@@ -44,7 +44,8 @@ export function AddToCart({
         // Guest snapshots are display-only; Django rechecks catalog state and prices at merge time.
         addGuestCartItem({
           ...guestContext, variant_size_id: selectedSize.id,
-          variant_size: { id: selectedSize.id, sku: selectedSize.sku, label: selectedSize.label }, quantity: 1,
+          variant_size: { id: selectedSize.id, sku: selectedSize.sku, label: selectedSize.label },
+          quantity: 1, stock_quantity: selectedSize.stock_quantity,
         });
         setStatus({ kind: "success" });
       } else setStatus({ kind: "error", message: errorText(errors, error) });
