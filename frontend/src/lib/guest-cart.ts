@@ -35,7 +35,16 @@ function readStored(): StoredGuestCart {
     if (!raw) return emptyCart();
     const parsed = JSON.parse(raw) as Partial<StoredGuestCart>;
     if (typeof parsed.token !== "string" || !Array.isArray(parsed.items)) return emptyCart();
-    const items = parsed.items.filter((item): item is GuestCartLine =>
+    // Keep carts created before stock_quantity was introduced. Their exact stock
+    // cannot be inferred locally, so preserve the current quantity and let Django
+    // validate it against live VariantSize stock when the cart is merged.
+    const normalized = parsed.items.map((item) => ({
+      ...item,
+      stock_quantity: Number.isSafeInteger(item.stock_quantity) && item.stock_quantity >= 0
+        ? item.stock_quantity
+        : item.quantity,
+    }));
+    const items = normalized.filter((item): item is GuestCartLine =>
       !!item &&
       Number.isSafeInteger(item.variant_size_id) &&
       item.variant_size_id > 0 &&
