@@ -7,6 +7,7 @@ import { apiRequest } from "./browser-api";
 export type CartItem = {
   id: number;
   quantity: number;
+  stock_quantity: number;
   availability: "available" | "insufficient_stock" | "unavailable";
   unit_price: string;
   subtotal: string;

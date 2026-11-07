@@ -50,8 +50,6 @@ def _quantity_error(code: str, message: str) -> ValidationError:
 
 
 def _check_quantity(quantity: int, stock_quantity: int) -> None:
-    if quantity > settings.CART_MAX_ITEM_QUANTITY:
-        raise _quantity_error("max_quantity", f"At most {settings.CART_MAX_ITEM_QUANTITY} units per item.")
     if quantity > stock_quantity:
         raise InsufficientStock()
 
@@ -131,11 +129,8 @@ def merge_guest_items(user, token, items) -> None:
         quantity = guest_item["quantity"]
         existing = current.get(variant_id)
         target = quantity + (existing.quantity if existing else 0)
-        if target > settings.CART_MAX_ITEM_QUANTITY:
-            raise _quantity_error(
-                "max_quantity",
-                f"At most {settings.CART_MAX_ITEM_QUANTITY} units per item.",
-            )
+        if target > variants[variant_id].stock_quantity:
+            raise InsufficientStock()
         targets.append((variant_id, target, existing))
 
     GuestCartMerge.objects.create(user=user, token=token, payload_hash=payload_hash)
@@ -226,6 +221,7 @@ def build_cart(user) -> dict:
         lines.append({
             "id": item.id,
             "quantity": item.quantity,
+            "stock_quantity": vs.stock_quantity,
             "availability": availability,
             "unit_price": unit_price,
             "subtotal": subtotal,

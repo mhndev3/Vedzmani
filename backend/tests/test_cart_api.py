@@ -104,7 +104,7 @@ def test_add_returns_full_renderable_cart(http):
     assert line["variant_size"] == {"id": vs.id, "sku": "hoodie-m", "size": "m", "label": "M"}
     assert line["image"]["url"].endswith("a/b.webp") and line["image"]["thumbnail_url"].endswith("a/b.webp") and line["image"]["width"] == 10
     assert body["total"] == "2400" and body["total_quantity"] == 2 and body["item_count"] == 1
-    assert "stock_quantity" not in json.dumps(body)
+    assert line["stock_quantity"] == vs.stock_quantity
 
 
 def test_totals_use_decimal_over_multiple_lines(http):
@@ -142,7 +142,7 @@ def test_quantity_defaults_to_one(http):
     assert http.send("post", ITEMS, {"variant_size_id": vs.id}).json()["items"][0]["quantity"] == 1
 
 
-@pytest.mark.parametrize("qty", [0, -1, 11, 1.5, "abc", None, [], True])
+@pytest.mark.parametrize("qty", [0, -1, 1.5, "abc", None, [], True])
 def test_add_rejects_bad_quantities(http, qty):
     vs = make_vs(stock=50)
     r = http.send("post", ITEMS, {"variant_size_id": vs.id, "quantity": qty})
@@ -188,11 +188,11 @@ def test_add_beyond_stock_is_409_and_cart_unchanged(http):
     assert CartItem.objects.get().quantity == 2
 
 
-def test_incremental_add_cannot_exceed_max_quantity(http):
-    vs = make_vs(stock=100)
+def test_incremental_add_cannot_exceed_variant_stock(http):
+    vs = make_vs(stock=10)
     http.send("post", ITEMS, {"variant_size_id": vs.id, "quantity": 8})
     r = http.send("post", ITEMS, {"variant_size_id": vs.id, "quantity": 3})
-    assert r.status_code == 400 and r.json()["error"]["details"]["quantity"][0]["code"] == "max_quantity"
+    assert r.status_code == 409 and r.json()["error"]["code"] == "insufficient_stock"
     assert CartItem.objects.get().quantity == 8
 
 
@@ -220,7 +220,7 @@ def test_update_quantity(http):
     assert http.send("patch", f"{ITEMS}{item}/", {"quantity": 1}).json()["items"][0]["quantity"] == 1
 
 
-@pytest.mark.parametrize("qty", [0, -2, 11, "x", None, 2.5])
+@pytest.mark.parametrize("qty", [0, -2, "x", None, 2.5])
 def test_update_rejects_bad_quantity(http, qty):
     vs = make_vs(stock=50)
     item = _line(http, vs)
@@ -355,8 +355,8 @@ def test_concurrent_adds_cannot_exceed_limits():
     threads = [threading.Thread(target=worker) for _ in range(6)]
     [t.start() for t in threads]
     [t.join() for t in threads]
-    assert sorted(results) == [201, 201, 400, 400, 400, 400]  # 4 + 4 = 8 fits; 12 > max 10
-    assert CartItem.objects.get().quantity == 8
+    assert sorted(results) == [201, 201, 201, 201, 201, 201]
+    assert CartItem.objects.get().quantity == 24
     assert Cart.objects.count() == 1
     vs.refresh_from_db()
     assert vs.stock_quantity == 100
@@ -429,7 +429,7 @@ def test_guest_merge_is_atomic_when_a_variant_size_no_longer_exists(http):
     assert GuestCartMerge.objects.count() == 0
 
 
-def test_guest_merge_preserves_lines_when_stock_dropped_or_product_unpublished(http):
+def test_guest_merge_rejects_stock_shortage_atomically(http):
     import uuid
 
     short = make_vs("short", stock=1)
@@ -442,10 +442,7 @@ def test_guest_merge_preserves_lines_when_stock_dropped_or_product_unpublished(h
             {"variant_size_id": hidden.id, "quantity": 1},
         ],
     })
-    assert r.status_code == 200
-    by_sku = {line["variant_size"]["sku"]: line for line in r.json()["items"]}
-    assert by_sku[short.sku]["availability"] == "insufficient_stock"
-    assert by_sku[hidden.sku]["availability"] == "unavailable"
-    assert r.json()["has_issues"] is True
-    assert CartItem.objects.count() == 2
-    assert GuestCartMerge.objects.count() == 1
+    assert r.status_code == 409
+    assert r.json()["error"]["code"] == "insufficient_stock"
+    assert CartItem.objects.count() == 0
+    assert GuestCartMerge.objects.count() == 0

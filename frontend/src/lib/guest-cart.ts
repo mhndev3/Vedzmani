@@ -8,6 +8,7 @@
 export type GuestCartLine = {
   variant_size_id: number;
   quantity: number;
+  stock_quantity: number;
   product: { id: number; name: string; slug: string };
   color: { name: string; slug: string; hex_color: string };
   variant_size: { id: number; sku: string; label: string };
@@ -34,12 +35,23 @@ function readStored(): StoredGuestCart {
     if (!raw) return emptyCart();
     const parsed = JSON.parse(raw) as Partial<StoredGuestCart>;
     if (typeof parsed.token !== "string" || !Array.isArray(parsed.items)) return emptyCart();
-    const items = parsed.items.filter((item): item is GuestCartLine =>
+    // Keep carts created before stock_quantity was introduced. Their exact stock
+    // cannot be inferred locally, so preserve the current quantity and let Django
+    // validate it against live VariantSize stock when the cart is merged.
+    const normalized = parsed.items.map((item) => ({
+      ...item,
+      stock_quantity: Number.isSafeInteger(item.stock_quantity) && item.stock_quantity >= 0
+        ? item.stock_quantity
+        : item.quantity,
+    }));
+    const items = normalized.filter((item): item is GuestCartLine =>
       !!item &&
       Number.isSafeInteger(item.variant_size_id) &&
       item.variant_size_id > 0 &&
       Number.isSafeInteger(item.quantity) &&
       item.quantity > 0 &&
+      Number.isSafeInteger(item.stock_quantity) &&
+      item.stock_quantity >= 0 &&
       !!item.product && typeof item.product.slug === "string" &&
       !!item.color && typeof item.color.slug === "string" &&
       !!item.variant_size && typeof item.variant_size.label === "string" &&
@@ -65,16 +77,16 @@ export function addGuestCartItem(item: GuestCartLine): void {
   const existing = stored.items.find((line) => line.variant_size_id === item.variant_size_id);
   const items = existing
     ? stored.items.map((line) => line.variant_size_id === item.variant_size_id
-      ? { ...item, quantity: line.quantity + item.quantity }
+      ? { ...item, quantity: Math.min(item.stock_quantity, line.quantity + item.quantity) }
       : line)
-    : [...stored.items, item];
+    : [...stored.items, { ...item, quantity: Math.min(item.stock_quantity, item.quantity) }];
   writeStored({ token: stored.token, items });
 }
 
 export function setGuestCartQuantity(variantSizeId: number, quantity: number): GuestCartLine[] {
   const stored = readStored();
   const items = stored.items.map((line) =>
-    line.variant_size_id === variantSizeId ? { ...line, quantity: Math.max(1, Math.floor(quantity)) } : line
+    line.variant_size_id === variantSizeId ? { ...line, quantity: Math.min(line.stock_quantity, Math.max(1, Math.floor(quantity))) } : line
   );
   writeStored({ token: stored.token, items });
   return items;

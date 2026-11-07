@@ -194,7 +194,7 @@ function GuestCartLineView({
               disabled={item.quantity <= 1} onClick={() => onQuantity(item.quantity - 1)}>−</button>
             <output className="min-w-6 text-center text-sm" aria-label={t.quantity}>{formatPrice(item.quantity, locale)}</output>
             <button type="button" className={`${buttonBase} h-9 w-9`} aria-label={fill(t.increase, { name })}
-              onClick={() => onQuantity(item.quantity + 1)}>+</button>
+              disabled={item.quantity >= item.stock_quantity} onClick={() => onQuantity(item.quantity + 1)}>+</button>
           </div>
           <button type="button" className={`${buttonBase} h-9 px-3`} aria-label={fill(t.removeItem, { name })} onClick={onRemove}>{t.remove}</button>
         </div>
@@ -230,7 +230,7 @@ function CartLine({
               disabled={busy || unavailable || item.quantity <= 1} onClick={() => run(() => cartApi.setQuantity(item.id, item.quantity - 1))}>−</button>
             <output className="min-w-6 text-center text-sm" aria-label={t.quantity} data-testid="cart-quantity">{formatPrice(item.quantity, locale)}</output>
             <button type="button" className={`${buttonBase} h-9 w-9`} aria-label={fill(t.increase, { name })}
-              disabled={busy || unavailable} onClick={() => run(() => cartApi.setQuantity(item.id, item.quantity + 1))}>+</button>
+              disabled={busy || unavailable || item.quantity >= item.stock_quantity} onClick={() => run(() => cartApi.setQuantity(item.id, item.quantity + 1))}>+</button>
           </div>
           <button type="button" className={`${buttonBase} h-9 px-3`} aria-label={fill(t.removeItem, { name })}
             disabled={busy} onClick={() => run(() => cartApi.remove(item.id), true)}>{t.remove}</button>
