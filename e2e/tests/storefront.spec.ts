@@ -25,8 +25,19 @@ test("About page shows the provisional brand story in a readable contrasting car
   await expect(story.locator("p")).toHaveCount(6);
   await expect(story).toHaveClass(/bg-muted\/70/);
   await expect(story).toHaveClass(/rounded-3xl/);
-  await expect(story.locator("div").first()).toHaveClass(/text-lg/);
-  await expect(story.locator("div").first()).toHaveClass(/leading-9/);
+  const storyText = story.locator("div.space-y-6");
+  await expect(storyText).toHaveClass(/text-center/);
+  await expect(storyText).toHaveClass(/text-lg/);
+  await expect(storyText).toHaveClass(/leading-9/);
+
+  const dotGroups = story.locator('[aria-hidden="true"]');
+  await expect(dotGroups).toHaveCount(2);
+  await expect(dotGroups.nth(0).locator("span")).toHaveCount(3);
+  await expect(dotGroups.nth(1).locator("span")).toHaveCount(3);
+  await expect(dotGroups.nth(0).locator("span").nth(0)).toHaveClass(/h-1\.5 w-1\.5/);
+  await expect(dotGroups.nth(0).locator("span").nth(2)).toHaveClass(/h-3\.5 w-3\.5/);
+  await expect(dotGroups.nth(1).locator("span").nth(0)).toHaveClass(/h-3\.5 w-3\.5/);
+  await expect(dotGroups.nth(1).locator("span").nth(2)).toHaveClass(/h-1\.5 w-1\.5/);
   await expect(story).toContainText("به ودزمانی خوش اومدی!");
   await expect(story).toContainText("انتخاب تو نشون دهنده بخشی از شخصیتته");
   await expect(story).toContainText("هدف ما فقط فروش لباس نیست!");
