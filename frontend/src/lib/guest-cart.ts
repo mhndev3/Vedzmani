@@ -8,6 +8,7 @@
 export type GuestCartLine = {
   variant_size_id: number;
   quantity: number;
+  stock_quantity: number;
   product: { id: number; name: string; slug: string };
   color: { name: string; slug: string; hex_color: string };
   variant_size: { id: number; sku: string; label: string };
@@ -65,16 +66,16 @@ export function addGuestCartItem(item: GuestCartLine): void {
   const existing = stored.items.find((line) => line.variant_size_id === item.variant_size_id);
   const items = existing
     ? stored.items.map((line) => line.variant_size_id === item.variant_size_id
-      ? { ...item, quantity: line.quantity + item.quantity }
+      ? { ...item, quantity: Math.min(item.stock_quantity, line.quantity + item.quantity) }
       : line)
-    : [...stored.items, item];
+    : [...stored.items, { ...item, quantity: Math.min(item.stock_quantity, item.quantity) }];
   writeStored({ token: stored.token, items });
 }
 
 export function setGuestCartQuantity(variantSizeId: number, quantity: number): GuestCartLine[] {
   const stored = readStored();
   const items = stored.items.map((line) =>
-    line.variant_size_id === variantSizeId ? { ...line, quantity: Math.max(1, Math.floor(quantity)) } : line
+    line.variant_size_id === variantSizeId ? { ...line, quantity: Math.min(line.stock_quantity, Math.max(1, Math.floor(quantity))) } : line
   );
   writeStored({ token: stored.token, items });
   return items;
