@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isLocale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
+import { FAQAccordion } from "@/components/storefront/FAQAccordion";
 
 const slugs = ["about", "contact", "returns", "faq", "support"] as const;
 type Slug = (typeof slugs)[number];
@@ -40,6 +41,17 @@ export default async function InfoPage({ params }: Props) {
   const { locale, slug } = await params;
   if (!isLocale(locale) || !isSlug(slug)) notFound();
   const t = getDictionary(locale);
+
+  if (slug === "faq") {
+    return (
+      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+        <h1 className="mb-8 text-center text-3xl font-bold tracking-tight sm:mb-10 sm:text-4xl">
+          {t.pages.faq}
+        </h1>
+        <FAQAccordion />
+      </div>
+    );
+  }
 
   if (slug === "about") {
     return (
