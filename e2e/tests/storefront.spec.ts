@@ -15,6 +15,23 @@ test("storefront uses Persian RTL and the header contains only the agreed links"
   await expect(page.getByRole("link", { name: "حساب کاربری" })).toBeVisible();
 });
 
+test("About page shows the provisional brand story in a readable contrasting card", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/fa/about");
+
+  const story = page.getByRole("region", { name: "داستان ودزمانی" });
+  await expect(story).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "درباره ما" })).toBeVisible();
+  await expect(story.locator("p")).toHaveCount(6);
+  await expect(story).toHaveClass(/bg-muted\/70/);
+  await expect(story).toHaveClass(/rounded-3xl/);
+  await expect(story.locator("div").first()).toHaveClass(/text-lg/);
+  await expect(story.locator("div").first()).toHaveClass(/leading-9/);
+  await expect(story).toContainText("به ودزمانی خوش اومدی!");
+  await expect(story).toContainText("انتخاب تو نشون دهنده بخشی از شخصیتته");
+  await expect(story).toContainText("هدف ما فقط فروش لباس نیست!");
+  await expect(story).toContainText("بهترین نسخه از استایل خودتو اینجا تجربه کن.");
+});
 
 test("mobile viewport fills the device width without horizontal page overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
