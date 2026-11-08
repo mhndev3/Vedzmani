@@ -72,7 +72,7 @@ export function SignInForm({ locale, t, redirectTo }: { locale: Locale; t: AuthD
    <form onSubmit={e=>{e.preventDefault();void sendCode(false);}} noValidate className="auth-step grid gap-4" aria-busy={busy}>
     <div className="grid gap-2"><label htmlFor="auth-phone" className="text-sm font-medium">{t.phone.label}</label><input id="auth-phone" ref={phoneInput} className={inputClass+" text-start"} dir="ltr" type="tel" inputMode="tel" autoComplete="tel" placeholder="09123456789" maxLength={32} value={phone} disabled={busy} onChange={e=>{setPhone(e.target.value);setError(null);}}/><p className="text-xs text-muted-foreground">{t.phone.hint}</p></div>
     {error&&<p role="alert" className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
-    <button className={primaryButton} disabled={busy}>{busy?t.phone.submitting:t.phone.submit}</button>
+    <button className={primaryButton} disabled={busy}>{busy?<><span aria-hidden="true" className="me-2 size-4 animate-spin rounded-full border-2 border-current border-e-transparent" /><span role="status" aria-live="polite">{t.phone.submitting}</span></>:t.phone.submit}</button>
    </form>
   ):step==="code"?(
    <form onSubmit={e=>{e.preventDefault();void verify();}} noValidate className="auth-step grid gap-4" aria-busy={busy}>
