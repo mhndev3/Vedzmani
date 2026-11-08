@@ -87,7 +87,7 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10">
-      <h1 ref={heading} tabIndex={-1} className="text-2xl font-semibold outline-none sm:text-3xl">{t.title}</h1>
+      <h1 ref={heading} tabIndex={-1} className="flex items-center justify-center gap-3 text-center text-2xl font-bold outline-none sm:text-3xl"><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1.5 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /></span><span>{t.title}</span><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1.5 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /></span></h1>
       <div className="mt-6" aria-live="polite">
         {notice && <p role="status" className="sr-only">{notice}</p>}
         {error && <p role="alert" className="mb-4 rounded-lg border border-border p-3 text-sm font-medium">{error}</p>}
@@ -104,11 +104,7 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
       )}
 
       {state.kind === "anonymous" && (
-        <section className="rounded-lg border border-border p-6">
-          <h2 className="text-lg font-semibold">{t.emptyTitle}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{t.emptyText}</p>
-          <Link href={`/${locale}/products`} className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">{t.browse}</Link>
-        </section>
+        <EmptyCartState locale={locale} t={t} />
       )}
 
       {state.kind === "error" && (
@@ -120,11 +116,7 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
       )}
 
       {state.kind === "ready" && state.cart.items.length === 0 && (
-        <section className="rounded-lg border border-border p-6">
-          <h2 className="text-lg font-semibold">{t.emptyTitle}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{t.emptyText}</p>
-          <Link href={`/${locale}/products`} className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">{t.browse}</Link>
-        </section>
+        <EmptyCartState locale={locale} t={t} />
       )}
 
       {state.kind === "guest" && state.items.length > 0 && (
@@ -168,6 +160,25 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
         </>
       )}
     </div>
+  );
+}
+
+
+function EmptyCartState({ locale, t }: { locale: Locale; t: Dictionary["cart"] }) {
+  return (
+    <section className="mx-auto flex min-h-[340px] w-full max-w-2xl flex-col items-center justify-center rounded-3xl border border-border bg-card px-6 py-12 text-center shadow-sm sm:min-h-[380px] sm:px-12" aria-labelledby="empty-cart-title">
+      <div aria-hidden="true" className="mb-6 grid size-20 place-items-center rounded-full bg-muted text-foreground">
+        <svg viewBox="0 0 24 24" className="size-10" fill="none">
+          <path d="M3 4h2l2.1 11.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L21 8H6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="10" cy="20" r="1.2" fill="currentColor" /><circle cx="18" cy="20" r="1.2" fill="currentColor" />
+        </svg>
+      </div>
+      <h2 id="empty-cart-title" className="text-xl font-bold sm:text-2xl">{t.emptyTitle}</h2>
+      <p className="mt-3 max-w-md text-base leading-8 text-muted-foreground">{t.emptyText}</p>
+      <Link href={`/${locale}/products`} className="mt-7 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        {t.browse}
+      </Link>
+    </section>
   );
 }
 
