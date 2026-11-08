@@ -95,7 +95,7 @@ test.describe("ورود با شماره موبایل", () => {
     await mockVerify(page, json(400, err("otp_expired")));
     await codeInput(page).fill("123456");
     await verifyButton(page).click();
-    await expect(alertBox(page)).toContainText("این کد منقضی شده است");
+    await expect(alertBox(page)).toContainText("کد منقضی شده است");
     await expect(verifyButton(page)).toBeEnabled();
   });
 
