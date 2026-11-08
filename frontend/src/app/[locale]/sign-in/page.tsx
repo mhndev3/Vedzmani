@@ -16,7 +16,7 @@ export default async function SignInPage({ params, searchParams }: Props) {
  if (!isLocale(locale)) notFound();
  const { next } = await searchParams;
  const t = getAuthDictionary(locale);
- return <main className="relative isolate flex min-h-[calc(100svh-5rem)] items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
+ return <div className="relative isolate flex min-h-[calc(100svh-5rem)] items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
   <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
    <div className="absolute -start-32 top-1/4 size-72 rounded-full bg-foreground/[.035] blur-3xl sm:size-96" />
    <div className="absolute -end-32 bottom-0 size-80 rounded-full bg-foreground/[.04] blur-3xl sm:size-[28rem]" />
@@ -35,5 +35,5 @@ export default async function SignInPage({ params, searchParams }: Props) {
    </aside>
    <div className="flex min-h-[580px] items-center justify-center px-6 py-10 sm:px-10 md:px-12"><SignInForm locale={locale} t={t} redirectTo={safeRedirectPath(next, locale)} /></div>
   </div>
- </main>;
+ </div>;
 }
