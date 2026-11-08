@@ -55,6 +55,19 @@ test.describe("ورود با شماره موبایل", () => {
     await expect(phoneInput(page)).toBeFocused();
   });
 
+  test("ثبت‌نام حالت پیش‌فرض است و فرم ورود رمز عبور را نمایش می‌دهد", async ({ page }) => {
+    await page.goto("/fa/sign-in");
+    await expect(page.getByRole("heading", { name: "حساب کاربری ودزمانی", level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: "ورود به حساب" }).click();
+    const password = page.getByLabel("رمز عبور");
+    await expect(password).toBeVisible();
+    await expect(password).toHaveAttribute("type", "password");
+    await page.getByRole("button", { name: "نمایش رمز" }).click();
+    await expect(password).toHaveAttribute("type", "text");
+    await page.getByRole("button", { name: "پنهان کردن رمز" }).click();
+    await expect(password).toHaveAttribute("type", "password");
+  });
+
   test("شماره نامعتبر در سرور رد می‌شود", async ({ page }) => {
     await page.goto("/fa/sign-in");
     await phoneInput(page).fill("123");
