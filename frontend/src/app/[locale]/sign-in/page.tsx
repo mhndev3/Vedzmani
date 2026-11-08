@@ -23,15 +23,15 @@ export default async function SignInPage({ params, searchParams }: Props) {
   </div>
   <div className="w-full max-w-5xl overflow-hidden rounded-[2rem] border border-border bg-card/90 shadow-[0_24px_90px_-42px_rgba(0,0,0,.24)] backdrop-blur-xl md:grid md:grid-cols-[.9fr_1.1fr]">
    <aside className="relative hidden min-h-[620px] flex-col justify-between overflow-hidden bg-foreground p-10 text-background md:flex">
-    <div className="text-2xl font-black tracking-tight">VEDZMANI<span className="text-background/45">.</span></div>
+    <div className="text-2xl font-black tracking-tight">ودزمانی<span className="text-background/45">.</span></div>
     <div className="relative z-10">
-     <p className="mb-4 text-xs font-semibold tracking-[.22em] text-background/55">A MORE PERSONAL WAY TO SHOP</p>
+     <p className="mb-4 text-xs font-semibold tracking-[.22em] text-background/55">تجربه‌ای شخصی‌تر از خرید</p>
      <h2 className="max-w-sm text-4xl font-semibold leading-[1.35]">استایل خودت را، با خیال راحت انتخاب کن.</h2>
      <p className="mt-5 max-w-xs text-sm leading-8 text-background/65">به حساب کاربری‌ات وارد شو و تجربه خریدت را ساده‌تر ادامه بده.</p>
     </div>
     <div className="absolute -bottom-28 -end-24 size-80 rounded-full border border-background/10" />
     <div className="absolute -bottom-16 -end-12 size-56 rounded-full border border-background/10" />
-    <div className="text-xs text-background/45">VEDZMANI · PERSONAL STYLE</div>
+    <div className="text-xs text-background/45">ودزمانی · استایل شخصی</div>
    </aside>
    <div className="flex min-h-[580px] items-center justify-center px-6 py-10 sm:px-10 md:px-12"><SignInForm locale={locale} t={t} redirectTo={safeRedirectPath(next, locale)} /></div>
   </div>
