@@ -79,7 +79,8 @@ test.describe("ورود با شماره موبایل", () => {
     await phoneInput(page).fill("09120000009");
     const submit = sendButton(page);
     await submit.click();
-    const loading = page.getByRole("button", { name: "در حال ارسال..." });
+    const loading = page.getByTestId("auth-send-code");
+    await expect(loading).toHaveAttribute("aria-label", "در حال ارسال...");
     await expect(loading).toBeDisabled();
     releaseRequest();
     await expect(codeInput(page)).toBeVisible();
