@@ -90,6 +90,7 @@ def test_password_login_authenticates_phone_and_password(api):
     response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
     assert response.status_code == 200
     assert response.json()["user"]["id"] == user.pk
+    assert api.client.session.get_expire_at_browser_close() is True
     assert api.get("/api/auth/me/").status_code == 200
 
 
@@ -106,6 +107,8 @@ def test_customer_can_set_password_only_after_otp_verification(api):
     assert response.status_code == 200
     user = User.objects.get()
     assert user.has_usable_password()
+    second_set = api.post("/api/auth/password/set/", {"password": "Another-Secure-Password-2026!"})
+    assert second_set.status_code == 403
     api.post("/api/auth/logout/")
     login_response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
     assert login_response.status_code == 200
