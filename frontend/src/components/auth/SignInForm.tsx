@@ -62,20 +62,20 @@ export function SignInForm({ locale, t, redirectTo }: { locale: Locale; t: AuthD
    <p className="mx-auto mt-2 max-w-sm text-sm leading-7 text-muted-foreground">{step==="password"?t.password.newHint:resetting?"شماره موبایل خود را تأیید کنید تا رمز تازه‌ای بسازید.":t.intro}</p>
   </div>
   {step==="phone"&&mode==="login"&&!resetting?(
-   <form onSubmit={login} noValidate className="grid gap-4" aria-busy={busy}>
+   <form onSubmit={login} noValidate className="auth-step grid gap-4" aria-busy={busy}>
     <div className="grid gap-2"><label htmlFor="auth-phone" className="text-sm font-medium">{t.phone.label}</label><input id="auth-phone" ref={phoneInput} className={inputClass+" text-start"} dir="ltr" type="tel" inputMode="tel" autoComplete="tel" placeholder="09123456789" maxLength={32} value={phone} disabled={busy} onChange={e=>{setPhone(e.target.value);setError(null);}}/></div>
     <div className="grid gap-2"><label htmlFor="auth-password" className="text-sm font-medium">{t.password.label}</label><div className="relative"><input id="auth-password" className={inputClass+" pe-16 text-start"} dir="ltr" type={showPassword?"text":"password"} autoComplete="current-password" value={password} disabled={busy} onChange={e=>{setPassword(e.target.value);setError(null);}}/><button type="button" className={iconButton} aria-label={showPassword?t.password.hide:t.password.show} onClick={()=>setShowPassword(v=>!v)}>{showPassword?"پنهان":"نمایش"}</button></div><button type="button" onClick={forgotPassword} className={"justify-self-start "+secondaryButton}>{t.password.forgot}</button></div>
     {error&&<p role="alert" className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
     <button className={primaryButton} disabled={busy}>{busy?"در حال ورود…":t.password.submit}</button>
    </form>
   ):step==="phone"?(
-   <form onSubmit={e=>{e.preventDefault();void sendCode(false);}} noValidate className="grid gap-4" aria-busy={busy}>
+   <form onSubmit={e=>{e.preventDefault();void sendCode(false);}} noValidate className="auth-step grid gap-4" aria-busy={busy}>
     <div className="grid gap-2"><label htmlFor="auth-phone" className="text-sm font-medium">{t.phone.label}</label><input id="auth-phone" ref={phoneInput} className={inputClass+" text-start"} dir="ltr" type="tel" inputMode="tel" autoComplete="tel" placeholder="09123456789" maxLength={32} value={phone} disabled={busy} onChange={e=>{setPhone(e.target.value);setError(null);}}/><p className="text-xs text-muted-foreground">{t.phone.hint}</p></div>
     {error&&<p role="alert" className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
     <button className={primaryButton} disabled={busy}>{busy?t.phone.submitting:t.phone.submit}</button>
    </form>
   ):step==="code"?(
-   <form onSubmit={e=>{e.preventDefault();void verify();}} noValidate className="grid gap-4" aria-busy={busy}>
+   <form onSubmit={e=>{e.preventDefault();void verify();}} noValidate className="auth-step grid gap-4" aria-busy={busy}>
     <p className="text-center text-sm leading-7 text-muted-foreground">{t.code.instruction.split("{phone}")[0]}<bdi dir="ltr" className="font-semibold text-foreground">{phone}</bdi>{t.code.instruction.split("{phone}")[1]}</p>
     <div className="grid gap-2"><label htmlFor="auth-code" className="text-sm font-medium">{t.code.label}</label><input id="auth-code" ref={codeInput} className={inputClass+" text-center tracking-[.45em]"} dir="ltr" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={16} value={code} disabled={busy} onChange={e=>{setCode(e.target.value);setError(null);}}/><p className="text-xs text-muted-foreground">{t.code.hint}</p></div>
     {resent&&<p role="status" className="text-sm text-muted-foreground">{t.code.resent}</p>}
@@ -84,14 +84,14 @@ export function SignInForm({ locale, t, redirectTo }: { locale: Locale; t: AuthD
     <div className="flex items-center justify-between"><button type="button" className={secondaryButton} disabled={busy||remaining>0} onClick={()=>void sendCode(true)}>{remaining>0?fill(t.code.resendIn,{seconds:numberFormat.format(remaining)}):t.code.resend}</button><button type="button" className={secondaryButton} disabled={busy} onClick={()=>{setStep("phone");setCode("");clearMessages();}}>{t.code.change}</button></div>
    </form>
   ):(
-   <form onSubmit={e=>{e.preventDefault();void submitPassword();}} noValidate className="grid gap-4" aria-busy={busy}>
+   <form onSubmit={e=>{e.preventDefault();void submitPassword();}} noValidate className="auth-step grid gap-4" aria-busy={busy}>
     <div className="grid gap-2"><label htmlFor="new-password" className="text-sm font-medium">{t.password.label}</label><div className="relative"><input id="new-password" className={inputClass+" pe-16 text-start"} dir="ltr" type={showPassword?"text":"password"} autoComplete="new-password" minLength={10} value={password} disabled={busy} onChange={e=>{setPassword(e.target.value);setError(null);}}/><button type="button" className={iconButton} onClick={()=>setShowPassword(v=>!v)}>{showPassword?"پنهان":"نمایش"}</button></div></div>
     <div className="grid gap-2"><label htmlFor="confirm-password" className="text-sm font-medium">{t.password.confirm}</label><input id="confirm-password" className={inputClass+" text-start"} dir="ltr" type={showPassword?"text":"password"} autoComplete="new-password" value={confirmPassword} disabled={busy} onChange={e=>{setConfirmPassword(e.target.value);setError(null);}}/></div>
     {error&&<p role="alert" className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
     <button className={primaryButton} disabled={busy}>{busy?t.password.creating:t.password.create}</button>
    </form>
   )}
-  {(step==="phone"||step==="password")&&<div className="mt-7 flex items-center justify-center gap-2 text-sm text-muted-foreground"><span>{mode==="signup"?t.modes.loginHint:t.modes.signupHint}</span><button type="button" className="font-semibold text-foreground underline underline-offset-4" onClick={()=>switchMode(mode==="signup"?"login":"signup")}>{mode==="signup"?t.modes.switchLogin:t.modes.switchSignup}</button></div>}
+  {(step==="phone"||step==="password")&&!resetting&&<div className="mt-7 flex items-center justify-center gap-2 text-sm text-muted-foreground"><span>{mode==="signup"?t.modes.loginHint:t.modes.signupHint}</span><button type="button" className="font-semibold text-foreground underline underline-offset-4" onClick={()=>switchMode(mode==="signup"?"login":"signup")}>{mode==="signup"?t.modes.switchLogin:t.modes.switchSignup}</button></div>}
   <p className="mt-8 text-center text-xs leading-6 text-muted-foreground">با ادامه، شرایط استفاده و حریم خصوصی فروشگاه را می‌پذیرید.</p>
  </section>;
 }
