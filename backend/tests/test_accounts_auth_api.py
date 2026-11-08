@@ -117,3 +117,13 @@ def test_password_setup_requires_otp_authenticated_session(api):
     response = api.post("/api/auth/password/set/", {"password": "Secure-Vedzmani-2026!"})
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "otp_verification_required"
+
+
+def test_password_login_is_rate_limited(api):
+    User.objects.create_user(PHONE, password="Secure-Vedzmani-2026!")
+    for _ in range(10):
+        response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "wrong-password"})
+        assert response.status_code == 400
+    limited = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "wrong-password"})
+    assert limited.status_code == 429
+    assert limited.json()["error"]["code"] == "rate_limited"
