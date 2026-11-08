@@ -11,8 +11,8 @@ import { fill } from "@/lib/format";
 
 type Mode = "signup" | "login";
 type Step = "phone" | "code" | "password" | "done";
-const inputClass = "h-13 w-full rounded-2xl border border-border bg-background/80 px-4 text-base outline-none transition duration-200 placeholder:text-muted-foreground/65 focus:border-foreground focus:ring-4 focus:ring-foreground/5 disabled:opacity-60";
-const primaryButton = "inline-flex h-13 w-full items-center justify-center rounded-2xl bg-foreground px-5 text-sm font-semibold text-background transition duration-200 hover:opacity-85 active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-50";
+const inputClass = "h-14 w-full rounded-2xl border border-border bg-background/80 px-4 text-base outline-none transition duration-200 placeholder:text-muted-foreground/65 focus:border-foreground focus:ring-4 focus:ring-foreground/5 disabled:opacity-60";
+const primaryButton = "inline-flex h-14 w-full items-center justify-center rounded-2xl bg-foreground px-5 text-sm font-semibold text-background transition duration-200 hover:opacity-85 active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-50";
 const secondaryButton = "text-sm font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline";
 const iconButton = "absolute inset-y-0 end-3 my-auto rounded-lg p-2 text-muted-foreground transition hover:text-foreground";
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -91,7 +91,7 @@ export function SignInForm({ locale, t, redirectTo }: { locale: Locale; t: AuthD
     <button className={primaryButton} disabled={busy}>{busy?t.password.creating:t.password.create}</button>
    </form>
   )}
-  {(step==="phone"||step==="password")&&!resetting&&<div className="mt-7 flex items-center justify-center gap-2 text-sm text-muted-foreground"><span>{mode==="signup"?t.modes.loginHint:t.modes.signupHint}</span><button type="button" className="font-semibold text-foreground underline underline-offset-4" onClick={()=>switchMode(mode==="signup"?"login":"signup")}>{mode==="signup"?t.modes.switchLogin:t.modes.switchSignup}</button></div>}
+  {step==="phone"&&!resetting&&<div className="mt-7 flex items-center justify-center gap-2 text-sm text-muted-foreground"><span>{mode==="signup"?t.modes.loginHint:t.modes.signupHint}</span><button type="button" className="font-semibold text-foreground underline underline-offset-4" onClick={()=>switchMode(mode==="signup"?"login":"signup")}>{mode==="signup"?t.modes.switchLogin:t.modes.switchSignup}</button></div>}
   <p className="mt-8 text-center text-xs leading-6 text-muted-foreground">با ادامه، شرایط استفاده و حریم خصوصی فروشگاه را می‌پذیرید.</p>
  </section>;
 }
