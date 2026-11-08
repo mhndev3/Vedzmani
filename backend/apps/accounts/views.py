@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 from . import services
 from .authentication import OTP_SESSION_FLAG
 from .models import OTPChallenge
-from .ratelimit import get_client_ip
+from .ratelimit import enforce_password_login, get_client_ip
 from .serializers import CurrentUserSerializer, CustomerProfileSerializer, OTPRequestSerializer, OTPVerifySerializer, PasswordLoginSerializer, SetPasswordSerializer
 
 BACKEND = "django.contrib.auth.backends.ModelBackend"
@@ -53,6 +53,7 @@ class PasswordLoginView(CSRFProtectedAPIView):
         serializer = PasswordLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        enforce_password_login(get_client_ip(request), data["phone"])
         user = authenticate(request._request, phone=data["phone"], password=data["password"])
         if user is None or not user.is_active or user.is_staff:
             return Response({"error": {"code": "invalid_credentials", "message": "Invalid phone or password."}}, status=status.HTTP_400_BAD_REQUEST)
