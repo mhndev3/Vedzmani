@@ -79,12 +79,22 @@ class SetPasswordView(CSRFProtectedAPIView):
     def post(self, request):
         if request.user.is_staff:
             return Response(
-                {"error": {"code": "account_disabled", "message": "Password change is unavailable for staff accounts."}},
+                {
+                    "error": {
+                        "code": "account_disabled",
+                        "message": "Password change is unavailable for staff accounts.",
+                    }
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
         if not request._request.session.get(OTP_SESSION_FLAG):
             return Response(
-                {"error": {"code": "otp_verification_required", "message": "Verify your phone before setting a password."}},
+                {
+                    "error": {
+                        "code": "otp_verification_required",
+                        "message": "Verify your phone before setting a password.",
+                    }
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
         serializer = SetPasswordSerializer(data=request.data)
