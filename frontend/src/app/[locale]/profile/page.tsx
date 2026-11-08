@@ -43,8 +43,8 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   const state = await getMe();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="text-3xl font-semibold tracking-tight">{t.profile.title}</h1>
+    <div className="mx-auto w-full max-w-4xl px-4 py-10">
+      <h1 className="flex items-center justify-center gap-3 text-center text-2xl font-bold tracking-tight sm:text-3xl"><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1.5 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /></span><span>{t.profile.title}</span><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1.5 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /></span></h1>
       {state.kind === "ok" && (
         <>
           <dl className="mt-6 text-sm">
@@ -56,13 +56,19 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         </>
       )}
       {state.kind === "anonymous" && (
-        <div className="mt-4">
-          <p>{t.profile.signedOut}</p>
-          <p className="mt-2 text-muted-foreground">{t.profile.signedOutHint}</p>
-          <div className="mt-4">
-            <SignInLink locale={locale} next={continueTo} />
+        <section className="mx-auto mt-8 flex min-h-[340px] w-full max-w-2xl flex-col items-center justify-center rounded-3xl border border-border bg-card px-6 py-12 text-center shadow-sm sm:min-h-[380px] sm:px-12" aria-labelledby="profile-signed-out-title">
+          <div aria-hidden="true" className="mb-6 grid size-20 place-items-center rounded-full bg-muted text-foreground">
+            <svg viewBox="0 0 24 24" className="size-10" fill="none">
+              <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.7" />
+              <path d="M5 20c.7-3.5 3.2-5.5 7-5.5s6.3 2 7 5.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+            </svg>
           </div>
-        </div>
+          <h2 id="profile-signed-out-title" className="text-xl font-bold sm:text-2xl">{t.profile.signedOut}</h2>
+          <p className="mt-3 max-w-md text-base leading-8 text-muted-foreground">{t.profile.signedOutHint}</p>
+          <div className="mt-7">
+            <SignInLink locale={locale} next={continueTo} className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" />
+          </div>
+        </section>
       )}
       {state.kind === "error" && (
         <p role="status" className="mt-4 text-muted-foreground">
