@@ -80,3 +80,11 @@ def enforce_otp_verify(ip: str) -> None:
     s = settings
     if not _within_limit("otp_verify_ip", _ident(ip), s.OTP_VERIFY_IP_LIMIT, s.OTP_VERIFY_IP_WINDOW_SECONDS):
         raise RateLimited(wait=s.OTP_VERIFY_IP_WINDOW_SECONDS)
+
+
+def enforce_password_login(ip: str, phone: str) -> None:
+    """Limit password guesses by both network and normalized phone identity."""
+    if not _within_limit("password_login_ip", _ident(ip), 30, 600):
+        raise RateLimited(wait=600)
+    if not _within_limit("password_login_phone", _ident(phone), 10, 600):
+        raise RateLimited(wait=600)

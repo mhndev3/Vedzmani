@@ -70,3 +70,12 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
 
     def get_is_complete(self, obj):
         return bool(obj.first_name and obj.last_name and obj.address and obj.postal_code and obj.national_code)
+
+
+class PasswordLoginSerializer(serializers.Serializer):
+    phone = PhoneField()
+    password = serializers.CharField(trim_whitespace=False, write_only=True, max_length=128)
+
+
+class SetPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(trim_whitespace=False, write_only=True, min_length=10, max_length=128)

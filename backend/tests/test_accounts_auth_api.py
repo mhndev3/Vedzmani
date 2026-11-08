@@ -83,3 +83,50 @@ def test_inactive_user_cannot_authenticate(api):
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "account_disabled"
     assert api.get("/api/auth/me/").status_code == 401
+
+
+def test_password_login_authenticates_phone_and_password(api):
+    user = User.objects.create_user(PHONE, password="Secure-Vedzmani-2026!")
+    response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
+    assert response.status_code == 200
+    assert response.json()["user"]["id"] == user.pk
+    assert api.client.session.get_expire_at_browser_close() is True
+    assert api.get("/api/auth/me/").status_code == 200
+
+
+def test_password_login_rejects_wrong_password(api):
+    User.objects.create_user(PHONE, password="Secure-Vedzmani-2026!")
+    response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "wrong-password"})
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_credentials"
+
+
+def test_customer_can_set_password_only_after_otp_verification(api):
+    api.login(PHONE)
+    response = api.post("/api/auth/password/set/", {"password": "Secure-Vedzmani-2026!"})
+    assert response.status_code == 200
+    user = User.objects.get()
+    assert user.has_usable_password()
+    second_set = api.post("/api/auth/password/set/", {"password": "Another-Secure-Password-2026!"})
+    assert second_set.status_code == 403
+    api.post("/api/auth/logout/")
+    login_response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
+    assert login_response.status_code == 200
+
+
+def test_password_setup_requires_otp_authenticated_session(api):
+    user = User.objects.create_user(PHONE)
+    api.client.force_login(user)
+    response = api.post("/api/auth/password/set/", {"password": "Secure-Vedzmani-2026!"})
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "otp_verification_required"
+
+
+def test_password_login_is_rate_limited(api):
+    User.objects.create_user(PHONE, password="Secure-Vedzmani-2026!")
+    for _ in range(10):
+        response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "wrong-password"})
+        assert response.status_code == 400
+    limited = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "wrong-password"})
+    assert limited.status_code == 429
+    assert limited.json()["error"]["code"] == "rate_limited"

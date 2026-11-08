@@ -22,9 +22,9 @@ async function readOtp(local: string): Promise<string> {
 }
 
 const phoneInput = (page: Page) => page.getByLabel("شماره موبایل");
-const codeInput = (page: Page) => page.getByLabel("کد تأیید");
-const sendButton = (page: Page) => page.getByRole("button", { name: "دریافت کد ورود / ثبت‌نام" });
-const verifyButton = (page: Page) => page.getByRole("button", { name: "تأیید و ادامه" });
+const codeInput = (page: Page) => page.getByLabel("کد تأیید پیامکی");
+const sendButton = (page: Page) => page.getByRole("button", { name: "دریافت کد تأیید" });
+const verifyButton = (page: Page) => page.getByRole("button", { name: "تأیید شماره و ادامه" });
 const alertBox = (page: Page) => page.locator('form [role="alert"]');
 const json = (status: number, body: unknown, headers: Record<string, string> = {}) => (route: Route) =>
   route.fulfill({ status, json: body, headers });
@@ -49,10 +49,41 @@ test.describe("ورود با شماره موبایل", () => {
     await page.goto("/fa/sign-in");
     await expect(page.locator("html")).toHaveAttribute("lang", "fa");
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-    await expect(page.getByRole("heading", { name: "ورود یا ساخت حساب", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "حساب کاربری ودزمانی", level: 1 })).toBeVisible();
     await sendButton(page).click();
     await expect(page.getByText("شماره موبایل را وارد کنید.")).toBeVisible();
     await expect(phoneInput(page)).toBeFocused();
+  });
+
+  test("ثبت‌نام حالت پیش‌فرض است و فرم ورود رمز عبور را نمایش می‌دهد", async ({ page }) => {
+    await page.goto("/fa/sign-in");
+    await expect(page.getByRole("heading", { name: "حساب کاربری ودزمانی", level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: "ورود به حساب" }).click();
+    const password = page.getByLabel("رمز عبور");
+    await expect(password).toBeVisible();
+    await expect(password).toHaveAttribute("type", "password");
+    await page.getByRole("button", { name: "نمایش رمز" }).click();
+    await expect(password).toHaveAttribute("type", "text");
+    await page.getByRole("button", { name: "مخفی کردن رمز" }).click();
+    await expect(password).toHaveAttribute("type", "password");
+  });
+
+  test("هنگام ارسال کد، دکمه وضعیت انتظار را واضح نشان می‌دهد", async ({ page }) => {
+    let releaseRequest!: () => void;
+    const requestGate = new Promise<void>((resolve) => { releaseRequest = resolve; });
+    await mockRequest(page, async (route) => {
+      await requestGate;
+      await route.fulfill({ status: 202, json: { detail: "OTP request accepted." } });
+    });
+    await page.goto("/fa/sign-in");
+    await phoneInput(page).fill("09120000009");
+    const submit = sendButton(page);
+    await submit.click();
+    const loading = page.getByTestId("auth-send-code");
+    await expect(loading).toHaveAttribute("aria-label", "در حال ارسال...");
+    await expect(loading).toBeDisabled();
+    releaseRequest();
+    await expect(codeInput(page)).toBeVisible();
   });
 
   test("شماره نامعتبر در سرور رد می‌شود", async ({ page }) => {
@@ -68,7 +99,7 @@ test.describe("ورود با شماره موبایل", () => {
     await page.goto("/fa/sign-in");
     await phoneInput(page).fill("09120000002");
     await sendButton(page).click();
-    await expect(alertBox(page)).toContainText("در حال حاضر ارسال کد تأیید ممکن نیست");
+    await expect(alertBox(page)).toContainText("ارسال پیامک فعلاً فعال نیست");
     await expect(codeInput(page)).toHaveCount(0);
   });
 
@@ -95,7 +126,7 @@ test.describe("ورود با شماره موبایل", () => {
     await mockVerify(page, json(400, err("otp_expired")));
     await codeInput(page).fill("123456");
     await verifyButton(page).click();
-    await expect(alertBox(page)).toContainText("این کد منقضی شده است");
+    await expect(alertBox(page)).toContainText("کد منقضی شده است");
     await expect(verifyButton(page)).toBeEnabled();
   });
 
@@ -113,7 +144,7 @@ test.describe("ورود با شماره موبایل", () => {
 
   test("تغییر شماره به مرحله اول بازمی‌گردد", async ({ page }) => {
     await toCodeStepMocked(page, "09120000006");
-    await page.getByRole("button", { name: "تغییر شماره" }).click();
+    await page.getByRole("button", { name: "ویرایش شماره" }).click();
     await expect(phoneInput(page)).toHaveValue("09120000006");
     await expect(codeInput(page)).toHaveCount(0);
   });
@@ -149,6 +180,10 @@ test.describe("جریان واقعی کد یک‌بارمصرف", () => {
     await expect(codeInput(page)).toBeVisible();
     await codeInput(page).fill(await readOtp(phone));
     await verifyButton(page).click();
+    await expect(page.getByRole("heading", { name: "برای حساب خود رمز بسازید" })).toBeVisible();
+    await page.getByLabel("رمز عبور", { exact: true }).fill("Secure-Vedzmani-2026!");
+    await page.getByLabel("تکرار رمز عبور").fill("Secure-Vedzmani-2026!");
+    await page.getByRole("button", { name: "ثبت رمز عبور" }).click();
     await expect(page).toHaveURL(/checkout$/);
     await expect(page.getByRole("heading", { name: "سبد خرید شما خالی است" })).toBeVisible();
     const me = await (await page.request.get("/api/auth/me/")).json();

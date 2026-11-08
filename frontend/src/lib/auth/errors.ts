@@ -3,6 +3,8 @@ import { BrowserApiError } from "@/lib/browser-api";
 /** Dictionary keys (see i18n/dictionaries/auth.ts `errors`) for everything the sign-in API can answer. */
 export type AuthErrorKey =
   | "invalid_phone"
+  | "invalid_credentials"
+  | "weak_password"
   | "invalid_code_format"
   | "otp_invalid"
   | "otp_expired"
@@ -20,6 +22,7 @@ export type ClassifiedError = { key: AuthErrorKey; retryAfterSeconds?: number };
 
 const DIRECT: Record<string, AuthErrorKey> = {
   otp_invalid: "otp_invalid",
+  invalid_credentials: "invalid_credentials",
   otp_expired: "otp_expired",
   otp_consumed: "otp_consumed",
   otp_attempts_exceeded: "otp_attempts_exceeded",
@@ -41,6 +44,7 @@ export function classifyAuthError(e: unknown): ClassifiedError {
 
   if (status === 400 && code === "validation_error") {
     if (details?.phone?.length) return { key: "invalid_phone" };
+    if (details?.password?.length) return { key: "weak_password" };
     if (details?.code?.length) return { key: "invalid_code_format" };
   }
   return { key: "generic" };

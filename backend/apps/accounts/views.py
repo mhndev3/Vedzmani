@@ -1,7 +1,8 @@
 """Auth API. Django session authentication; CSRF is enforced on every POST."""
 
 from django.conf import settings
-from django.contrib.auth import login, logout
+from django.contrib.auth import authenticate, login, logout, password_validation, update_session_auth_hash
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
@@ -18,8 +19,15 @@ from rest_framework.views import APIView
 from . import services
 from .authentication import OTP_SESSION_FLAG
 from .models import OTPChallenge
-from .ratelimit import get_client_ip
-from .serializers import CurrentUserSerializer, CustomerProfileSerializer, OTPRequestSerializer, OTPVerifySerializer
+from .ratelimit import enforce_password_login, get_client_ip
+from .serializers import (
+    CurrentUserSerializer,
+    CustomerProfileSerializer,
+    OTPRequestSerializer,
+    OTPVerifySerializer,
+    PasswordLoginSerializer,
+    SetPasswordSerializer,
+)
 
 BACKEND = "django.contrib.auth.backends.ModelBackend"
 
@@ -41,6 +49,66 @@ class CSRFProtectedAPIView(APIView):
     @method_decorator(csrf_protect)
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)
+
+
+
+class PasswordLoginView(CSRFProtectedAPIView):
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        enforce_password_login(get_client_ip(request), data["phone"])
+        user = authenticate(request._request, phone=data["phone"], password=data["password"])
+        if user is None or not user.is_active or user.is_staff:
+            return Response(
+                {"error": {"code": "invalid_credentials", "message": "Invalid phone or password."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        login(request._request, user, backend=BACKEND)
+        request._request.session.pop(OTP_SESSION_FLAG, None)
+        request._request.session.set_expiry(0)
+        return Response({"user": CurrentUserSerializer(user).data})
+
+
+class SetPasswordView(CSRFProtectedAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.is_staff:
+            return Response(
+                {
+                    "error": {
+                        "code": "account_disabled",
+                        "message": "Password change is unavailable for staff accounts.",
+                    }
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not request._request.session.get(OTP_SESSION_FLAG):
+            return Response(
+                {
+                    "error": {
+                        "code": "otp_verification_required",
+                        "message": "Verify your phone before setting a password.",
+                    }
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = SetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        password = serializer.validated_data["password"]
+        try:
+            password_validation.validate_password(password, request.user)
+        except DjangoValidationError as exc:
+            raise ValidationError({"password": exc.messages}) from None
+        request.user.set_password(password)
+        request.user.save(update_fields=["password"])
+        update_session_auth_hash(request._request, request.user)
+        request._request.session.pop(OTP_SESSION_FLAG, None)
+        return Response({"detail": "Password set."})
 
 
 class OTPRequestView(CSRFProtectedAPIView):

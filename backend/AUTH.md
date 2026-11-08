@@ -155,3 +155,8 @@ container shows the Cloudflare ranges; (2) the Nginx access log shows real clien
 - Production client-IP chain is **unverified** (see above). `AUTH_TRUSTED_PROXY_COUNT` must keep matching the proxy chain.
 - `main`'s Compose still runs `config.settings.dev` (non-Secure cookies, OTP codes and phones logged by `ConsoleDelivery`); the
   production compose with `config.settings.prod` exists only on unmerged infra branches.
+
+## Customer password authentication
+- `POST /password/login/` accepts `{phone, password}`. Phone is normalized by the existing `PhoneField`; Django's configured password hasher and `ModelBackend` authenticate the customer. Staff accounts are refused here and continue to use the separate Django Admin password gate. Success establishes a normal Django session and rotates the session key.
+- `POST /password/set/` accepts `{password}` for an authenticated non-staff customer whose current session was established by OTP. Password login is rate-limited to 10 attempts per normalized phone and 30 per client IP in a 10-minute window. Passwords must be at least 10 characters and pass Django's configured password validators. The endpoint is CSRF-protected and does not return password data.
+- Signup remains OTP-first. A newly created account receives an unusable password until the customer sets one through `/password/set/`. Forgot-password uses the existing OTP request/verify flow, then the same password-set endpoint. Real SMS delivery remains unavailable until a provider is selected and configured; no development OTP is exposed in production.
