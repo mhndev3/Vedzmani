@@ -62,9 +62,18 @@ test.describe("ورود با شماره موبایل", () => {
     const password = page.getByLabel("رمز عبور");
     await expect(password).toBeVisible();
     await expect(password).toHaveAttribute("type", "password");
-    await page.getByRole("button", { name: "نمایش رمز" }).click();
+    const showPassword = page.getByRole("button", { name: "نمایش رمز" });
+    await expect(showPassword.locator("svg")).toBeVisible();
+    const inputBox = await password.boundingBox();
+    const toggleBox = await showPassword.boundingBox();
+    expect(inputBox).not.toBeNull();
+    expect(toggleBox).not.toBeNull();
+    expect(toggleBox!.x).toBeGreaterThan(inputBox!.x + inputBox!.width / 2);
+    await showPassword.click();
     await expect(password).toHaveAttribute("type", "text");
-    await page.getByRole("button", { name: "مخفی کردن رمز" }).click();
+    const hidePassword = page.getByRole("button", { name: "مخفی کردن رمز" });
+    await expect(hidePassword.locator("svg")).toBeVisible();
+    await hidePassword.click();
     await expect(password).toHaveAttribute("type", "password");
   });
 
@@ -153,7 +162,9 @@ test.describe("ورود با شماره موبایل", () => {
 test.describe("دسترسی مهمان", () => {
   test("سبد خالی مهمان بدون اجبار به ورود قابل مشاهده است", async ({ page }) => {
     await page.goto("/fa/cart");
+    await expect(page.getByRole("heading", { name: "سبد خرید", level: 1 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "سبد خرید شما خالی است" })).toBeVisible();
+    await expect(page.locator("section[aria-labelledby='empty-cart-title']")).toHaveClass(/text-center/);
     await expect(page.getByRole("link", { name: "مشاهده محصولات" })).toHaveAttribute("href", "/fa/products");
   });
 
@@ -165,6 +176,8 @@ test.describe("دسترسی مهمان", () => {
 
   test("پروفایل مهمان مسیر بازگشت امن را حفظ می‌کند", async ({ page }) => {
     await page.goto("/fa/profile");
+    await expect(page.getByRole("heading", { name: "پروفایل", level: 1 })).toBeVisible();
+    await expect(page.locator("section[aria-labelledby='profile-signed-out-title']")).toHaveClass(/text-center/);
     await expect(page.getByRole("link", { name: "ورود / ساخت حساب" })).toHaveAttribute("href", "/fa/sign-in?next=%2Ffa%2Fprofile");
   });
 });
