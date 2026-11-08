@@ -53,7 +53,7 @@ class PasswordLoginView(CSRFProtectedAPIView):
         serializer = PasswordLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        user = authenticate(request, phone=data["phone"], password=data["password"])
+        user = authenticate(request._request, phone=data["phone"], password=data["password"])
         if user is None or not user.is_active or user.is_staff:
             return Response({"error": {"code": "invalid_credentials", "message": "Invalid phone or password."}}, status=status.HTTP_400_BAD_REQUEST)
         login(request._request, user, backend=BACKEND)
@@ -68,6 +68,8 @@ class SetPasswordView(CSRFProtectedAPIView):
     def post(self, request):
         if request.user.is_staff:
             return Response({"error": {"code": "account_disabled", "message": "Password change is unavailable for staff accounts."}}, status=status.HTTP_403_FORBIDDEN)
+        if not request._request.session.get(OTP_SESSION_FLAG):
+            return Response({"error": {"code": "otp_verification_required", "message": "Verify your phone before setting a password."}}, status=status.HTTP_403_FORBIDDEN)
         serializer = SetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         password = serializer.validated_data["password"]
