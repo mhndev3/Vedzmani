@@ -1,7 +1,7 @@
 """Auth API. Django session authentication; CSRF is enforced on every POST."""
 
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout, password_validation
+from django.contrib.auth import authenticate, login, logout, password_validation, update_session_auth_hash
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
@@ -106,6 +106,7 @@ class SetPasswordView(CSRFProtectedAPIView):
             raise ValidationError({"password": exc.messages}) from None
         request.user.set_password(password)
         request.user.save(update_fields=["password"])
+        update_session_auth_hash(request._request, request.user)
         request._request.session.pop(OTP_SESSION_FLAG, None)
         return Response({"detail": "Password set."})
 
