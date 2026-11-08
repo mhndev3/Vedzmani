@@ -43,10 +43,14 @@ test.describe("purchase journey (needs E2E_OTP_LOG_COMMAND)", () => {
     await expect(page).toHaveURL(/sign-in/);
     const phone = `0912${String(Date.now() % 1_000_000).padStart(6, "0")}7`;
     await page.getByLabel("شماره موبایل").fill(phone);
-    await page.getByRole("button", { name: "دریافت کد ورود / ثبت‌نام" }).click();
-    await expect(page.getByLabel("کد تأیید")).toBeVisible();
+    await page.getByRole("button", { name: "دریافت کد تأیید" }).click();
+    await expect(page.getByLabel("کد تأیید پیامکی")).toBeVisible();
     await page.getByLabel("کد تأیید").fill(await readOtp(`+98${phone.slice(1)}`));
-    await page.getByRole("button", { name: "تأیید و ادامه" }).click();
+    await page.getByRole("button", { name: "تأیید شماره و ادامه" }).click();
+    await expect(page.getByRole("heading", { name: "برای حساب خود رمز بسازید" })).toBeVisible();
+    await page.getByLabel("رمز عبور", { exact: true }).fill("Secure-Vedzmani-2026!");
+    await page.getByLabel("تکرار رمز عبور").fill("Secure-Vedzmani-2026!");
+    await page.getByRole("button", { name: "ثبت رمز عبور" }).click();
 
     await expect(page).toHaveURL(/checkout$/);
     await expect(page.getByRole("heading", { name: "اطلاعات تحویل" })).toBeVisible();
