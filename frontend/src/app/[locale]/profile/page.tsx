@@ -44,7 +44,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10">
-      <h1 className="flex items-center justify-center gap-3 text-center text-2xl font-bold tracking-tight sm:text-3xl"><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-2 rounded-full bg-current" /></span><span>{t.profile.title}</span><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-2 rounded-full bg-current" /></span></h1>
+      <h1 dir="ltr" className="flex items-center justify-center gap-3 text-center text-2xl font-bold tracking-tight sm:text-3xl"><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-2 rounded-full bg-current" /></span><span dir="rtl">{t.profile.title}</span><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-1 rounded-full bg-current" /></span></h1>
       {state.kind === "ok" && (
         <>
           <dl className="mt-6 text-sm">
