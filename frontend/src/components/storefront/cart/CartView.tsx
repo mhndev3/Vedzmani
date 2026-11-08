@@ -87,7 +87,7 @@ export function CartView({ locale, t }: { locale: Locale; t: Dictionary["cart"] 
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10">
-      <h1 ref={heading} tabIndex={-1} className="flex items-center justify-center gap-3 text-center text-2xl font-bold outline-none sm:text-3xl"><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-2 rounded-full bg-current" /></span><span>{t.title}</span><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-2 rounded-full bg-current" /></span></h1>
+      <h1 ref={heading} tabIndex={-1} dir="ltr" className="flex items-center justify-center gap-3 text-center text-2xl font-bold outline-none sm:text-3xl"><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-1 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-2 rounded-full bg-current" /></span><span dir="rtl">{t.title}</span><span aria-hidden="true" className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-current" /><i className="size-1.5 rounded-full bg-current" /><i className="size-1 rounded-full bg-current" /></span></h1>
       <div className="mt-6" aria-live="polite">
         {notice && <p role="status" className="sr-only">{notice}</p>}
         {error && <p role="alert" className="mb-4 rounded-lg border border-border p-3 text-sm font-medium">{error}</p>}
