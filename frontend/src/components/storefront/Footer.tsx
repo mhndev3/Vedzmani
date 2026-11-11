@@ -5,9 +5,33 @@ import { siteConfig } from "@/lib/site-config";
 import { CheckCircleIcon } from "./icons";
 
 const linkClass = "rounded text-muted-foreground hover:text-foreground hover:underline";
+const instagramUrl = "https://www.instagram.com/vedzmani/";
+const enamadUrl = "https://trustseal.enamad.ir/?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm";
+const enamadLogoUrl = "https://trustseal.enamad.ir/logo.aspx?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm";
+
+function InstagramIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width={23}
+      height={23}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      focusable="false"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r=".8" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
 export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
-  const { social, features, trust } = siteConfig;
+  const { social, features } = siteConfig;
   const year = new Intl.NumberFormat(localeMeta[locale].numberLocale, { useGrouping: false }).format(new Date().getFullYear());
 
   return (
@@ -37,21 +61,48 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
           </ul>
         </div>
       </nav>
+
+      <div dir="rtl" className="mx-auto flex max-w-6xl flex-col gap-6 border-t border-border px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+        <section aria-labelledby="footer-instagram-title" className="flex flex-col items-start gap-2">
+          <h2 id="footer-instagram-title" className="text-sm font-semibold text-foreground">
+            {locale === "fa" ? "اینستاگرام ودزمانی" : "Vedzmani on Instagram"}
+          </h2>
+          <a
+            href={instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="VEDZMANI on Instagram"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md text-base font-bold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:text-lg"
+          >
+            <InstagramIcon />
+            <span>VEDZMANI</span>
+          </a>
+        </section>
+
+        <a
+          href={enamadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          referrerPolicy="origin"
+          aria-label={locale === "fa" ? "مشاهده نماد اعتماد الکترونیکی ودزمانی" : "View Vedzmani electronic trust seal"}
+          className="inline-flex w-fit items-center justify-center rounded-md bg-background p-2 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+        >
+          <img
+            referrerPolicy="origin"
+            src={enamadLogoUrl}
+            alt={locale === "fa" ? "نماد اعتماد الکترونیکی" : "Electronic Trust Seal"}
+            width={100}
+            height={100}
+            className="h-auto w-[88px] object-contain sm:w-[100px]"
+          />
+        </a>
+      </div>
+
       <div className="mx-auto flex max-w-6xl flex-col gap-2 border-t border-border px-4 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          {(social.instagramUrl || social.whatsappUrl) && (
+          {social.whatsappUrl && (
             <ul aria-label={t.footer.social} className="flex gap-3">
-              {social.instagramUrl && <li><a href={social.instagramUrl} rel="noopener noreferrer" className={linkClass}>{t.footer.instagram}</a></li>}
-              {social.whatsappUrl && <li><a href={social.whatsappUrl} rel="noopener noreferrer" className={linkClass}>{t.footer.whatsapp}</a></li>}
-            </ul>
-          )}
-          {trust.length > 0 && (
-            <ul aria-label={t.footer.trust} className="flex gap-3">
-              {trust.map((badge) => (
-                <li key={badge.id}>
-                  {badge.href ? <a href={badge.href} rel="noopener noreferrer" className={linkClass}>{badge.label[locale]}</a> : badge.label[locale]}
-                </li>
-              ))}
+              <li><a href={social.whatsappUrl} rel="noopener noreferrer" className={linkClass}>{t.footer.whatsapp}</a></li>
             </ul>
           )}
         </div>
