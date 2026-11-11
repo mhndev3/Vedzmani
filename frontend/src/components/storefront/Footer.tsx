@@ -91,7 +91,7 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
             referrerPolicy="origin"
             src={enamadLogoUrl}
             alt=""
-            code="hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"
+            {...{ code: "hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm" }}
             width={100}
             height={100}
             style={{ cursor: "pointer" }}
