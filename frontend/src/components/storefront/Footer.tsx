@@ -90,9 +90,11 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
           <img
             referrerPolicy="origin"
             src={enamadLogoUrl}
-            alt={locale === "fa" ? "نماد اعتماد الکترونیکی" : "Electronic Trust Seal"}
+            alt=""
+            code="hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"
             width={100}
             height={100}
+            style={{ cursor: "pointer" }}
             className="h-auto w-[88px] object-contain sm:w-[100px]"
           />
         </a>
