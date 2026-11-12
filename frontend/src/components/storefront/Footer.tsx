@@ -80,7 +80,7 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
 
         <section
           aria-label={locale === "fa" ? "نماد اعتماد الکترونیکی" : "Electronic trust seal"}
-          className="flex min-h-[110px] w-fit items-center justify-center"
+          className="flex min-h-[110px] w-fit self-end items-center justify-center sm:self-auto"
         >
           <div dangerouslySetInnerHTML={{ __html: enamadEmbed }} />
         </section>
