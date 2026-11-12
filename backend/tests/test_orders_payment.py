@@ -26,7 +26,7 @@ def test_token_uses_server_amount_converted_from_toman_to_rial(make_variant_size
         attempt = initiate_sep_payment(order, redirect_url="https://vedzmani.ir/api/orders/payment/sep/callback/")
     assert attempt.amount_rial == 10000 and attempt.status == SepPaymentAttempt.PENDING
     assert vs.stock_quantity == 2
-    token.assert_called_once()
+    token.assert_called_once_with(amount_rial=10000, res_num=attempt.res_num, redirect_url="https://vedzmani.ir/api/orders/payment/sep/callback/", cell_number=order.customer_phone[3:])
 
 def test_out_of_stock_callback_never_calls_verify(make_variant_size):
     order, vs = make_order(make_variant_size, stock=1)

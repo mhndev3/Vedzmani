@@ -11,6 +11,7 @@ class Migration(migrations.Migration):
             ("res_num", models.CharField(max_length=40, unique=True)),
             ("token", models.CharField(blank=True, default="", max_length=100)),
             ("ref_num", models.CharField(blank=True, max_length=80, null=True, unique=True)),
+            ("shipping_amount_toman", models.PositiveBigIntegerField()),
             ("amount_rial", models.PositiveBigIntegerField()),
             ("status", models.CharField(choices=[("initiating", "Initiating"), ("pending", "Pending"), ("paid", "Paid"), ("out_of_stock", "Out of stock"), ("failed", "Failed"), ("reversed", "Reversed")], default="initiating", max_length=20)),
             ("provider_result_code", models.IntegerField(blank=True, null=True)),

@@ -10,12 +10,12 @@
 
 ## SEP protocol
 The adapter follows SEP OnlinePG technical guide v3.6: request a token from the classic token endpoint, send the returned Token to the classic payment page, receive ResNum and RefNum at the callback, then verify server-to-server. Verify is retried only when no response was received, never after a definite negative result. A verified transaction that cannot be fulfilled is reversed.
-Order amounts are stored in Toman; SEP Amount is Rial, so the server converts by multiplying by 10. No amount is accepted from the browser.
+Order amounts are stored in Toman; SEP Amount is Rial, so the server converts the server-owned order total plus shipping by multiplying by 10. No amount is accepted from the browser.
 
 ## Configuration and go-live gate
 - SEP_PAYMENT_ENABLED defaults to false in all environments and is explicitly false in production.
 - SEP_TERMINAL_ID and endpoint configuration are server-only environment values; no secrets are committed or exposed to NEXT_PUBLIC variables.
-- Real payments must remain disabled until the owner defines and implements shipping charges. Order.total currently excludes shipping and is not the final payable amount.
+- SEP_SHIPPING_AMOUNT_TOMAN must be explicitly configured (zero only when shipping is intentionally free). The current setting supports a fixed shipping amount; real payments must remain disabled if shipping varies by destination until that rule is implemented.
 - Production ORDERS_ENABLED and NEXT_PUBLIC_ORDERS_ENABLED remain disabled. This PR does not change VPS settings or enable live payments.
 - SEP has no real sandbox for this integration; tests mock the provider and never initiate a live transaction.
 

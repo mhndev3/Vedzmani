@@ -186,6 +186,8 @@ ORDERS_ENABLED = env_bool("ORDERS_ENABLED", True)
 # SEP stays disabled unless a real terminal is configured and the owner enables it.
 SEP_PAYMENT_ENABLED = env_bool("SEP_PAYMENT_ENABLED", False)
 SEP_TERMINAL_ID = env("SEP_TERMINAL_ID", "") or ""
+_sep_shipping_amount = env("SEP_SHIPPING_AMOUNT_TOMAN")
+SEP_SHIPPING_AMOUNT_TOMAN = int(_sep_shipping_amount) if _sep_shipping_amount is not None else None
 SEP_TIMEOUT_SECONDS = int(env("SEP_TIMEOUT_SECONDS", "15"))
 SEP_TOKEN_URL = env("SEP_TOKEN_URL", "https://sep.shaparak.ir/onlinepg/onlinepg")
 SEP_PAYMENT_URL = env("SEP_PAYMENT_URL", "https://sep.shaparak.ir/OnlinePG/OnlinePG")

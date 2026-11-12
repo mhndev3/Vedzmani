@@ -9,8 +9,7 @@ Delivery details (recipient name, province, city, address, postal code) are snap
 (Agent 11). The delivery phone is NOT stored separately: it is `customer_phone`, the account phone at order time.
 Orders created before delivery details existed keep blank values for these columns (see ORDERS.md).
 
-`payment_status` is server-owned and has the single value `unpaid`; nothing in the code base moves an order out of
-it (no payment provider is integrated, see PAYMENT.md). Status workflow, shipping cost and tax are intentionally NOT modelled yet. All monetary values use Iranian Toman.
+`payment_status` is server-owned; only a verified provider callback can move it to `paid`. Shipping is configured separately before payments can be enabled. All monetary values use Iranian Toman.
 """
 
 from django.conf import settings
@@ -98,6 +97,7 @@ class SepPaymentAttempt(models.Model):
     res_num = models.CharField(max_length=40, unique=True)
     token = models.CharField(max_length=100, blank=True, default="")
     ref_num = models.CharField(max_length=80, unique=True, null=True, blank=True)
+    shipping_amount_toman = models.PositiveBigIntegerField()
     amount_rial = models.PositiveBigIntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=INITIATING)
     provider_result_code = models.IntegerField(null=True, blank=True)

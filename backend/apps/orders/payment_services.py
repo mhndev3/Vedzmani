@@ -26,7 +26,7 @@ def initiate_sep_payment(order, *, redirect_url):
         existing = locked_order.sep_payment_attempts.filter(status=SepPaymentAttempt.PENDING).order_by("-id").first()
         if existing and existing.token:
             return existing
-        res_num = f"VZ{locked_order.pk}-{uuid.uuid4().hex[:20]}"
+        res_num = f"VZ{locked_order.pk}-{uuid.uuid4().hex[:16]}"
         amount_rial = int(Decimal(locked_order.total) * 10)
         attempt = SepPaymentAttempt.objects.create(
             order=locked_order, res_num=res_num, amount_rial=amount_rial,
@@ -34,7 +34,7 @@ def initiate_sep_payment(order, *, redirect_url):
         )
         token = SepClient().request_token(
             amount_rial=amount_rial, res_num=res_num, redirect_url=redirect_url,
-            cell_number=locked_order.customer_phone,
+            cell_number=locked_order.customer_phone[3:],
         )
         attempt.token, attempt.status = token, SepPaymentAttempt.PENDING
         attempt.save(update_fields=["token", "status", "updated_at"])

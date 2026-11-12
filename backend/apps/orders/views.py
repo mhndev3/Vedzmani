@@ -60,7 +60,7 @@ class SepPaymentInitiateView(APIView):
             )
         except PaymentRejected as exc:
             http_status = status.HTTP_503_SERVICE_UNAVAILABLE if exc.code in {
-                "payment_disabled", "payment_not_configured"
+                "payment_disabled", "payment_not_configured", "shipping_not_configured"
             } else status.HTTP_409_CONFLICT
             return Response({"error": {"code": exc.code}}, status=http_status)
         except Exception:
