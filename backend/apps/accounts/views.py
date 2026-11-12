@@ -175,7 +175,7 @@ class ProfileView(APIView):
         return Response(CustomerProfileSerializer(request.user).data)
 
     def patch(self, request):
-        serializer = CustomerProfileSerializer(request.user, data=request.data)
+        serializer = CustomerProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
             with transaction.atomic():
