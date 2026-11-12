@@ -3,15 +3,19 @@ The owner is always `request.user`. The only client input to order creation is t
 (`CheckoutSerializer`); any other key in the body (user id, total, status, payment status, phone, ...) is ignored."""
 
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
 from .models import Order
+from .payment_services import PaymentRejected, initiate_sep_payment, process_sep_callback
 from .serializers import CheckoutSerializer, OrderSerializer
 
 
@@ -45,3 +49,40 @@ class OrderDetailView(APIView):
     def get(self, request, order_id: int):
         order = get_object_or_404(_own_orders(request.user), pk=order_id)
         return Response(OrderSerializer(order).data)
+
+
+class SepPaymentInitiateView(APIView):
+    def post(self, request, order_id: int):
+        order = get_object_or_404(_own_orders(request.user), pk=order_id)
+        try:
+            attempt = initiate_sep_payment(
+                order, redirect_url=request.build_absolute_uri(reverse("sep-payment-callback"))
+            )
+        except PaymentRejected as exc:
+            http_status = status.HTTP_503_SERVICE_UNAVAILABLE if exc.code in {
+                "payment_disabled", "payment_not_configured"
+            } else status.HTTP_409_CONFLICT
+            return Response({"error": {"code": exc.code}}, status=http_status)
+        except Exception:
+            return Response({"error": {"code": "payment_unavailable"}}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({
+            "payment_url": settings.SEP_PAYMENT_URL, "token": attempt.token,
+            "res_num": attempt.res_num, "amount_rial": attempt.amount_rial,
+        })
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class SepPaymentCallbackView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        result = process_sep_callback(
+            res_num=str(request.data.get("ResNum") or ""),
+            ref_num=str(request.data.get("RefNum") or ""),
+        )
+        if result == "unknown":
+            return Response({"status": "unknown"}, status=status.HTTP_404_NOT_FOUND)
+        if result == "pending":
+            return Response({"status": "pending"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({"status": result})

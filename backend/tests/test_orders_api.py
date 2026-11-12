@@ -133,7 +133,7 @@ def test_creates_order_with_snapshot_total_stock_and_clears_cart(http, user):
         "subtotal": "1600",
     }
     assert by_sku["tee-l"]["unit_price"] == "500" and by_sku["tee-l"]["subtotal"] == "500"
-    assert (stock(hoodie), stock(tee)) == (3, 2)
+    assert (stock(hoodie), stock(tee)) == (5, 3)
     assert CartItem.objects.count() == 0  # cart emptied, cart row itself kept
     assert Cart.objects.filter(user=user).exists()
 
@@ -142,7 +142,7 @@ def test_can_buy_exactly_the_remaining_stock(http, user):
     vs = make_vs(stock=3)
     fill_cart(user, (vs, 3))
     assert checkout(http).status_code == 201
-    assert stock(vs) == 0
+    assert stock(vs) == 3
 
 
 def test_price_is_read_at_checkout_not_when_added_to_cart(http, user):
@@ -174,7 +174,7 @@ def test_client_supplied_fields_are_ignored_and_other_carts_untouched(http, user
     assert order.user == user and order.total == Decimal("1000") and order.status == "pending"
     assert order.payment_status == "unpaid"
     assert [i.sku for i in order.items.all()] == ["mine-m"]
-    assert (stock(mine), stock(theirs)) == (4, 5)
+    assert (stock(mine), stock(theirs)) == (5, 5)
     assert CartItem.objects.filter(cart__user=other_user).get().quantity == 4  # untouched
 
 
@@ -195,7 +195,7 @@ def test_second_submission_does_not_create_another_order(http, user):
     assert checkout(http).status_code == 201
     response = checkout(http)
     assert response.status_code == 400 and error_code(response) == "empty_cart"
-    assert Order.objects.count() == 1 and stock(vs) == 3
+    assert Order.objects.count() == 1 and stock(vs) == 5
 
 
 # --- stock / availability: whole order rejected, nothing changes -----------------------------
@@ -358,17 +358,17 @@ def _run_threads(target, count):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_last_unit_cannot_be_oversold():
+def test_pending_orders_do_not_reserve_the_last_unit():
     vs = make_vs(stock=1)
     users = [User.objects.create_user(f"0913000000{i}") for i in range(2)]
     for u in users:
         fill_cart(u, (vs, 1))
 
-    assert _run_threads(lambda i: users[i], 2) == [201, 409]
+    assert _run_threads(lambda i: users[i], 2) == [201, 201]
 
-    assert stock(vs) == 0
-    assert Order.objects.count() == 1 and OrderItem.objects.get().quantity == 1
-    assert CartItem.objects.count() == 1  # the loser's cart is untouched
+    assert stock(vs) == 1
+    assert Order.objects.count() == 2 and OrderItem.objects.count() == 2
+    assert CartItem.objects.count() == 0
 
 
 @pytest.mark.django_db(transaction=True)
@@ -379,7 +379,7 @@ def test_double_submit_by_one_user_creates_one_order():
 
     assert _run_threads(lambda i: user, 4) == [201, 400, 400, 400]
 
-    assert Order.objects.count() == 1 and stock(vs) == 7 and CartItem.objects.count() == 0
+    assert Order.objects.count() == 1 and stock(vs) == 10 and CartItem.objects.count() == 0
 
 
 @pytest.mark.django_db(transaction=True)
@@ -392,5 +392,5 @@ def test_concurrent_orders_over_same_items_do_not_deadlock_or_miscount():
 
     assert _run_threads(lambda i: users[i], 6) == [201] * 6
 
-    assert (stock(a), stock(b)) == (88, 88)
+    assert (stock(a), stock(b)) == (100, 100)
     assert Order.objects.count() == 6 and OrderItem.objects.count() == 12
