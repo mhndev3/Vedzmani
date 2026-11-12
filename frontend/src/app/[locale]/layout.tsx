@@ -31,6 +31,7 @@ export const viewport: Viewport = {
  */
 const allowIndexing = process.env.SITE_ALLOW_INDEXING === "true";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const enamadImageUrl = "https://trustseal.enamad.ir/logo.aspx?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm";
 
 export async function generateMetadata({
   params,
@@ -70,6 +71,8 @@ export default async function RootLayout({
   return (
     <html lang={locale} dir={localeMeta[locale].dir} suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://trustseal.enamad.ir" />
+        <link rel="preload" as="image" href={enamadImageUrl} fetchPriority="high" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="flex min-h-dvh flex-col bg-background text-foreground antialiased">

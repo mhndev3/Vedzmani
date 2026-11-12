@@ -3,10 +3,10 @@ import { localeMeta, type Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { siteConfig } from "@/lib/site-config";
 import { CheckCircleIcon } from "./icons";
+import { EnamadSeal } from "./EnamadSeal";
 
 const linkClass = "rounded text-muted-foreground hover:text-foreground hover:underline";
 const instagramUrl = "https://www.instagram.com/vedzmani/";
-const enamadEmbed = '<a referrerpolicy="origin" target="_blank" href="https://trustseal.enamad.ir/?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"><img referrerpolicy="origin" src="https://trustseal.enamad.ir/logo.aspx?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm" alt="" style="cursor:pointer" code="hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"></a>';
 
 function InstagramIcon() {
   return (
@@ -82,7 +82,7 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
           aria-label={locale === "fa" ? "نماد اعتماد الکترونیکی" : "Electronic trust seal"}
           className="flex min-h-[110px] w-fit self-end items-center justify-center sm:self-auto"
         >
-          <div dangerouslySetInnerHTML={{ __html: enamadEmbed }} />
+          <EnamadSeal />
         </section>
       </div>
 
