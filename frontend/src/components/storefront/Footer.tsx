@@ -6,7 +6,7 @@ import { CheckCircleIcon } from "./icons";
 
 const linkClass = "rounded text-muted-foreground hover:text-foreground hover:underline";
 const instagramUrl = "https://www.instagram.com/vedzmani/";
-const enamadEmbed = '<a referrerpolicy="origin" target="_blank" href="https://trustseal.enamad.ir/?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"><img referrerpolicy="origin" src="https://trustseal.enamad.ir/logo.aspx?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm" alt="" style="cursor:pointer" code="hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"></a>';
+const enamadEmbed = '<a referrerpolicy="origin" target="_blank" href="https://trustseal.enamad.ir/?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"><img referrerpolicy="origin" src="https://trustseal.enamad.ir/logo.aspx?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm" alt="" width="120" height="120" loading="eager" fetchpriority="high" decoding="async" style="cursor:pointer" code="hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"></a>';
 
 function InstagramIcon() {
   return (
