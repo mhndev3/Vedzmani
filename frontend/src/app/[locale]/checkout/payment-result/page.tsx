@@ -25,7 +25,7 @@ export default async function PaymentResultPage({ params, searchParams }: Props)
   const content = status === "success"
     ? {
         title: "پرداخت با موفقیت تأیید شد",
-        body: "پرداخت توسط درگاه تأیید شده است. سفارش شما پس از ثبت تأیید نهایی نمایش داده می‌شود.",
+        body: "پرداخت توسط درگاه تأیید شده و نتیجه تراکنش در سیستم ثبت شده است.",
       }
     : status === "pending"
       ? {
