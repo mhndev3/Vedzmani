@@ -13,8 +13,8 @@ function InstagramIcon() {
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
-      width={23}
-      height={23}
+      width={32}
+      height={32}
       fill="none"
       stroke="currentColor"
       strokeWidth={1.8}
@@ -61,26 +61,22 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
         </div>
       </nav>
 
-      <div dir="rtl" className="mx-auto flex max-w-6xl flex-col gap-6 border-t border-border px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
-        <section aria-labelledby="footer-instagram-title" className="flex flex-col items-start gap-2">
-          <h2 id="footer-instagram-title" className="text-sm font-semibold text-foreground">
-            {locale === "fa" ? "اینستاگرام ودزمانی" : "Vedzmani on Instagram"}
-          </h2>
+      <div dir="rtl" className="mx-auto flex max-w-6xl flex-row items-center justify-between gap-4 border-t border-border px-4 py-6">
+        <section aria-label={locale === "fa" ? "اینستاگرام ودزمانی" : "Vedzmani on Instagram"} className="flex shrink-0 items-center">
           <a
             href={instagramUrl}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="VEDZMANI on Instagram"
-            className="inline-flex min-h-11 items-center gap-2 rounded-md text-base font-bold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:text-lg"
+            className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-md text-foreground transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             <InstagramIcon />
-            <span>VEDZMANI</span>
           </a>
         </section>
 
         <section
           aria-label={locale === "fa" ? "نماد اعتماد الکترونیکی" : "Electronic trust seal"}
-          className="flex min-h-[110px] w-fit self-end items-center justify-center sm:self-auto"
+          className="flex shrink-0 items-center justify-center"
         >
           <EnamadSeal />
         </section>
