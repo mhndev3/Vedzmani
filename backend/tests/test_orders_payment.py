@@ -138,7 +138,10 @@ def test_concurrent_payments_cannot_take_the_same_last_variant_unit(make_variant
         finally:
             connection.close()
 
-    with patch("apps.orders.payment_services.SepClient.verify", side_effect=verify) as verify_mock:
+    with patch("apps.orders.payment_services.SepClient.verify", side_effect=verify) as verify_mock, patch(
+        "apps.orders.payment_services.SepClient.reverse",
+        return_value={"Success": True, "ResultCode": 0},
+    ):
         threads = [threading.Thread(target=worker, args=(i,)) for i in range(2)]
         [thread.start() for thread in threads]
         [thread.join(timeout=15) for thread in threads]
