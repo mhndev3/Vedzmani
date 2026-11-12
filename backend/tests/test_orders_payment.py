@@ -1,7 +1,9 @@
 from decimal import Decimal
+import threading
 from unittest.mock import patch
 import pytest
 from django.test import override_settings
+from django.db import connection
 from django.contrib.auth import get_user_model
 from apps.catalog.models import VariantSize
 from apps.orders.models import Order, OrderItem, SepPaymentAttempt
@@ -64,3 +66,48 @@ def test_verified_amount_mismatch_triggers_reverse(make_variant_size):
     order.refresh_from_db(); attempt.refresh_from_db()
     assert order.payment_status == Order.FAILED and attempt.status == SepPaymentAttempt.REVERSED
     assert vs.stock_quantity == 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_payments_cannot_take_the_same_last_variant_unit(make_variant_size):
+    vs = make_variant_size(stock=1)
+    attempts = []
+    for _ in range(2):
+        user = get_user_model().objects.create_user(new_phone())
+        order = Order.objects.create(user=user, customer_phone=user.phone, total=Decimal("1000"), **DELIVERY)
+        OrderItem.objects.create(order=order, variant_size=vs, product_name=vs.variant.product.name,
+            color_name=vs.variant.name, size_label=vs.size.label, sku=vs.sku,
+            unit_price=Decimal("1000"), quantity=1, subtotal=Decimal("1000"))
+        attempts.append(SepPaymentAttempt.objects.create(
+            order=order, res_num=f"VZ-concurrent-{order.pk}", shipping_amount_toman=0,
+            amount_rial=10000, token="t", status="pending",
+        ))
+
+    barrier = threading.Barrier(2)
+    results = [None, None]
+
+    def verify(ref_num):
+        return {"Success": True, "ResultCode": 0, "TransactionDetail": {
+            "RefNum": ref_num, "TerminalNumber": 12345, "OrginalAmount": 10000,
+            "AffectiveAmount": 10000, "RRN": f"rrn-{ref_num}",
+        }}
+
+    def worker(index):
+        try:
+            barrier.wait(timeout=10)
+            results[index] = process_sep_callback(
+                res_num=attempts[index].res_num, ref_num=f"ref-{index}"
+            )
+        finally:
+            connection.close()
+
+    with patch("apps.orders.payment_services.SepClient.verify", side_effect=verify) as verify_mock:
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(2)]
+        [thread.start() for thread in threads]
+        [thread.join(timeout=15) for thread in threads]
+
+    assert sorted(results) == ["out_of_stock", "paid"]
+    assert verify_mock.call_count == 1
+    assert VariantSize.objects.get(pk=vs.pk).stock_quantity == 0
+    assert Order.objects.filter(payment_status=Order.PAID).count() == 1
+    assert Order.objects.filter(payment_status=Order.FAILED).count() == 1

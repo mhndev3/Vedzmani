@@ -19,10 +19,10 @@ class SepClient:
         try:
             with urlopen(request, timeout=settings.SEP_TIMEOUT_SECONDS) as response:
                 raw = response.read(65536)
-        except (URLError, TimeoutError, socket.timeout) as exc:
-            raise SepUnavailable("SEP did not return a response.") from exc
         except HTTPError as exc:
             raise SepError(f"SEP returned HTTP {exc.code}.") from exc
+        except (URLError, TimeoutError, socket.timeout) as exc:
+            raise SepUnavailable("SEP did not return a response.") from exc
         try:
             data = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:

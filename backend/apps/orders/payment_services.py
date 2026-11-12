@@ -101,7 +101,12 @@ def process_sep_callback(*, res_num, ref_num):
             code = response.get("ResultCode") if isinstance(response, dict) else None
             attempt.provider_result_code = code if isinstance(code, int) else None
             if not verified:
-                if isinstance(response, dict) and response.get("Success") is True and response.get("ResultCode") == 0:
+                if isinstance(response, dict) and (
+                    (response.get("Success") is True and response.get("ResultCode") == 0)
+                    or response.get("ResultCode") == 2
+                ):
+                    # A duplicate Verify may mean an earlier request succeeded before a DB failure.
+                    # Never fulfill without the complete amount detail; reverse the receipt instead.
                     verified_ref = True
                     reverse_needed = True
                 attempt.status = SepPaymentAttempt.FAILED
