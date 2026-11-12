@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("root redirects to the default Persian locale (RTL)", async ({ page }) => {
   await page.goto("/");
