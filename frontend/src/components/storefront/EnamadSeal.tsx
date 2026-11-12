@@ -7,21 +7,26 @@ const ENAMAD_IMAGE_URL =
 const ENAMAD_LINK_URL =
   "https://trustseal.enamad.ir/?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm";
 const MAX_RETRIES = 3;
+const INITIAL_LOAD_TIMEOUT_MS = 8000;
 
 export function EnamadSeal() {
   const [attempt, setAttempt] = useState(0);
+  const [loaded, setLoaded] = useState(false);
   const [retryPending, setRetryPending] = useState(false);
 
   useEffect(() => {
-    if (!retryPending || attempt >= MAX_RETRIES) return;
+    if (loaded || attempt >= MAX_RETRIES) return;
 
+    const delay = retryPending
+      ? 1000 * (attempt + 1)
+      : INITIAL_LOAD_TIMEOUT_MS;
     const timer = window.setTimeout(() => {
       setRetryPending(false);
       setAttempt((current) => current + 1);
-    }, 1000 * attempt);
+    }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [attempt, retryPending]);
+  }, [attempt, loaded, retryPending]);
 
   const imageUrl =
     attempt === 0 ? ENAMAD_IMAGE_URL : `${ENAMAD_IMAGE_URL}&retry=${attempt}`;
@@ -43,6 +48,7 @@ export function EnamadSeal() {
         fetchPriority="high"
         decoding="async"
         referrerPolicy="origin"
+        onLoad={() => setLoaded(true)}
         onError={() => {
           if (attempt < MAX_RETRIES) setRetryPending(true);
         }}
