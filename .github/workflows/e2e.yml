@@ -21,8 +21,6 @@ on:
       - "frontend/**"
       # Footer-only positioning has a fast focused check in CI; skip the full app stack for this file.
       - "!frontend/src/components/storefront/Footer.tsx"
-      # Footer-only positioning has a fast focused check in CI; skip the full app stack for this file.
-      - "!frontend/src/components/storefront/Footer.tsx"
       - "nginx/**"
       - "docker-compose.yml"
       - ".env.example"
