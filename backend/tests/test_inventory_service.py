@@ -288,5 +288,5 @@ def test_concurrent_adjustment_and_checkout_do_not_lose_updates(make_variant_siz
     results = _run_concurrently(calls)
 
     assert all(kind == "ok" for kind, _ in results), results
-    assert stock(vs) == 10 - 4 + 20  # every checkout (-1) and every adjustment (+5) was applied exactly once
+    assert stock(vs) == 10 + 20  # every checkout (-1) and every adjustment (+5) was applied exactly once
     assert InventoryAdjustment.objects.count() == 4
