@@ -40,6 +40,7 @@ def test_out_of_stock_callback_never_calls_verify(make_variant_size):
     order.refresh_from_db(); attempt.refresh_from_db()
     assert order.payment_status == Order.FAILED and attempt.status == SepPaymentAttempt.OUT_OF_STOCK
 
+@override_settings(SEP_TERMINAL_ID="12345")
 def test_verified_callback_decrements_once_and_replay_is_idempotent(make_variant_size):
     order, vs = make_order(make_variant_size, stock=2)
     attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-paid", shipping_amount_toman=0, amount_rial=10000, token="t", status="pending")
@@ -54,6 +55,7 @@ def test_verified_callback_decrements_once_and_replay_is_idempotent(make_variant
     assert order.payment_status == Order.PAID and order.status == Order.CONFIRMED
     assert attempt.status == SepPaymentAttempt.PAID and vs.stock_quantity == 1
 
+@override_settings(SEP_TERMINAL_ID="12345")
 def test_verified_amount_mismatch_triggers_reverse(make_variant_size):
     order, vs = make_order(make_variant_size, stock=2)
     attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-bad-amount", shipping_amount_toman=0, amount_rial=10000, token="t", status="pending")
@@ -69,6 +71,7 @@ def test_verified_amount_mismatch_triggers_reverse(make_variant_size):
 
 
 @pytest.mark.django_db(transaction=True)
+@override_settings(SEP_TERMINAL_ID="12345")
 def test_concurrent_payments_cannot_take_the_same_last_variant_unit(make_variant_size):
     vs = make_variant_size(stock=1)
     attempts = []
