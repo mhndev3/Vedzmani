@@ -31,15 +31,48 @@ def test_token_uses_server_amount_converted_from_toman_to_rial(make_variant_size
     assert vs.stock_quantity == 2
     token.assert_called_once_with(amount_rial=10000, res_num=attempt.res_num, redirect_url="https://vedzmani.ir/api/orders/payment/sep/callback/", cell_number=order.customer_phone[3:])
 
-def test_out_of_stock_callback_never_calls_verify(make_variant_size):
+@override_settings(SEP_TERMINAL_ID="12345")
+def test_verified_out_of_stock_callback_reverses_payment(make_variant_size):
     order, vs = make_order(make_variant_size, stock=1)
     attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-out-stock", shipping_amount_toman=0, amount_rial=10000, token="t", status="pending")
     VariantSize.objects.filter(pk=vs.pk).update(stock_quantity=0)
-    with patch("apps.orders.payment_services.SepClient.verify") as verify:
+    verified = {"Success": True, "ResultCode": 0, "TransactionDetail": {
+        "RefNum": "ref-out", "TerminalNumber": 12345, "OrginalAmount": 10000,
+        "AffectiveAmount": 10000, "RRN": "rrn-out",
+    }}
+    with patch("apps.orders.payment_services.SepClient.verify", return_value=verified) as verify, patch(
+        "apps.orders.payment_services.SepClient.reverse",
+        return_value={"Success": True, "ResultCode": 0},
+    ) as reverse:
         assert process_sep_callback(res_num=attempt.res_num, ref_num="ref-out") == "out_of_stock"
-    verify.assert_not_called()
+    verify.assert_called_once_with("ref-out")
+    reverse.assert_called_once_with("ref-out")
+    order.refresh_from_db(); attempt.refresh_from_db(); vs.refresh_from_db()
+    assert order.payment_status == Order.FAILED
+    assert attempt.status == SepPaymentAttempt.REVERSED
+    assert vs.stock_quantity == 0
+
+
+@override_settings(SEP_TERMINAL_ID="12345")
+def test_out_of_stock_callback_retries_unconfirmed_reversal(make_variant_size):
+    order, vs = make_order(make_variant_size, stock=1)
+    attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-retry-reverse", shipping_amount_toman=0, amount_rial=10000, token="t", status="pending")
+    VariantSize.objects.filter(pk=vs.pk).update(stock_quantity=0)
+    verified = {"Success": True, "ResultCode": 0, "TransactionDetail": {
+        "RefNum": "ref-retry", "TerminalNumber": 12345, "OrginalAmount": 10000,
+        "AffectiveAmount": 10000, "RRN": "rrn-retry",
+    }}
+    with patch("apps.orders.payment_services.SepClient.verify", return_value=verified) as verify, patch(
+        "apps.orders.payment_services.SepClient.reverse",
+        side_effect=[{"Success": False, "ResultCode": 9}, {"Success": True, "ResultCode": 0}],
+    ) as reverse:
+        assert process_sep_callback(res_num=attempt.res_num, ref_num="ref-retry") == "pending"
+        assert process_sep_callback(res_num=attempt.res_num, ref_num="ref-retry") == "out_of_stock"
+    verify.assert_called_once_with("ref-retry")
+    assert reverse.call_count == 2
     order.refresh_from_db(); attempt.refresh_from_db()
-    assert order.payment_status == Order.FAILED and attempt.status == SepPaymentAttempt.OUT_OF_STOCK
+    assert order.payment_status == Order.FAILED
+    assert attempt.status == SepPaymentAttempt.REVERSED
 
 @override_settings(SEP_TERMINAL_ID="12345")
 def test_verified_callback_decrements_once_and_replay_is_idempotent(make_variant_size):
