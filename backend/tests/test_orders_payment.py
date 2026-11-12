@@ -1,8 +1,9 @@
 from decimal import Decimal
 import threading
 from unittest.mock import patch
+from urllib.parse import urlencode
 import pytest
-from django.test import override_settings
+from django.test import Client, override_settings
 from django.db import connection
 from django.contrib.auth import get_user_model
 from apps.catalog.models import VariantSize
@@ -114,3 +115,23 @@ def test_concurrent_payments_cannot_take_the_same_last_variant_unit(make_variant
     assert VariantSize.objects.get(pk=vs.pk).stock_quantity == 0
     assert Order.objects.filter(payment_status=Order.PAID).count() == 1
     assert Order.objects.filter(payment_status=Order.FAILED).count() == 1
+
+
+def test_sep_callback_get_is_a_public_non_mutating_readiness_probe():
+    response = Client().get("/api/orders/payment/sep/callback/")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+    assert response["Cache-Control"].find("no-store") != -1
+
+
+def test_sep_callback_accepts_provider_form_post_and_returns_customer_to_result_page():
+    payload = urlencode({"ResNum": "VZ-callback-test", "RefNum": "ref-callback-test"})
+    with patch("apps.orders.views.process_sep_callback", return_value="paid") as process:
+        response = Client().post(
+            "/api/orders/payment/sep/callback/",
+            data=payload,
+            content_type="application/x-www-form-urlencoded",
+        )
+    process.assert_called_once_with(res_num="VZ-callback-test", ref_num="ref-callback-test")
+    assert response.status_code == 302
+    assert response["Location"] == "/fa/checkout/payment-result?status=success"
