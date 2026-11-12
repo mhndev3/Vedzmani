@@ -3,6 +3,7 @@ The owner is always `request.user`. The only client input to order creation is t
 (`CheckoutSerializer`); any other key in the body (user id, total, status, payment status, phone, ...) is ignored."""
 
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.conf import settings
 from django.utils.decorators import method_decorator
@@ -72,17 +73,23 @@ class SepPaymentInitiateView(APIView):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(never_cache, name="dispatch")
 class SepPaymentCallbackView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
+    def get(self, request):
+        # Safe provider-configuration probe. GET never looks up or changes a payment.
+        return Response({"status": "ready"})
+
     def post(self, request):
+        # SEP submits this endpoint as a browser form POST (application/x-www-form-urlencoded).
+        # DRF parses that as request.data; JSON is also accepted for controlled diagnostics.
         result = process_sep_callback(
             res_num=str(request.data.get("ResNum") or ""),
             ref_num=str(request.data.get("RefNum") or ""),
         )
-        if result == "unknown":
-            return Response({"status": "unknown"}, status=status.HTTP_404_NOT_FOUND)
-        if result == "pending":
-            return Response({"status": "pending"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        return Response({"status": result})
+        # The provider returns the customer browser to this endpoint. Send it to a small,
+        # non-sensitive frontend result page; never trust callback fields as proof of payment.
+        page_status = "success" if result == "paid" else "pending" if result == "pending" else "failed"
+        return HttpResponseRedirect(f"/fa/checkout/payment-result?status={page_status}")
