@@ -43,11 +43,11 @@ export default async function PaymentResultPage({ params, searchParams }: Props)
         <h1 className="text-2xl font-semibold">{content.title}</h1>
         <p className="mt-4 leading-8 text-muted-foreground">{content.body}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href={`/${locale}/orders`} className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-3 text-sm font-medium text-primary-foreground">
-            مشاهده سفارش‌ها
-          </Link>
-          <Link href={`/${locale}/products`} className="inline-flex items-center justify-center rounded-lg border border-border px-5 py-3 text-sm">
+          <Link href={`/${locale}/products`} className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-3 text-sm font-medium text-primary-foreground">
             بازگشت به فروشگاه
+          </Link>
+          <Link href={`/${locale}/cart`} className="inline-flex items-center justify-center rounded-lg border border-border px-5 py-3 text-sm">
+            مشاهده سبد خرید
           </Link>
         </div>
       </section>
