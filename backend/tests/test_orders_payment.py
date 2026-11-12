@@ -19,18 +19,18 @@ def make_order(make_variant_size, quantity=1, stock=2):
         unit_price=Decimal("1000"), quantity=quantity, subtotal=Decimal("1000") * quantity)
     return order, vs
 
-@override_settings(SEP_PAYMENT_ENABLED=True, SEP_TERMINAL_ID="12345")
+@override_settings(SEP_PAYMENT_ENABLED=True, SEP_TERMINAL_ID="12345", SEP_SHIPPING_AMOUNT_TOMAN=0)
 def test_token_uses_server_amount_converted_from_toman_to_rial(make_variant_size):
     order, vs = make_order(make_variant_size)
     with patch("apps.orders.payment_services.SepClient.request_token", return_value="sep-token") as token:
         attempt = initiate_sep_payment(order, redirect_url="https://vedzmani.ir/api/orders/payment/sep/callback/")
-    assert attempt.amount_rial == 10000 and attempt.status == SepPaymentAttempt.PENDING
+    assert attempt.amount_rial == 10000 and attempt.shipping_amount_toman == 0 and attempt.status == SepPaymentAttempt.PENDING
     assert vs.stock_quantity == 2
     token.assert_called_once_with(amount_rial=10000, res_num=attempt.res_num, redirect_url="https://vedzmani.ir/api/orders/payment/sep/callback/", cell_number=order.customer_phone[3:])
 
 def test_out_of_stock_callback_never_calls_verify(make_variant_size):
     order, vs = make_order(make_variant_size, stock=1)
-    attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-out-stock", amount_rial=10000, token="t", status="pending")
+    attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-out-stock", shipping_amount_toman=0, amount_rial=10000, token="t", status="pending")
     VariantSize.objects.filter(pk=vs.pk).update(stock_quantity=0)
     with patch("apps.orders.payment_services.SepClient.verify") as verify:
         assert process_sep_callback(res_num=attempt.res_num, ref_num="ref-out") == "out_of_stock"
@@ -40,7 +40,7 @@ def test_out_of_stock_callback_never_calls_verify(make_variant_size):
 
 def test_verified_callback_decrements_once_and_replay_is_idempotent(make_variant_size):
     order, vs = make_order(make_variant_size, stock=2)
-    attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-paid", amount_rial=10000, token="t", status="pending")
+    attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-paid", shipping_amount_toman=0, amount_rial=10000, token="t", status="pending")
     result = {"Success": True, "ResultCode": 0, "TransactionDetail": {
         "RefNum": "ref-paid", "TerminalNumber": 12345, "OrginalAmount": 10000,
         "AffectiveAmount": 10000, "RRN": "rrn-1"}}
@@ -54,7 +54,7 @@ def test_verified_callback_decrements_once_and_replay_is_idempotent(make_variant
 
 def test_verified_amount_mismatch_triggers_reverse(make_variant_size):
     order, vs = make_order(make_variant_size, stock=2)
-    attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-bad-amount", amount_rial=10000, token="t", status="pending")
+    attempt = SepPaymentAttempt.objects.create(order=order, res_num="VZ-bad-amount", shipping_amount_toman=0, amount_rial=10000, token="t", status="pending")
     bad = {"Success": True, "ResultCode": 0, "TransactionDetail": {
         "RefNum": "ref-bad", "TerminalNumber": 12345, "OrginalAmount": 9000, "AffectiveAmount": 9000}}
     with patch("apps.orders.payment_services.SepClient.verify", return_value=bad), patch(

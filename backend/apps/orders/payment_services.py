@@ -1,5 +1,6 @@
 """SEP payment orchestration. Inventory and payment confirmation commit together."""
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.db import transaction
@@ -15,21 +16,26 @@ class PaymentRejected(Exception):
         super().__init__(code)
 
 def initiate_sep_payment(order, *, redirect_url):
-    if not settings.SEP_PAYMENT_ENABLED:
+    if not settings.ORDERS_ENABLED or not settings.SEP_PAYMENT_ENABLED:
         raise PaymentRejected("payment_disabled")
+    if settings.SEP_SHIPPING_AMOUNT_TOMAN is None or settings.SEP_SHIPPING_AMOUNT_TOMAN < 0:
+        raise PaymentRejected("shipping_not_configured")
     if not settings.SEP_TERMINAL_ID:
         raise PaymentRejected("payment_not_configured")
     with transaction.atomic():
         locked_order = Order.objects.select_for_update().get(pk=order.pk)
         if locked_order.payment_status != Order.UNPAID:
             raise PaymentRejected("order_not_payable")
-        existing = locked_order.sep_payment_attempts.filter(status=SepPaymentAttempt.PENDING).order_by("-id").first()
+        existing = locked_order.sep_payment_attempts.filter(
+            status=SepPaymentAttempt.PENDING, created_at__gte=timezone.now() - timedelta(minutes=20)
+        ).order_by("-id").first()
         if existing and existing.token:
             return existing
         res_num = f"VZ{locked_order.pk}-{uuid.uuid4().hex[:16]}"
-        amount_rial = int(Decimal(locked_order.total) * 10)
+        shipping_toman = settings.SEP_SHIPPING_AMOUNT_TOMAN
+        amount_rial = int((Decimal(locked_order.total) + Decimal(shipping_toman)) * 10)
         attempt = SepPaymentAttempt.objects.create(
-            order=locked_order, res_num=res_num, amount_rial=amount_rial,
+            order=locked_order, res_num=res_num, shipping_amount_toman=shipping_toman, amount_rial=amount_rial,
             status=SepPaymentAttempt.INITIATING,
         )
         token = SepClient().request_token(
@@ -126,7 +132,7 @@ def process_sep_callback(*, res_num, ref_num):
             try:
                 reversed_result = SepClient().reverse(ref_num)
                 if reversed_result.get("Success") is True and reversed_result.get("ResultCode") == 0:
-                    SepPaymentAttempt.objects.filter(res_num=res_num, ref_num=ref_num).update(status=SepPaymentAttempt.REVERSED)
+                    SepPaymentAttempt.objects.filter(res_num=res_num).update(ref_num=ref_num, status=SepPaymentAttempt.REVERSED)
             except SepError:
                 pass
         return "failed"
