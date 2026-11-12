@@ -33,6 +33,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Enamad footer mobile alignment
+        run: node ../.github/scripts/test-enamad-footer.mjs
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: frontend/package.json

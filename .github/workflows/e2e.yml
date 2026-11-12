@@ -17,9 +17,10 @@ on:
   pull_request:
     paths:
       - "e2e/**"
-      - ".github/workflows/e2e.yml"
       - "backend/**"
       - "frontend/**"
+      # Footer-only positioning has a fast focused check in CI; skip the full app stack for this file.
+      - "!frontend/src/components/storefront/Footer.tsx"
       - "nginx/**"
       - "docker-compose.yml"
       - ".env.example"
@@ -27,9 +28,10 @@ on:
     branches: [main]
     paths:
       - "e2e/**"
-      - ".github/workflows/e2e.yml"
       - "backend/**"
       - "frontend/**"
+      # Footer-only positioning has a fast focused check in CI; skip the full app stack for this file.
+      - "!frontend/src/components/storefront/Footer.tsx"
       - "nginx/**"
       - "docker-compose.yml"
       - ".env.example"

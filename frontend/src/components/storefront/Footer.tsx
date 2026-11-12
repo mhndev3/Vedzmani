@@ -6,8 +6,7 @@ import { CheckCircleIcon } from "./icons";
 
 const linkClass = "rounded text-muted-foreground hover:text-foreground hover:underline";
 const instagramUrl = "https://www.instagram.com/vedzmani/";
-const enamadUrl = "https://trustseal.enamad.ir/?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm";
-const enamadLogoUrl = "https://trustseal.enamad.ir/logo.aspx?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm";
+const enamadEmbed = '<a referrerpolicy="origin" target="_blank" href="https://trustseal.enamad.ir/?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"><img referrerpolicy="origin" src="https://trustseal.enamad.ir/logo.aspx?id=8480737&Code=hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm" alt="" style="cursor:pointer" code="hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm"></a>';
 
 function InstagramIcon() {
   return (
@@ -79,27 +78,12 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
           </a>
         </section>
 
-        <a
-          href={enamadUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          referrerPolicy="origin"
-          aria-label={locale === "fa" ? "مشاهده نماد اعتماد الکترونیکی ودزمانی" : "View Vedzmani electronic trust seal"}
-          className="inline-flex w-fit items-center justify-center rounded-md bg-background p-2 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+        <section
+          aria-label={locale === "fa" ? "نماد اعتماد الکترونیکی" : "Electronic trust seal"}
+          className="flex min-h-[110px] w-fit self-end items-center justify-center sm:self-auto"
         >
-          <img
-            referrerPolicy="origin"
-            src={enamadLogoUrl}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            {...{ code: "hThQ5QKm0EhDkGtXcKiXmh0BBbXTcwgm" }}
-            width={100}
-            height={100}
-            style={{ cursor: "pointer" }}
-            className="h-auto w-[88px] object-contain sm:w-[100px]"
-          />
-        </a>
+          <div dangerouslySetInnerHTML={{ __html: enamadEmbed }} />
+        </section>
       </div>
 
       <div className="mx-auto flex max-w-6xl flex-col gap-2 border-t border-border px-4 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
