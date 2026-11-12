@@ -13,8 +13,8 @@ function InstagramIcon() {
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
-      width={32}
-      height={32}
+      width={44}
+      height={44}
       fill="none"
       stroke="currentColor"
       strokeWidth={1.8}
@@ -62,7 +62,8 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
       </nav>
 
       <div dir="rtl" className="mx-auto flex max-w-6xl flex-row items-center justify-between gap-4 border-t border-border px-4 py-6">
-        <section aria-label={locale === "fa" ? "اینستاگرام ودزمانی" : "Vedzmani on Instagram"} className="flex shrink-0 items-center">
+        <section aria-label={locale === "fa" ? "اینستاگرام ودزمانی" : "Vedzmani on Instagram"} className="flex shrink-0 flex-col items-center gap-2">
+          <p className="text-sm font-medium">{locale === "fa" ? "صفحه اینستاگرام ما" : "Our Instagram page"}</p>
           <a
             href={instagramUrl}
             target="_blank"
