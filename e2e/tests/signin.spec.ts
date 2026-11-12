@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page, type Route } from "./fixtures";
 import { execSync } from "node:child_process";
 
 const otpLogCommand = process.env.E2E_OTP_LOG_COMMAND;
