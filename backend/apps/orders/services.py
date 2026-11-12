@@ -5,7 +5,7 @@ Order of operations (all inside `transaction.atomic`, any exception rolls everyt
   2. lock every purchased `VariantSize` row with SELECT ... FOR UPDATE, always in primary-key order so two
      concurrent checkouts can never deadlock on each other,
   3. revalidate from the locked rows: still purchasable (whole catalog chain active) and stock sufficient,
-  4. snapshot names/SKU/price from the locked rows, compute totals, decrement stock, create order + items,
+  4. snapshot names/SKU/price from the locked rows, compute totals, create order + items without reserving stock,
   5. delete the cart's lines.
 Prices are never read from the client or from the cart (the cart stores none).
 
@@ -21,8 +21,6 @@ from collections.abc import Mapping
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import F
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework import status
 from rest_framework.exceptions import APIException
@@ -65,7 +63,7 @@ def create_order(user, delivery: Mapping[str, str]) -> Order:
         .order_by("pk")
     }
 
-    # Whole order is rejected (nothing written) if any line is gone/unpublished, then if any lacks stock.
+    # Validate current stock only; the callback re-checks under locks because stock is not reserved here.
     if any(i.variant_size_id not in locked for i in cart_items):
         raise ItemUnavailable()
     if any(i.quantity > locked[i.variant_size_id].stock_quantity for i in cart_items):
@@ -80,15 +78,6 @@ def create_order(user, delivery: Mapping[str, str]) -> Order:
         subtotal = unit_price * item.quantity
         total += subtotal
         lines.append((item, vs, product, unit_price, subtotal))
-
-    now = timezone.now()
-    for item, vs, *_rest in lines:
-        # Guarded decrement: belt and braces on top of the row lock (never lets stock go negative).
-        updated = VariantSize.objects.filter(pk=vs.pk, stock_quantity__gte=item.quantity).update(
-            stock_quantity=F("stock_quantity") - item.quantity, updated_at=now
-        )
-        if updated != 1:
-            raise InsufficientStock()
 
     order = Order.objects.create(user=user, customer_phone=user.phone, total=total, **delivery_snapshot)
     OrderItem.objects.bulk_create(

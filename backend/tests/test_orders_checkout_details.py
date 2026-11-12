@@ -83,7 +83,7 @@ def test_valid_checkout_snapshots_delivery_details_and_stays_unpaid(http, user, 
     assert body["customer_phone"] == user.phone == order.customer_phone
     assert body["total"] == "2000"  # lines only
     assert not any("ship" in key or "fee" in key for key in body)  # no shipping cost is invented
-    assert stock_after(cart) == 3
+    assert stock_after(cart) == 5
 
 
 def stock_after(vs):
@@ -370,7 +370,7 @@ def test_client_cannot_set_payment_status_status_total_owner_or_id(http, user, c
     order = Order.objects.get()
     assert (order.payment_status, order.status, order.total) == ("unpaid", "pending", Decimal("2000"))
     assert order.id != 999 and order.user == user and order.created_at.year != 2000
-    assert stock_after(cart) == 3  # decremented by the cart quantity, not by anything the client sent
+    assert stock_after(cart) == 5  # checkout does not reserve inventory
 
 
 def test_service_ignores_keys_that_are_not_delivery_fields(user, cart):

@@ -9,8 +9,7 @@ Delivery details (recipient name, province, city, address, postal code) are snap
 (Agent 11). The delivery phone is NOT stored separately: it is `customer_phone`, the account phone at order time.
 Orders created before delivery details existed keep blank values for these columns (see ORDERS.md).
 
-`payment_status` is server-owned and has the single value `unpaid`; nothing in the code base moves an order out of
-it (no payment provider is integrated, see PAYMENT.md). Status workflow, shipping cost and tax are intentionally NOT modelled yet. All monetary values use Iranian Toman.
+`payment_status` is server-owned; only a verified provider callback can move it to `paid`. Shipping is configured separately before payments can be enabled. All monetary values use Iranian Toman.
 """
 
 from django.conf import settings
@@ -20,11 +19,13 @@ from django.db.models import Q
 
 class Order(models.Model):
     PENDING = "pending"
-    STATUS_CHOICES = [(PENDING, "Pending")]  # single initial value; transitions are not designed yet
+    CONFIRMED = "confirmed"
+    STATUS_CHOICES = [(PENDING, "Pending"), (CONFIRMED, "Confirmed")]
 
     UNPAID = "unpaid"
-    # Single value on purpose: real values (paid, failed, ...) depend on the payment provider, which is undecided.
-    PAYMENT_STATUS_CHOICES = [(UNPAID, "Unpaid")]
+    PAID = "paid"
+    FAILED = "failed"
+    PAYMENT_STATUS_CHOICES = [(UNPAID, "Unpaid"), (PAID, "Paid"), (FAILED, "Failed")]
 
     # The only delivery fields a client may supply at checkout (the API serializer and the service must agree).
     DELIVERY_FIELDS = ("recipient_name", "province", "city", "address", "postal_code")
@@ -78,3 +79,36 @@ class OrderItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.order_id}:{self.sku}x{self.quantity}"
+
+
+class SepPaymentAttempt(models.Model):
+    """Server-owned SEP transaction attempt. Never stores card data or provider credentials."""
+    INITIATING = "initiating"
+    PENDING = "pending"
+    PAID = "paid"
+    OUT_OF_STOCK = "out_of_stock"
+    FAILED = "failed"
+    REVERSED = "reversed"
+    STATUS_CHOICES = [
+        (INITIATING, "Initiating"), (PENDING, "Pending"), (PAID, "Paid"),
+        (OUT_OF_STOCK, "Out of stock"), (FAILED, "Failed"), (REVERSED, "Reversed"),
+    ]
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="sep_payment_attempts")
+    res_num = models.CharField(max_length=40, unique=True)
+    token = models.CharField(max_length=100, blank=True, default="")
+    ref_num = models.CharField(max_length=80, unique=True, null=True, blank=True)
+    shipping_amount_toman = models.PositiveBigIntegerField()
+    amount_rial = models.PositiveBigIntegerField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=INITIATING)
+    provider_result_code = models.IntegerField(null=True, blank=True)
+    provider_rrn = models.CharField(max_length=40, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["order", "-created_at"], name="sep_pay_order_created_idx")]
+
+    def __str__(self) -> str:
+        return f"sep:{self.res_num}:{self.status}"
+

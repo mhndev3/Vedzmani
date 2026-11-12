@@ -270,7 +270,7 @@ def test_get_requests_do_not_mutate_anything(http, user):
     assert Order.objects.filter(pk=order.pk).values().get() == order_before  # incl. updated_at
     assert list(OrderItem.objects.values()) == items_before
     assert list(CartItem.objects.values()) == cart_before
-    assert (stock(vs), stock(other_vs)) == stock_before == (8, 4)
+    assert (stock(vs), stock(other_vs)) == stock_before == (10, 4)
     assert Order.objects.count() == 1
 
 
@@ -311,7 +311,7 @@ def test_unsupported_methods_on_the_detail_return_405(http, user, method):
     assert response.status_code == 405
     assert Order.objects.count() == 1
     assert Order.objects.filter(pk=order.pk).values().get() == before
-    assert CartItem.objects.count() == 1 and stock(vs) == 9
+    assert CartItem.objects.count() == 1 and stock(vs) == 10
 
 
 def test_deleting_a_foreign_order_is_405_and_leaves_it_intact(http, other_user):

@@ -207,8 +207,8 @@ def test_rejected_adjustment_inside_an_outer_transaction_does_not_poison_it(make
     assert stock(vs) == 7 and InventoryAdjustment.objects.count() == 2
 
 
-# --- compatibility with order checkout (unchanged) ----------------------------------------------
-def test_order_checkout_still_decrements_stock_and_is_not_an_adjustment(make_variant_size, actor):
+# --- compatibility with order checkout (non-reserving) ----------------------------------------------
+def test_order_checkout_does_not_decrement_stock_or_create_adjustment(make_variant_size, actor):
     vs = make_variant_size(stock=10)
     adjust(vs, 5, by=actor)  # 15
     customer = get_user_model().objects.create_user(new_phone())
@@ -216,11 +216,11 @@ def test_order_checkout_still_decrements_stock_and_is_not_an_adjustment(make_var
 
     order = create_order(customer, DELIVERY)
 
-    assert stock(vs) == 11
+    assert stock(vs) == 15
     assert order.items.get().quantity == 4
     assert InventoryAdjustment.objects.count() == 1  # checkout is recorded by the order, not by an adjustment
     adjust(vs, -1, by=actor)
-    assert stock(vs) == 10
+    assert stock(vs) == 14
 
 
 # --- concurrency: real threads, real PostgreSQL connections ----------------------------------------
@@ -288,5 +288,5 @@ def test_concurrent_adjustment_and_checkout_do_not_lose_updates(make_variant_siz
     results = _run_concurrently(calls)
 
     assert all(kind == "ok" for kind, _ in results), results
-    assert stock(vs) == 10 - 4 + 20  # every checkout (-1) and every adjustment (+5) was applied exactly once
+    assert stock(vs) == 10 + 20  # every checkout (-1) and every adjustment (+5) was applied exactly once
     assert InventoryAdjustment.objects.count() == 4

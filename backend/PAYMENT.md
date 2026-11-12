@@ -1,56 +1,30 @@
-# Payment boundary (Agent 11, Session 1)
+# SEP payment integration
 
-**Real payment processing is NOT available.** No payment provider has been chosen, configured or integrated, and
-nothing in this repository can charge a card, confirm a payment, or mark an order as paid. This document describes
-the boundary a future integration must plug into. It is a design note, not an implementation.
+## Inventory and confirmation policy
+- Creating an order snapshots cart lines and prices, clears the cart, and does not reserve or decrement stock.
+- On SEP callback, the backend resolves the attempt only from its server-created ResNum. Browser State, Status, and Amount are never proof of payment.
+- The backend locks the order and each exact VariantSize row in ascending primary-key order. If any line is short, it does not call VerifyTransaction; the attempt is marked out_of_stock and SEP's unverified-transaction timeout reverses the payment automatically.
+- If stock is sufficient, the backend calls SEP Verify while holding the row locks, checks Success, ResultCode, RefNum, terminal number, OrginalAmount, and AffectiveAmount, then decrements stock and marks the order confirmed/paid in one database transaction.
+- Unique provider references and locked attempts make callback replays idempotent. A verified but mismatched transaction is sent to ReverseTransaction; a database failure after provider verification also triggers a compensating reverse attempt.
+- Inventory is per exact VariantSize (product + color + size).
 
-## What exists today
-- `Order.payment_status` (`apps/orders/models.py`): server-owned, read-only in the API, single value **`unpaid`**.
-  Every order starts `unpaid` (including orders created before the column existed) and nothing changes it.
-- The order API never accepts `payment_status` (or `status`, `total`, owner...) from the client; a submitted value is
-  ignored (tested in `tests/test_orders_checkout_details.py`).
-- `Order.total` is the sum of the line subtotals. It **excludes shipping** (no shipping policy exists) and has no
-  currency or tax. It is the amount a future payment would be initiated with only once the owner defines those rules.
-- Order creation and payment are separate: creating an order does not imply payment, and the UI must never describe a
-  just-created order as paid.
+## Public callback URL
+After this PR is merged and deployed behind the production HTTPS domain, register this exact URL with SEP:
 
-## Decisions still needed from the owner (not invented here)
-Payment provider/gateway and its fee and settlement model; whether V1 takes online payment at all or confirms payment
-manually; currency and display unit; shipping cost rules (they change the payable amount); the order state machine;
-and the policy for unpaid orders (below).
+`https://vedzmani.ir/api/orders/payment/sep/callback/`
 
-## Unresolved inventory risk
-Stock is decremented when the order is **created** (unchanged from Agent 9/10). If an order is created but payment is
-never completed, the order may continue to reserve/decrement inventory indefinitely, because order expiry,
-cancellation and stock restoration are not implemented. The owner must decide the policy (for example a payment
-window, expiry, cancel + restock) before online payment goes live. Do not add payment without it.
+The endpoint accepts SEP's browser `POST` form fields (`ResNum`, `RefNum`) and redirects the customer to the Persian payment-result page. A `GET` request returns `{"status":"ready"}` as a non-mutating reachability probe; it does not verify a transaction or mean live payments are enabled. The URL is not live until the backend release is deployed.
 
-## Minimum requirements for a future integration
-1. **Provider-neutral adapter, selected by environment settings** (same pattern as `OTP_DELIVERY_BACKEND` in
-   `apps/accounts/delivery.py`): a small interface (`initiate(order) -> redirect/session`, `verify(reference) ->
-   result`), a setting naming the implementation, and a default that refuses to run when unconfigured (never a fake
-   success). Credentials come from environment variables, are never committed, never logged, and never reach the browser.
-2. **Server-side initiation from the stored order.** The amount is read from `Order.total` on the server, for an order
-   owned by the authenticated user and still `unpaid`. The client sends at most an order id; never an amount or a status.
-3. **Verified confirmation only.** An order may leave `unpaid` only through a signature-verified provider callback or
-   webhook, preferably followed by a server-to-server verification call to the provider, with the verified amount and
-   currency compared to the stored order. The browser return/redirect page is **never** proof of payment: it may only
-   show "we are confirming your payment" and read the order status from the API.
-4. **Idempotent processing.** Store the provider's transaction reference with a unique constraint; a replayed or
-   concurrent callback must be a no-op. Callbacks are CSRF-exempt by necessity, so authenticity must come from the
-   signature check, not from cookies.
-5. **Transaction-safe transitions.** Change `payment_status` inside one transaction that locks the `Order` row
-   (`select_for_update`), re-checks the current state, validates the transition and records the provider reference.
-   Lock ordering must stay compatible with order creation (cart row, then `VariantSize` rows in primary-key order).
-6. **New states by migration.** `unpaid` is the only value today. Values such as `paid` or `failed` and their allowed
-   transitions are added together with the provider decision, with tests that prove no code path reaches `paid`
-   without verified confirmation.
-7. **No sensitive payment data in our database or logs.** No card numbers, CVVs or raw credentials in orders, users or
-   logs. Hosted provider pages are preferred so card data never touches this system.
-8. **Frontend:** display only what the API returns (`payment_status`); no payment state, price or total is decided in
-   browser state; no provider secrets in `NEXT_PUBLIC_*` variables.
+## SEP protocol
+The adapter follows SEP OnlinePG technical guide v3.6: request a token from the classic token endpoint, send the returned Token to the classic payment page, receive ResNum and RefNum at the callback, then verify server-to-server. Verify is retried only when no response was received, never after a definite negative result. A verified transaction that cannot be fulfilled is reversed.
+Order amounts are stored in Toman; SEP Amount is Rial, so the server converts the server-owned order total plus shipping by multiplying by 10. No amount is accepted from the browser.
 
-## Tests a future integration must add
-Forged or unsigned callback rejected; replayed callback idempotent; amount mismatch rejected; callback for another
-user's or an unknown order rejected; concurrent callbacks and a concurrent order change leave one consistent state; the
-return page without a verified callback leaves the order `unpaid`.
+## Configuration and go-live gate
+- SEP_PAYMENT_ENABLED defaults to false in all environments and is explicitly false in production.
+- SEP_TERMINAL_ID and endpoint configuration are server-only environment values; no secrets are committed or exposed to NEXT_PUBLIC variables.
+- SEP_SHIPPING_AMOUNT_TOMAN must be explicitly configured (zero only when shipping is intentionally free). The current setting supports a fixed shipping amount; real payments must remain disabled if shipping varies by destination until that rule is implemented.
+- Production ORDERS_ENABLED and NEXT_PUBLIC_ORDERS_ENABLED remain disabled. This PR does not change VPS settings or enable live payments.
+- SEP has no real sandbox for this integration; tests mock the provider and never initiate a live transaction.
+
+## Safety
+No PAN, CVV2, PIN2, or cardholder credentials are stored. The callback is CSRF-exempt because it is provider-originated; its fields are only lookup hints and server-to-server verification is mandatory.
