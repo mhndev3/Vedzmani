@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 const cards = (page: Page) => page.locator('a[href^="/fa/products/e2e-"]');
 const noHorizontalOverflow = (page: Page) =>
