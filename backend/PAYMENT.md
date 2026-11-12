@@ -8,8 +8,8 @@
 - Unique provider references and locked attempts make callback replays idempotent. A verified but mismatched transaction is sent to ReverseTransaction; a database failure after provider verification also triggers a compensating reverse attempt.
 - Inventory is per exact VariantSize (product + color + size).
 
-## SEP protocol
-The adapter follows SEP OnlinePG technical guide v3.6: request a token from the classic token endpoint, send the returned Token to the classic payment page, receive ResNum and RefNum at the callback, then verify server-to-server. Verify is retried only when no response was received, never after a definite negative result. A verified transaction that cannot be fulfilled is reversed.
+## Public callback URL
+After this PR is merged and deployed behind the production HTTPS domain, register this exact URL with SEP:\n\n`https://vedzmani.ir/api/orders/payment/sep/callback/`\n\nThe endpoint accepts SEP's browser `POST` form fields (`ResNum`, `RefNum`) and redirects the customer to the Persian payment-result page. A `GET` request returns `{"status":"ready"}` as a non-mutating reachability probe; it does not verify a transaction or mean live payments are enabled. The URL is not live until the backend release is deployed.\n\n## SEP protocol\nThe adapter follows SEP OnlinePG technical guide v3.6: request a token from the classic token endpoint, send the returned Token to the classic payment page, receive ResNum and RefNum at the callback, then verify server-to-server. Verify is retried only when no response was received, never after a definite negative result. A verified transaction that cannot be fulfilled is reversed.
 Order amounts are stored in Toman; SEP Amount is Rial, so the server converts the server-owned order total plus shipping by multiplying by 10. No amount is accepted from the browser.
 
 ## Configuration and go-live gate
