@@ -49,6 +49,26 @@ def test_change_pages_render_with_inlines(su_client, make_variant_size):
         assert su_client.get(url).status_code == 200, url
 
 
+def test_product_page_manages_multiple_colors_from_one_parent(su_client, make_variant_size):
+    first_size = make_variant_size()
+    product = first_size.variant.product
+    from apps.catalog.models import ColorVariant
+
+    second = ColorVariant.objects.create(
+        product=product, name="سرمه‌ای", slug="navy", hex_color="#000080", position=1
+    )
+
+    response = su_client.get(f"/admin/catalog/product/{product.pk}/change/")
+    html = response.content.decode()
+
+    assert response.status_code == 200
+    assert first_size.variant.name in html and second.name in html
+    assert f"/admin/catalog/colorvariant/{first_size.variant_id}/change/" in html
+    assert f"/admin/catalog/colorvariant/{second.pk}/change/" in html
+    assert f"/admin/catalog/colorvariant/add/?product={product.pk}" in html
+    # Color variants are managed through the explicit multi-color panel, not a second inline formset.
+    assert 'name="color_variants-TOTAL_FORMS"' not in html
+
 def test_current_price_is_shown_read_only_not_stored(su_client, make_variant_size):
     product = make_variant_size().variant.product
     product.sale_price = Decimal("800")

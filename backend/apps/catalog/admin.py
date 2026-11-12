@@ -15,7 +15,7 @@ from django.contrib import admin
 from django.db.models import Count
 from django.forms.models import BaseInlineFormSet
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 
 from .models import Category, Collection, ColorVariant, Product, ProductSizeDescription, ProductSizeMeasurement, Size, VariantImage, VariantSize, VariantSizeDescription, VariantSizeMeasurement
 
@@ -50,15 +50,6 @@ class ProductSizeDescriptionInline(admin.TabularInline):
     extra = 0
     autocomplete_fields = ("size",)
     fields = ("size", "description")
-
-
-class ColorVariantInline(admin.TabularInline):
-    model = ColorVariant
-    extra = 0
-    fields = ("name", "slug", "product_code", "hex_color", "position", "is_active")
-    readonly_fields = ("product_code",)
-    prepopulated_fields = {"slug": ("name",)}
-    show_change_link = True  # sizes / images are edited on the variant page
 
 
 class VariantSizeInline(admin.TabularInline):
@@ -166,10 +157,11 @@ class ProductAdmin(admin.ModelAdmin):
     autocomplete_fields = ("category",)
     filter_horizontal = ("collections",)
     prepopulated_fields = {"slug": ("name",)}
-    readonly_fields = ("current_price", "created_at", "updated_at")
-    inlines = [ProductSizeMeasurementInline, ProductSizeDescriptionInline, ColorVariantInline]
+    readonly_fields = ("current_price", "color_management", "created_at", "updated_at")
+    inlines = [ProductSizeMeasurementInline, ProductSizeDescriptionInline]
     fieldsets = (
         (None, {"fields": ("product_code", "name", "slug", "category", "collections", "description")}),
+        ("مدیریت رنگ‌های محصول", {"fields": ("color_management",)}),
         ("Pricing", {"fields": ("price", "sale_price", "current_price")}),
         ("Publication", {"fields": ("is_active",)}),
         ("Timestamps", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
@@ -193,6 +185,52 @@ class ProductAdmin(admin.ModelAdmin):
     @admin.display(description="Colors", ordering="_variant_count")
     def variant_count(self, obj):
         return obj._variant_count
+
+    @admin.display(description="رنگ‌های این محصول")
+    def color_management(self, obj):
+        if obj is None or obj.pk is None:
+            return "ابتدا محصول را ذخیره کنید؛ سپس می‌توانید چند رنگ مستقل به آن اضافه کنید."
+
+        variants = ColorVariant.objects.filter(product=obj).annotate(
+            _size_count=Count("sizes", distinct=True),
+            _image_count=Count("images", distinct=True),
+        ).order_by("position", "id")
+        rows = format_html_join(
+            "",
+            (
+                '<li style="margin-bottom: 8px;">'
+                '<strong>{}</strong> '
+                '<span>کد کارت: {}</span> · '
+                '<span>سایزها: {}</span> · '
+                '<span>تصاویر: {}</span> · '
+                '<a href="{}">مدیریت رنگ، سایز و تصاویر</a>'
+                '</li>'
+            ),
+            (
+                (
+                    variant.name,
+                    variant.product_code or "—",
+                    variant._size_count,
+                    variant._image_count,
+                    reverse("admin:catalog_colorvariant_change", args=[variant.pk]),
+                )
+                for variant in variants
+            ),
+        )
+        add_url = reverse("admin:catalog_colorvariant_add") + "?" + urlencode({"product": obj.pk})
+        if not variants.exists():
+            return format_html(
+                '<p>هنوز رنگی برای این محصول ثبت نشده است.</p>'
+                '<a class="button" href="{}">افزودن اولین رنگ</a>',
+                add_url,
+            )
+        return format_html(
+            '<div><ul>{}</ul><a class="button" href="{}">افزودن رنگ جدید</a>'
+            '<p class="help">هر رنگ صفحه مستقل برای مدیریت سایزها و تصاویر خودش دارد. '
+            'موجودی فقط از بخش مدیریت موجودی تغییر می‌کند.</p></div>',
+            rows,
+            add_url,
+        )
 
 
 @admin.register(ColorVariant)
