@@ -147,7 +147,8 @@ def test_concurrent_payments_cannot_take_the_same_last_variant_unit(make_variant
         [thread.join(timeout=15) for thread in threads]
 
     assert sorted(results) == ["out_of_stock", "paid"]
-    assert verify_mock.call_count == 1
+    # Both charges must be verified; the second callback then sees depleted stock and reverses.
+    assert verify_mock.call_count == 2
     assert VariantSize.objects.get(pk=vs.pk).stock_quantity == 0
     assert Order.objects.filter(payment_status=Order.PAID).count() == 1
     assert Order.objects.filter(payment_status=Order.FAILED).count() == 1
