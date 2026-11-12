@@ -1,112 +1,19 @@
 "use client";
-
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { BrowserApiError } from "@/lib/browser-api";
-import type { Locale } from "@/i18n/config";
-import { authApi, type CustomerProfile, type CustomerProfileInput } from "@/lib/auth/api";
-
-type Props = { initialProfile: CustomerProfile; locale: Locale; continueTo: string };
-const field = "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base placeholder:text-muted-foreground";
-
-export function ProfileForm({ initialProfile, locale, continueTo }: Props) {
-  const router = useRouter();
-  const [values, setValues] = useState<CustomerProfileInput>({
-    first_name: initialProfile.first_name,
-    last_name: initialProfile.last_name,
-    address: initialProfile.address,
-    postal_code: initialProfile.postal_code,
-    national_code: initialProfile.national_code ?? "",
-  });
-  const [saving, setSaving] = useState(false);
-  const [isComplete, setIsComplete] = useState(initialProfile.is_complete);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  function update(name: keyof CustomerProfileInput, value: string) {
-    setValues((current) => ({ ...current, [name]: value }));
-    setError(null);
-    setMessage(null);
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!/^[0-9۰-۹٠-٩]{10}$/.test(values.national_code)) {
-      setError("کد ملی باید دقیقاً ۱۰ رقم باشد.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    setMessage(null);
-    try {
-      await authApi.updateProfile(values);
-      setMessage("اطلاعات حساب با موفقیت ذخیره شد.");
-      setIsComplete(true);
-      if (continueTo !== "/" + locale + "/profile") {
-        router.replace(continueTo);
-      } else {
-        router.refresh();
-      }
-    } catch (cause) {
-      if (cause instanceof BrowserApiError && cause.code === "validation_error") {
-        const code = cause.details?.national_code?.[0]?.code;
-        setError(code === "unique" ? "این کد ملی قبلاً برای حساب دیگری ثبت شده است." : "اطلاعات واردشده را بررسی کنید.");
-      } else {
-        setError("ذخیره اطلاعات انجام نشد. اتصال را بررسی کنید و دوباره تلاش کنید.");
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function logout() {
-    setLoggingOut(true);
-    try {
-      await authApi.logout();
-      router.replace("/" + locale);
-      router.refresh();
-    } catch {
-      setError("خروج از حساب انجام نشد. دوباره تلاش کنید.");
-      setLoggingOut(false);
-    }
-  }
-
-  const input = (name: keyof CustomerProfileInput, label: string, options: { maxLength?: number; dir?: "ltr" | "rtl"; multiline?: boolean; hint?: string } = {}) => (
-    <div className="grid gap-1.5">
-      <label htmlFor={name} className="text-sm font-medium">{label}</label>
-      {options.multiline ? (
-        <textarea id={name} name={name} required maxLength={options.maxLength ?? 1000} rows={4} value={values[name]} onChange={(event) => update(name, event.target.value)} className={field} />
-      ) : (
-        <input id={name} name={name} required maxLength={options.maxLength} dir={options.dir} inputMode={name === "national_code" || name === "postal_code" ? "numeric" : undefined} autoComplete={name === "first_name" ? "given-name" : name === "last_name" ? "family-name" : name === "postal_code" ? "postal-code" : undefined} value={values[name]} onChange={(event) => update(name, event.target.value)} className={field} />
-      )}
-      {options.hint && <p className="text-xs text-muted-foreground">{options.hint}</p>}
-    </div>
-  );
-
-  return (
-    <section className="mt-8 rounded-2xl border border-border p-5 sm:p-7">
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold">{isComplete ? "اطلاعات حساب کاربری" : "تکمیل اطلاعات حساب کاربری"}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{isComplete ? "اطلاعات حساب خود را مشاهده و در صورت نیاز ویرایش کنید." : "برای تکمیل ثبت‌نام، تمام فیلدهای زیر الزامی هستند."}</p>
-      </div>
-      {message && <p role="status" className="mb-4 rounded-lg bg-muted p-3 text-sm">{message}</p>}
-      {error && <p role="alert" className="mb-4 rounded-lg border border-destructive/40 p-3 text-sm">{error}</p>}
-      <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-        {input("first_name", "نام")}
-        {input("last_name", "نام خانوادگی")}
-        <div className="sm:col-span-2">{input("address", "نشانی کامل", { multiline: true, maxLength: 1000 })}</div>
-        {input("postal_code", "کد پستی", { dir: "ltr", maxLength: 20 })}
-        {input("national_code", "کد ملی", { dir: "ltr", maxLength: 10, hint: "کد ملی باید دقیقاً ۱۰ رقم باشد." })}
-        <div className="flex flex-wrap items-center gap-3 pt-2 sm:col-span-2">
-          <button type="submit" disabled={saving || loggingOut} className="inline-flex h-11 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground disabled:opacity-60">
-            {saving ? "در حال ذخیره…" : "ذخیره اطلاعات"}
-          </button>
-          <button type="button" onClick={() => void logout()} disabled={saving || loggingOut} className="inline-flex h-11 items-center justify-center rounded-lg border border-border px-5 text-sm hover:bg-muted disabled:opacity-60">
-            {loggingOut ? "در حال خروج…" : "خروج از حساب"}
-          </button>
-        </div>
-      </form>
-    </section>
-  );
+import {useState,type FormEvent} from "react";
+import {useRouter} from "next/navigation";
+import {BrowserApiError} from "@/lib/browser-api";
+import type {Locale} from "@/i18n/config";
+import {authApi,type CustomerProfile,type CustomerProfileInput} from "@/lib/auth/api";
+type Props={initialProfile:CustomerProfile;locale:Locale;continueTo:string;mode:"account"|"address";onProfileChange:(profile:CustomerProfile)=>void};
+const field="w-full rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10";
+export function ProfileForm({initialProfile,locale,continueTo,mode,onProfileChange}:Props){
+ const router=useRouter();const [profile,setProfile]=useState(initialProfile);const [values,setValues]=useState<CustomerProfileInput>({first_name:initialProfile.first_name,last_name:initialProfile.last_name,address:initialProfile.address,postal_code:initialProfile.postal_code,national_code:initialProfile.national_code??""});const [editing,setEditing]=useState(mode==="account" ? !(initialProfile.first_name && initialProfile.last_name && initialProfile.national_code) : !(initialProfile.address && initialProfile.postal_code));const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");const [error,setError]=useState("");
+ const fields=mode==="account"?[{name:"first_name" as const,label:"نام",dir:"rtl" as const},{name:"last_name" as const,label:"نام خانوادگی",dir:"rtl" as const},{name:"national_code" as const,label:"کد ملی",dir:"ltr" as const}]:[{name:"address" as const,label:"نشانی کامل",dir:"rtl" as const},{name:"postal_code" as const,label:"کد پستی",dir:"ltr" as const}];
+ function update(name:keyof CustomerProfileInput,value:string){setValues(v=>({...v,[name]:value}));setError("");setMessage("");}
+ async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();if(mode==="account"&&!/^[0-9۰-۹٠-٩]{10}$/.test(values.national_code)){setError("کد ملی باید دقیقاً ۱۰ رقم باشد.");return;}if(mode==="address"&&!/^[0-9۰-۹٠-٩]{10}$/.test(values.postal_code)){setError("کد پستی باید دقیقاً ۱۰ رقم باشد.");return;}setSaving(true);setError("");setMessage("");const payload:Partial<CustomerProfileInput>=mode==="account"?{first_name:values.first_name,last_name:values.last_name,national_code:values.national_code}:{address:values.address,postal_code:values.postal_code};try{const updated=await authApi.updateProfile(payload);setProfile(updated);setValues({first_name:updated.first_name,last_name:updated.last_name,address:updated.address,postal_code:updated.postal_code,national_code:updated.national_code??""});onProfileChange(updated);setEditing(false);setMessage("اطلاعات با موفقیت ذخیره شد.");if(continueTo!=="/"+locale+"/profile")router.replace(continueTo);}catch(cause){if(cause instanceof BrowserApiError&&cause.code==="validation_error"){const code=cause.details?.national_code?.[0]?.code;setError(code==="unique"?"این کد ملی قبلاً برای حساب دیگری ثبت شده است.":"اطلاعات واردشده را بررسی کنید.");}else setError("ذخیره اطلاعات انجام نشد. اتصال را بررسی کنید و دوباره تلاش کنید.");}finally{setSaving(false);}}
+ const shown=mode==="account"?[{label:"نام",value:profile.first_name},{label:"نام خانوادگی",value:profile.last_name},{label:"شماره موبایل",value:profile.phone},{label:"کد ملی",value:profile.national_code||"ثبت نشده"}]:[{label:"نشانی کامل",value:profile.address||"ثبت نشده"},{label:"کد پستی",value:profile.postal_code||"ثبت نشده"}];
+ return <section dir="rtl" aria-labelledby="profile-subsection-title"><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 id="profile-subsection-title" className="text-lg font-bold">{mode==="account"?"اطلاعات حساب":"آدرس‌ها"}</h2><p className="mt-1 text-sm text-muted-foreground">{mode==="account"?"مشخصات شخصی حساب کاربری شما":"نشانی و کد پستی ثبت‌شده برای حساب شما"}</p></div>{!editing&&<button type="button" onClick={()=>{setEditing(true);setMessage("");}} className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted">ویرایش اطلاعات</button>}</div>
+ {message&&<p role="status" className="mb-4 rounded-xl bg-muted px-4 py-3 text-sm">{message}</p>}{error&&<p role="alert" className="mb-4 rounded-xl border border-destructive/40 px-4 py-3 text-sm text-destructive">{error}</p>}
+ {!editing?<dl className="grid gap-3 sm:grid-cols-2">{shown.map(x=><div key={x.label} className="rounded-xl border border-border bg-muted/20 p-4"><dt className="text-xs text-muted-foreground">{x.label}</dt><dd className="mt-2 whitespace-pre-wrap break-words text-sm font-medium" dir={["شماره موبایل","کد ملی","کد پستی"].includes(x.label)?"ltr":"rtl"}>{x.value}</dd></div>)}</dl>
+ :<form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">{fields.map(x=><div key={x.name} className={x.name==="address"?"sm:col-span-2":""}><label htmlFor={x.name} className="mb-1.5 block text-sm font-medium">{x.label}</label>{x.name==="address"?<textarea id={x.name} required maxLength={1000} rows={4} value={values.address} onChange={e=>update("address",e.target.value)} className={field}/>:<input id={x.name} required maxLength={x.name==="national_code"?10:20} dir={x.dir} inputMode={x.dir==="ltr"?"numeric":undefined} autoComplete={x.name==="first_name"?"given-name":x.name==="last_name"?"family-name":x.name==="postal_code"?"postal-code":"off"} value={values[x.name]} onChange={e=>update(x.name,e.target.value)} className={field} />}{x.name==="national_code"&&<p className="mt-1 text-xs text-muted-foreground">کد ملی باید دقیقاً ۱۰ رقم باشد.</p>}{x.name==="postal_code"&&<p className="mt-1 text-xs text-muted-foreground">کد پستی باید ۱۰ رقم باشد.</p>}</div>)}<div className="flex flex-wrap gap-2 sm:col-span-2"><button type="submit" disabled={saving} className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:opacity-60">{saving?"در حال ذخیره…":"ذخیره تغییرات"}</button><button type="button" onClick={()=>{setValues({first_name:profile.first_name,last_name:profile.last_name,address:profile.address,postal_code:profile.postal_code,national_code:profile.national_code??""});setEditing(false);setError("");}} disabled={saving} className="inline-flex h-11 items-center justify-center rounded-xl border border-border px-5 text-sm hover:bg-muted disabled:opacity-60">انصراف</button></div></form>}</section>;
 }

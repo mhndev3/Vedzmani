@@ -68,3 +68,21 @@ def test_national_code_is_unique_across_accounts(api):
     response = patch_profile(second_client, PROFILE)
     assert response.status_code == 400
     assert response.json()["error"]["details"]["national_code"][0]["code"] == "unique"
+
+
+def test_profile_sections_can_be_updated_independently(api):
+    api.login()
+    first = patch_profile(api, {"first_name": "ماهان", "last_name": "آزمایشی"})
+    assert first.status_code == 200
+    assert first.json()["first_name"] == "ماهان"
+    assert first.json()["address"] == ""
+
+    address = patch_profile(api, {"address": "تهران، خیابان نمونه", "postal_code": "1234567890"})
+    assert address.status_code == 200
+    assert address.json()["address"] == "تهران، خیابان نمونه"
+    assert address.json()["first_name"] == "ماهان"
+    assert address.json()["is_complete"] is False
+
+    complete = patch_profile(api, {"national_code": "0012345678"})
+    assert complete.status_code == 200
+    assert complete.json()["is_complete"] is True

@@ -11,7 +11,7 @@ export const authApi = {
   async login(phone: string, password: string): Promise<AuthUser> { const body = await apiRequest<unknown>("POST", "/api/auth/password/login/", { phone, password }); if (!isRecord(body) || !isAuthUser(body.user)) throw UNEXPECTED(); return body.user; },
   async setPassword(password: string): Promise<void> { const body = await apiRequest<unknown>("POST", "/api/auth/password/set/", { password }); if (!isRecord(body) || typeof body.detail !== "string") throw UNEXPECTED(); },
   async profile(): Promise<CustomerProfile> { return apiRequest<CustomerProfile>("GET", "/api/auth/profile/"); },
-  async updateProfile(profile: CustomerProfileInput): Promise<CustomerProfile> { return apiRequest<CustomerProfile>("PATCH", "/api/auth/profile/", profile); },
+  async updateProfile(profile: Partial<CustomerProfileInput>): Promise<CustomerProfile> { return apiRequest<CustomerProfile>("PATCH", "/api/auth/profile/", profile); },
   async logout(): Promise<void> { await apiRequest<void>("POST", "/api/auth/logout/"); },
   async me(): Promise<AuthUser | null> { try { const body = await apiRequest<unknown>("GET", "/api/auth/me/"); if (!isAuthUser(body)) throw UNEXPECTED(); return body; } catch (e) { if (e instanceof BrowserApiError && e.status === 401) return null; throw e; } },
 };
