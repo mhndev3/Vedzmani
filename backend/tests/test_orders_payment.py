@@ -154,6 +154,42 @@ def test_concurrent_payments_cannot_take_the_same_last_variant_unit(make_variant
     assert Order.objects.filter(payment_status=Order.FAILED).count() == 1
 
 
+
+@override_settings(SEP_TERMINAL_ID="12345")
+def test_failed_verification_retries_ambiguous_reverse_without_verifying_again(make_variant_size):
+    order, vs = make_order(make_variant_size, stock=2)
+    attempt = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-retry-invalid", shipping_amount_toman=0,
+        amount_rial=10000, token="t", status="pending",
+    )
+    # SEP says the transaction was collected, but its amount does not match our
+    # server-side amount. The payment must never be fulfilled and must be reversed.
+    mismatch = {"Success": True, "ResultCode": 0, "TransactionDetail": {
+        "RefNum": "ref-retry-invalid", "TerminalNumber": 12345,
+        "OrginalAmount": 9000, "AffectiveAmount": 9000,
+    }}
+    with patch("apps.orders.payment_services.SepClient.verify", return_value=mismatch) as verify, patch(
+        "apps.orders.payment_services.SepClient.reverse",
+        side_effect=[
+            {"Success": False, "ResultCode": 9},
+            {"Success": True, "ResultCode": 0},
+        ],
+    ) as reverse:
+        assert process_sep_callback(res_num=attempt.res_num, ref_num="ref-retry-invalid") == "pending"
+        attempt.refresh_from_db()
+        assert attempt.status == SepPaymentAttempt.REVERSAL_PENDING
+        assert process_sep_callback(res_num=attempt.res_num, ref_num="ref-retry-invalid") == "failed"
+
+    verify.assert_called_once_with("ref-retry-invalid")
+    assert reverse.call_count == 2
+    attempt.refresh_from_db()
+    order.refresh_from_db()
+    vs.refresh_from_db()
+    assert attempt.status == SepPaymentAttempt.REVERSED
+    assert order.payment_status == Order.FAILED
+    assert vs.stock_quantity == 2
+
+
 def test_sep_callback_get_is_a_public_non_mutating_readiness_probe():
     response = Client().get("/api/orders/payment/sep/callback/")
     assert response.status_code == 200
