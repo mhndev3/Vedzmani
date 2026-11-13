@@ -10,12 +10,7 @@ const securityHeaders = [
   },
 ];
 
-const deploymentId = process.env.NEXT_PUBLIC_RELEASE_TAG;
-
 const nextConfig: NextConfig = {
-  // Bind Next.js client/server assets to one immutable release. Next.js forces a
-  // hard navigation instead of mixing assets and RSC payloads across deployments.
-  ...(deploymentId ? { deploymentId } : {}),
   // Small self-contained server bundle for the Docker image.
   output: "standalone",
   poweredByHeader: false,
