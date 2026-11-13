@@ -16,11 +16,15 @@ export function ReleaseCacheGuard() {
   useEffect(() => {
     try {
       const previous = window.localStorage.getItem(VERSION_KEY);
+      // A first visit has no known stale release to recover from. Record the
+      // current version without reloading; otherwise every fresh browser context
+      // (including normal first-time visitors and E2E pages) would navigate twice.
+      if (previous === null) {
+        window.localStorage.setItem(VERSION_KEY, RELEASE_VERSION);
+        return;
+      }
       if (previous === RELEASE_VERSION) return;
 
-      // A browser that has never stored a release may still have an old
-      // development/staging document in its navigation cache. Give it one
-      // clean load too, but guard the navigation to prevent reload loops.
       if (window.sessionStorage.getItem(RELOAD_GUARD_KEY) === RELEASE_VERSION) {
         window.localStorage.setItem(VERSION_KEY, RELEASE_VERSION);
         return;
