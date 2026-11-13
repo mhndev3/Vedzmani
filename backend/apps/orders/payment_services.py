@@ -162,9 +162,9 @@ def process_sep_callback(*, res_num, ref_num):
         if verified_ref or reverse_needed:
             # Persist an explicit retryable state before contacting SEP. If the reverse
             # request times out or the process dies, a repeated callback can retry it.
-            SepPaymentAttempt.objects.filter(res_num=res_num, ref_num=ref_num).exclude(
+            SepPaymentAttempt.objects.filter(res_num=res_num).exclude(
                 status__in=[SepPaymentAttempt.PAID, SepPaymentAttempt.REVERSED]
-            ).update(status=SepPaymentAttempt.REVERSAL_PENDING)
+            ).update(ref_num=ref_num, status=SepPaymentAttempt.REVERSAL_PENDING)
             try:
                 reversed_result = SepClient().reverse(ref_num)
                 if reversed_result.get("Success") is True and reversed_result.get("ResultCode") == 0:
