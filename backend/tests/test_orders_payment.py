@@ -154,6 +154,42 @@ def test_concurrent_payments_cannot_take_the_same_last_variant_unit(make_variant
     assert Order.objects.filter(payment_status=Order.FAILED).count() == 1
 
 
+
+@override_settings(SEP_TERMINAL_ID="12345")
+def test_failed_verification_retries_ambiguous_reverse_without_verifying_again(make_variant_size):
+    order, vs = make_order(make_variant_size, stock=2)
+    attempt = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-retry-invalid", shipping_amount_toman=0,
+        amount_rial=10000, token="t", status="pending",
+    )
+    # SEP says the transaction was collected, but its amount does not match our
+    # server-side amount. The payment must never be fulfilled and must be reversed.
+    mismatch = {"Success": True, "ResultCode": 0, "TransactionDetail": {
+        "RefNum": "ref-retry-invalid", "TerminalNumber": 12345,
+        "OrginalAmount": 9000, "AffectiveAmount": 9000,
+    }}
+    with patch("apps.orders.payment_services.SepClient.verify", return_value=mismatch) as verify, patch(
+        "apps.orders.payment_services.SepClient.reverse",
+        side_effect=[
+            {"Success": False, "ResultCode": 9},
+            {"Success": True, "ResultCode": 0},
+        ],
+    ) as reverse:
+        assert process_sep_callback(res_num=attempt.res_num, ref_num="ref-retry-invalid") == "pending"
+        attempt.refresh_from_db()
+        assert attempt.status == SepPaymentAttempt.REVERSAL_PENDING
+        assert process_sep_callback(res_num=attempt.res_num, ref_num="ref-retry-invalid") == "failed"
+
+    verify.assert_called_once_with("ref-retry-invalid")
+    assert reverse.call_count == 2
+    attempt.refresh_from_db()
+    order.refresh_from_db()
+    vs.refresh_from_db()
+    assert attempt.status == SepPaymentAttempt.REVERSED
+    assert order.payment_status == Order.FAILED
+    assert vs.stock_quantity == 2
+
+
 def test_sep_callback_get_is_a_public_non_mutating_readiness_probe():
     response = Client().get("/api/orders/payment/sep/callback/")
     assert response.status_code == 200
@@ -172,3 +208,60 @@ def test_sep_callback_accepts_provider_form_post_and_returns_customer_to_result_
     process.assert_called_once_with(res_num="VZ-callback-test", ref_num="ref-callback-test")
     assert response.status_code == 302
     assert response["Location"] == "/fa/checkout/payment-result?status=success"
+
+@override_settings(SEP_TERMINAL_ID="12345")
+def test_second_successful_attempt_for_paid_order_is_reversed_without_second_fulfillment(make_variant_size):
+    order, vs = make_order(make_variant_size, stock=3)
+    first = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-first-charge", shipping_amount_toman=0,
+        amount_rial=10000, token="first", status=SepPaymentAttempt.PENDING,
+    )
+    second = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-second-charge", shipping_amount_toman=0,
+        amount_rial=10000, token="second", status=SepPaymentAttempt.PENDING,
+    )
+    verified = lambda ref: {"Success": True, "ResultCode": 0, "TransactionDetail": {
+        "RefNum": ref, "TerminalNumber": 12345, "OrginalAmount": 10000,
+        "AffectiveAmount": 10000, "RRN": f"rrn-{ref}",
+    }}
+    with patch("apps.orders.payment_services.SepClient.verify", side_effect=verified) as verify, patch(
+        "apps.orders.payment_services.SepClient.reverse",
+        return_value={"Success": True, "ResultCode": 0},
+    ) as reverse:
+        assert process_sep_callback(res_num=first.res_num, ref_num="ref-first") == "paid"
+        assert process_sep_callback(res_num=second.res_num, ref_num="ref-second") == "failed"
+
+    assert verify.call_count == 2
+    reverse.assert_called_once_with("ref-second")
+    order.refresh_from_db(); first.refresh_from_db(); second.refresh_from_db(); vs.refresh_from_db()
+    assert order.payment_status == Order.PAID and order.status == Order.CONFIRMED
+    assert first.status == SepPaymentAttempt.PAID and first.ref_num == "ref-first"
+    assert second.status == SepPaymentAttempt.REVERSED and second.ref_num == "ref-second"
+    assert vs.stock_quantity == 2
+
+
+@override_settings(SEP_TERMINAL_ID="12345")
+def test_refnum_owned_by_another_attempt_is_not_reversed(make_variant_size):
+    order, vs = make_order(make_variant_size, stock=2)
+    first = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-ref-owner", ref_num="ref-shared", shipping_amount_toman=0,
+        amount_rial=10000, token="first", status=SepPaymentAttempt.PAID,
+    )
+    second = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-ref-replay", shipping_amount_toman=0,
+        amount_rial=10000, token="second", status=SepPaymentAttempt.PENDING,
+    )
+    order.payment_status = Order.PAID
+    order.status = Order.CONFIRMED
+    order.save(update_fields=["payment_status", "status", "updated_at"])
+    with patch("apps.orders.payment_services.SepClient.verify") as verify, patch(
+        "apps.orders.payment_services.SepClient.reverse"
+    ) as reverse:
+        assert process_sep_callback(res_num=second.res_num, ref_num="ref-shared") == "failed"
+    verify.assert_not_called()
+    reverse.assert_not_called()
+    second.refresh_from_db()
+    assert second.status == SepPaymentAttempt.PENDING and second.ref_num is None
+    assert first.status == SepPaymentAttempt.PAID
+    assert vs.stock_quantity == 2
+

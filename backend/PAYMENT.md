@@ -3,9 +3,9 @@
 ## Inventory and confirmation policy
 - Creating an order snapshots cart lines and prices, clears the cart, and does not reserve or decrement stock.
 - On SEP callback, the backend resolves the attempt only from its server-created ResNum. Browser State, Status, and Amount are never proof of payment.
-- The backend locks the order and each exact VariantSize row in ascending primary-key order. If any line is short, it does not call VerifyTransaction; the attempt is marked out_of_stock and SEP's unverified-transaction timeout reverses the payment automatically.
-- If stock is sufficient, the backend calls SEP Verify while holding the row locks, checks Success, ResultCode, RefNum, terminal number, OrginalAmount, and AffectiveAmount, then decrements stock and marks the order confirmed/paid in one database transaction.
-- Unique provider references and locked attempts make callback replays idempotent. A verified but mismatched transaction is sent to ReverseTransaction; a database failure after provider verification also triggers a compensating reverse attempt.
+- The backend locks the payment attempt, then the order and each exact VariantSize row in ascending primary-key order. It calls SEP Verify while holding those locks and checks Success, ResultCode, RefNum, terminal number, OrginalAmount, and AffectiveAmount.
+- Only after a fully matching server-side verification does it check stock. If any line is short, it does not decrement inventory; it marks the attempt out_of_stock and explicitly requests ReverseTransaction. Stock decrement and the paid/confirmed order transition commit together in one database transaction.
+- Unique provider references and locked attempts make callback replays idempotent. A verified but mismatched transaction is sent to ReverseTransaction. If SEP reports a possibly collected transaction but verification details do not match, the attempt enters reversal_pending; repeated callbacks retry reversal without repeating fulfillment or verification. A database failure after provider verification also triggers a compensating reverse attempt.
 - Inventory is per exact VariantSize (product + color + size).
 
 ## Public callback URL
