@@ -87,11 +87,13 @@ class SepPaymentAttempt(models.Model):
     PENDING = "pending"
     PAID = "paid"
     OUT_OF_STOCK = "out_of_stock"
+    REVERSAL_PENDING = "reversal_pending"
     FAILED = "failed"
     REVERSED = "reversed"
     STATUS_CHOICES = [
         (INITIATING, "Initiating"), (PENDING, "Pending"), (PAID, "Paid"),
-        (OUT_OF_STOCK, "Out of stock"), (FAILED, "Failed"), (REVERSED, "Reversed"),
+        (OUT_OF_STOCK, "Out of stock"), (REVERSAL_PENDING, "Reversal pending"),
+        (FAILED, "Failed"), (REVERSED, "Reversed"),
     ]
     order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="sep_payment_attempts")
     res_num = models.CharField(max_length=40, unique=True)
