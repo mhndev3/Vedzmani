@@ -78,7 +78,12 @@ def process_sep_callback(*, res_num, ref_num):
                 return "reversed" if attempt.ref_num == ref_num else "failed"
             if attempt.status == SepPaymentAttempt.FAILED:
                 return "failed"
-            if attempt.status == SepPaymentAttempt.OUT_OF_STOCK:
+            if attempt.status == SepPaymentAttempt.REVERSAL_PENDING:
+                if attempt.ref_num != ref_num:
+                    return "failed"
+                reverse_needed = True
+                outcome = "failed"
+            elif attempt.status == SepPaymentAttempt.OUT_OF_STOCK:
                 # A previous reversal may have failed or timed out. A repeated provider
                 # callback retries the reversal without verifying or fulfilling the order again.
                 if attempt.ref_num != ref_num:
@@ -114,7 +119,9 @@ def process_sep_callback(*, res_num, ref_num):
                         # charge. Without complete matching details, never fulfill it.
                         verified_ref = True
                         reverse_needed = True
-                    attempt.status = SepPaymentAttempt.FAILED
+                    attempt.status = (
+                        SepPaymentAttempt.REVERSAL_PENDING if reverse_needed else SepPaymentAttempt.FAILED
+                    )
                     attempt.save(update_fields=["provider_result_code", "status", "updated_at"])
                     order.payment_status = Order.FAILED
                     order.save(update_fields=["payment_status", "updated_at"])
@@ -153,6 +160,11 @@ def process_sep_callback(*, res_num, ref_num):
         return "pending"
     except Exception:
         if verified_ref or reverse_needed:
+            # Persist an explicit retryable state before contacting SEP. If the reverse
+            # request times out or the process dies, a repeated callback can retry it.
+            SepPaymentAttempt.objects.filter(res_num=res_num, ref_num=ref_num).exclude(
+                status__in=[SepPaymentAttempt.PAID, SepPaymentAttempt.REVERSED]
+            ).update(status=SepPaymentAttempt.REVERSAL_PENDING)
             try:
                 reversed_result = SepClient().reverse(ref_num)
                 if reversed_result.get("Success") is True and reversed_result.get("ResultCode") == 0:
