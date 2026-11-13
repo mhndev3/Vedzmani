@@ -92,12 +92,40 @@ def process_sep_callback(*, res_num, ref_num):
                 outcome = "out_of_stock"
             else:
                 order = Order.objects.select_for_update().get(pk=attempt.order_id)
-                if order.payment_status != Order.UNPAID:
-                    return "paid" if order.payment_status == Order.PAID and attempt.ref_num == ref_num else "failed"
                 if attempt.ref_num and attempt.ref_num != ref_num:
                     return "failed"
-                attempt.ref_num = ref_num
-                attempt.save(update_fields=["ref_num", "updated_at"])
+                if order.payment_status != Order.UNPAID:
+                    # A different SEP attempt can still have been collected after an
+                    # earlier attempt paid (or failed). Never fulfill it or consume stock;
+                    # verify the provider reference and reverse any collected second charge.
+                    other_owner = SepPaymentAttempt.objects.filter(ref_num=ref_num).exclude(pk=attempt.pk).first()
+                    if other_owner:
+                        # This RefNum is already owned by another attempt. Do not reverse
+                        # a transaction that may be the legitimate payment for that attempt.
+                        return "failed"
+                    response = SepClient().verify(ref_num)
+                    verified, detail = _verified_detail(response, attempt, ref_num)
+                    code = response.get("ResultCode") if isinstance(response, dict) else None
+                    attempt.provider_result_code = code if isinstance(code, int) else None
+                    collected = verified or (
+                        isinstance(response, dict) and (
+                            (response.get("Success") is True and response.get("ResultCode") == 0)
+                            or response.get("ResultCode") == 2
+                        )
+                    )
+                    if collected:
+                        attempt.ref_num = ref_num
+                        attempt.status = SepPaymentAttempt.REVERSAL_PENDING
+                        attempt.save(update_fields=["ref_num", "provider_result_code", "status", "updated_at"])
+                        verified_ref = True
+                        reverse_needed = True
+                    else:
+                        attempt.status = SepPaymentAttempt.FAILED
+                        attempt.save(update_fields=["provider_result_code", "status", "updated_at"])
+                    outcome = "failed"
+                else:
+                    attempt.ref_num = ref_num
+                    attempt.save(update_fields=["ref_num", "updated_at"])
                 items = list(order.items.order_by("variant_size_id"))
                 locked = {
                     row.pk: row for row in VariantSize.objects.select_for_update()
