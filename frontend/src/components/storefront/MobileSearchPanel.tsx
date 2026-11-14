@@ -17,6 +17,7 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
   const [history, setHistory] = useState<string[]>([]);
   const [results, setResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -50,6 +51,8 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
     const term = query.trim();
     if (!open || !term) return;
     const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 15_000);
     const timer = window.setTimeout(async () => {
       setLoading(true);
       try {
@@ -60,12 +63,15 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
         const data = await response.json() as ResponseData;
         setResults(data.results ?? []);
       } catch {
-        if (!controller.signal.aborted) setResults([]);
+        if (!controller.signal.aborted || timedOut) {
+          setResults([]);
+          setSearchFailed(true);
+        }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted || timedOut) setLoading(false);
       }
     }, 280);
-    return () => { window.clearTimeout(timer); controller.abort(); };
+    return () => { window.clearTimeout(timer); window.clearTimeout(timeout); controller.abort(); };
   }, [open, query]);
 
   function remember(value: string) {
@@ -118,6 +124,7 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
                 setQuery(event.target.value);
                 setResults([]);
                 setLoading(false);
+                setSearchFailed(false);
               }}
               className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
@@ -131,11 +138,13 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
                 <section className="p-2">
                   <h2 className="mb-2 px-2 text-xs font-semibold text-muted-foreground">جستجوهای اخیر</h2>
                   <ul className="flex flex-wrap gap-2">
-                    {history.map((item) => <li key={item}><button type="button" onClick={() => setQuery(item)} className="rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted">{item}</button></li>)}
+                    {history.map((item) => <li key={item}><button type="button" onClick={() => { setQuery(item); setSearchFailed(false); }} className="rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted">{item}</button></li>)}
                   </ul>
                 </section>
               ) : loading ? (
                 <p role="status" className="p-4 text-center text-sm text-muted-foreground">در حال جستجو…</p>
+              ) : searchFailed ? (
+                <p role="status" className="p-4 text-center text-sm text-muted-foreground">ارتباط با سرور برقرار نشد. عبارت را دوباره جستجو کنید.</p>
               ) : results.length ? (
                 <ul className="space-y-1">
                   {results.map((product) => (
