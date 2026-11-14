@@ -19,7 +19,13 @@ assert.ok(sealSection, "The official Enamad seal section must exist");
 assert.match(sealSection[1], /(?:^|\s)shrink-0(?:\s|$)/, "The seal must not shrink on the shared mobile row");
 assert.match(seal, /trustseal\.enamad\.ir\/logo\.aspx\?id=8480737/, "The official Enamad image URL must remain intact");
 assert.match(seal, /MAX_RETRIES\s*=\s*3/, "Enamad image retries must remain bounded");
-assert.match(seal, /INITIAL_LOAD_TIMEOUT_MS\s*=\s*8000/, "A slow initial Enamad image load must be retried");
+assert.doesNotMatch(
+  seal,
+  /INITIAL_LOAD_TIMEOUT_MS/,
+  "A slow image must not trigger unconditional duplicate requests",
+);
+assert.match(seal, /loading="lazy"/, "The Enamad image must not compete with critical initial resources");
+assert.match(seal, /fetchPriority="low"/, "The Enamad image must remain low priority");
 assert.match(seal, /onError=\{\(\)\s*=>/, "A failed Enamad image request must trigger a retry");
 
-console.log("Enamad footer responsive alignment and first-load recovery contract passed");
+console.log("Enamad footer responsive alignment and non-blocking image recovery contract passed");
