@@ -69,14 +69,16 @@ export function CarouselTrack({
     if (reduceMotion.matches) return;
 
     let frame = 0;
-    let visible = true;
+    let visible = false;
     const desktopViewport = window.matchMedia("(min-width: 768px)");
 
-    const observer = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
+    const stopAnimation = () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+        frame = 0;
+      }
       lastFrame.current = 0;
-    }, { threshold: 0.05 });
-    observer.observe(element);
+    };
 
     const animate = (now: number) => {
       if (!paused.current && visible && document.visibilityState === "visible") {
@@ -100,9 +102,29 @@ export function CarouselTrack({
       frame = window.requestAnimationFrame(animate);
     };
 
-    frame = window.requestAnimationFrame(animate);
+    const startAnimation = () => {
+      if (!frame && visible && document.visibilityState === "visible") {
+        lastFrame.current = 0;
+        frame = window.requestAnimationFrame(animate);
+      }
+    };
+
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      if (visible) startAnimation();
+      else stopAnimation();
+    }, { threshold: 0.05 });
+    observer.observe(element);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") startAnimation();
+      else stopAnimation();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
-      window.cancelAnimationFrame(frame);
+      stopAnimation();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       observer.disconnect();
       if (resumeTimer.current) clearTimeout(resumeTimer.current);
     };
