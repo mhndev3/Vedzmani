@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -38,49 +38,19 @@ export function navItems(locale: Locale, t: Dictionary) {
 }
 
 export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
-  const [visible, setVisible] = useState(true);
   const [searchOpenedOnPath, setSearchOpenedOnPath] = useState<string | null>(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const pathname = usePathname();
   const searchExpanded = searchOpenedOnPath === pathname;
   const closeMobileSearch = useCallback(() => setMobileSearchOpen(false), []);
-  const hideTimer = useRef<number | undefined>(undefined);
   const items = navItems(locale, t);
   const categoryItems = categories.map((category) => ({
     href: "/" + locale + "/categories/" + encodeURIComponent(category.slug),
     label: category.name,
   }));
 
-  useEffect(() => {
-    let frame = 0;
-    const onScroll = () => {
-      if (searchExpanded || mobileSearchOpen) {
-        setVisible(true);
-        return;
-      }
-      if (!frame) {
-        frame = window.requestAnimationFrame(() => {
-          setVisible((current) => (current ? false : current));
-          frame = 0;
-        });
-      }
-      if (hideTimer.current !== undefined) window.clearTimeout(hideTimer.current);
-      hideTimer.current = window.setTimeout(() => setVisible(true), 120);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
-      if (hideTimer.current !== undefined) window.clearTimeout(hideTimer.current);
-    };
-  }, [searchExpanded, mobileSearchOpen]);
-
   return (
-    <header
-      aria-hidden={!visible}
-      inert={!visible}
-      className={"sticky top-0 z-40 transition-transform duration-150 motion-reduce:transition-none " + (visible ? "translate-y-0" : "-translate-y-full")}
-    >
+    <header className="sticky top-0 z-40">
       <div className={"relative flex flex-col border border-border bg-background/95 shadow-sm transition-[height,width,max-width,border-radius,margin,padding] duration-200 md:flex-row md:items-center " + (searchExpanded ? "my-0 h-20 w-full max-w-none rounded-b-2xl rounded-t-none px-3 sm:px-5" : mobileSearchOpen ? "my-0 h-auto min-h-16 w-full max-w-none rounded-2xl px-0 md:mx-auto md:my-2 md:h-16 md:max-w-6xl md:rounded-full md:px-3" : "mx-auto my-2 h-16 max-w-6xl rounded-full px-3 sm:px-4")}>
         <div className="flex h-16 w-full shrink-0 items-center gap-3 px-3 sm:px-4 md:h-full md:px-0">
         <MobileNav
