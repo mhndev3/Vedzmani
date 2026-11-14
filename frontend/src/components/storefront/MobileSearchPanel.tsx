@@ -50,6 +50,7 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
   useEffect(() => {
     const term = query.trim();
     if (!open || !term) return;
+    setSearchFailed(false);
     const controller = new AbortController();
     let timedOut = false;
     const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 15_000);
