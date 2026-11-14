@@ -56,6 +56,7 @@ export function SearchButton({
   useEffect(() => {
     const term = query.trim();
     if (!expanded || !term) return;
+    setSearchFailed(false);
 
     const controller = new AbortController();
     let timedOut = false;
