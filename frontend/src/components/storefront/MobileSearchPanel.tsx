@@ -50,7 +50,6 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
   useEffect(() => {
     const term = query.trim();
     if (!open || !term) return;
-    setSearchFailed(false);
     const controller = new AbortController();
     let timedOut = false;
     const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 15_000);
@@ -139,7 +138,7 @@ export function MobileSearchPanel({ locale, open, onClose }: { locale: Locale; o
                 <section className="p-2">
                   <h2 className="mb-2 px-2 text-xs font-semibold text-muted-foreground">جستجوهای اخیر</h2>
                   <ul className="flex flex-wrap gap-2">
-                    {history.map((item) => <li key={item}><button type="button" onClick={() => setQuery(item)} className="rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted">{item}</button></li>)}
+                    {history.map((item) => <li key={item}><button type="button" onClick={() => { setQuery(item); setSearchFailed(false); }} className="rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted">{item}</button></li>)}
                   </ul>
                 </section>
               ) : loading ? (
