@@ -56,8 +56,6 @@ export function SearchButton({
   useEffect(() => {
     const term = query.trim();
     if (!expanded || !term) return;
-    setSearchFailed(false);
-
     const controller = new AbortController();
     let timedOut = false;
     const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 15_000);
@@ -218,7 +216,7 @@ export function SearchButton({
                   <li key={item}>
                     <button
                       type="button"
-                      onClick={() => setQuery(item)}
+                      onClick={() => { setQuery(item); setSearchFailed(false); }}
                       className="rounded-full border border-border px-3 py-1.5 text-sm transition hover:bg-muted"
                     >
                       {item}
