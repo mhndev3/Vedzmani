@@ -25,6 +25,7 @@ export function SearchButton({
   const [history, setHistory] = useState<string[]>([]);
   const [results, setResults] = useState<SearchProduct[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
 
   useEffect(() => {
     if (!expanded) return;
@@ -57,6 +58,8 @@ export function SearchButton({
     if (!expanded || !term) return;
 
     const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 15_000);
     const timer = window.setTimeout(async () => {
       setLoading(true);
       try {
@@ -70,14 +73,18 @@ export function SearchButton({
         const data = await response.json() as SearchResponse;
         setResults(data.results ?? []);
       } catch {
-        if (!controller.signal.aborted) setResults([]);
+        if (!controller.signal.aborted || timedOut) {
+          setResults([]);
+          setSearchFailed(true);
+        }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted || timedOut) setLoading(false);
       }
     }, 280);
 
     return () => {
       window.clearTimeout(timer);
+      window.clearTimeout(timeout);
       controller.abort();
     };
   }, [expanded, query]);
@@ -169,6 +176,7 @@ export function SearchButton({
               setQuery(event.target.value);
               setResults([]);
               setLoading(false);
+              setSearchFailed(false);
             }}
             onFocus={() => { if (!expanded) open(); }}
             placeholder="جستجو"
@@ -220,6 +228,8 @@ export function SearchButton({
             </section>
           ) : loading ? (
             <p role="status" className="rounded-xl p-4 text-center text-sm text-muted-foreground">در حال جستجو…</p>
+          ) : searchFailed ? (
+            <p role="status" className="rounded-xl p-4 text-center text-sm text-muted-foreground">ارتباط با سرور برقرار نشد. عبارت را دوباره جستجو کنید.</p>
           ) : results.length > 0 ? (
             <ul className="space-y-1">
               {results.map((product) => (
