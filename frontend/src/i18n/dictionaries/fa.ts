@@ -77,6 +77,7 @@ export const fa = {
     noImages: "برای این رنگ تصویری ثبت نشده است.",
     noSizes: "برای این رنگ سایزی ثبت نشده است.",
     sizeOutOfStock: "ناموجود",
+    outOfStockMessage: "این کالا در حال حاضر موجود نیست.",
     addToCart: "افزودن به سبد خرید",
     adding: "در حال افزودن…",
     added: "به سبد خرید اضافه شد.",
