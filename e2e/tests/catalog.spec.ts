@@ -257,10 +257,11 @@ test.describe("کاتالوگ دسکتاپ", () => {
     await page.getByRole("link", { name: "انتخاب رنگ White" }).click();
     await expect(page).toHaveURL(/color=white/);
     await expect(mainImage).toHaveAttribute("alt", "Hoodie 01 White front");
-    await expect(page.getByText("ناموجود", { exact: true })).toBeVisible();
+    await expect(page.getByText("ناموجود", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("M : 0").locator("..")).toHaveClass(/border-red-500/);
     await expect(page.getByRole("radio", { name: "M" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "افزودن به سبد خرید" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "ناموجود", exact: true })).toBeDisabled();
+    await expect(page.getByText("این کالا در حال حاضر موجود نیست.", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "بازگشت به محصولات" }).click();
     await expect(page).toHaveURL(/\/fa\/products$/);
   });
