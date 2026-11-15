@@ -8,8 +8,9 @@ import { cartApi } from "@/lib/cart";
 import { addGuestCartItem, type GuestCartLine } from "@/lib/guest-cart";
 
 export type AddToCartLabels = {
-  sizes: string; sizeOutOfStock: string; addToCart: string; adding: string; added: string;
-  viewCart: string; sizeRequired: string; sizeMeasurements: string; description: string;
+  sizes: string; sizeOutOfStock: string; outOfStock: string; outOfStockMessage: string;
+  addToCart: string; adding: string; added: string; viewCart: string; sizeRequired: string;
+  sizeMeasurements: string; description: string;
 };
 type Status = { kind: "idle" } | { kind: "pending" } | { kind: "success" } | { kind: "error"; message: string };
 
@@ -26,7 +27,8 @@ export function AddToCart({
   const [selected, setSelected] = useState<number | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const inFlight = useRef(false);
-  const anyInStock = sizes.some((s) => s.stock_quantity > 0);
+  const isSizeAvailable = (size: (typeof sizes)[number]) => size.in_stock && size.stock_quantity > 0;
+  const anyInStock = sizes.some(isSizeAvailable);
   const selectedSize = sizes.find((size) => size.id === selected) ?? null;
   const pending = status.kind === "pending";
 
@@ -34,6 +36,7 @@ export function AddToCart({
     event.preventDefault();
     if (inFlight.current) return;
     if (selectedSize === null) { setStatus({ kind: "error", message: labels.sizeRequired }); return; }
+    if (!isSizeAvailable(selectedSize)) { setStatus({ kind: "error", message: labels.outOfStockMessage }); return; }
     inFlight.current = true;
     setStatus({ kind: "pending" });
     try {
@@ -60,11 +63,11 @@ export function AddToCart({
           {sizes.map((size) => (
             <label key={size.id} className="relative">
               <input type="radio" name="size" value={size.id} className="peer sr-only"
-                disabled={size.stock_quantity === 0} aria-label={size.label} checked={selected === size.id}
+                disabled={!isSizeAvailable(size)} aria-label={size.label} checked={selected === size.id}
                 onChange={() => { setSelected(size.id); setStatus({ kind: "idle" }); }} />
-              <span className={`inline-flex h-10 min-w-16 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm transition-all duration-150 ease-out peer-checked:-translate-y-0.5 peer-checked:scale-[1.03] peer-checked:shadow-sm peer-checked:border-primary peer-checked:ring-1 peer-checked:ring-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring peer-disabled:cursor-not-allowed peer-disabled:hover:bg-transparent ${size.stock_quantity === 0 ? "border-red-500 text-red-600 dark:border-red-400 dark:text-red-400" : "border-border hover:bg-muted"}`}>
+              <span className={`inline-flex h-10 min-w-16 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm transition-all duration-150 ease-out peer-checked:-translate-y-0.5 peer-checked:scale-[1.03] peer-checked:shadow-sm peer-checked:border-primary peer-checked:ring-1 peer-checked:ring-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring peer-disabled:cursor-not-allowed peer-disabled:hover:bg-transparent ${!isSizeAvailable(size) ? "border-red-500 bg-red-50/60 text-red-600 dark:border-red-400 dark:bg-red-950/20 dark:text-red-400" : "border-border hover:bg-muted"}`}>
                 <span dir="ltr" className="whitespace-nowrap">{size.label} : {size.stock_quantity}</span>
-                {size.stock_quantity === 0 && <span className="sr-only"> ({labels.sizeOutOfStock})</span>}
+                {!isSizeAvailable(size) && <span className="sr-only"> ({labels.sizeOutOfStock})</span>}
               </span>
             </label>
           ))}
@@ -92,9 +95,10 @@ export function AddToCart({
       <div className="mt-8">
         <button type="submit" disabled={!anyInStock || pending} aria-busy={pending}
           className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
-          {pending ? labels.adding : labels.addToCart}
+          {pending ? labels.adding : anyInStock ? labels.addToCart : labels.outOfStock}
         </button>
         <div className="mt-3 min-h-5 text-sm" aria-live="polite">
+          {!anyInStock && <p role="status" className="font-medium text-red-600 dark:text-red-400">{labels.outOfStockMessage}</p>}
           {status.kind === "success" && <p role="status" className="flex flex-wrap items-center gap-x-3">
             <span>{labels.added}</span><Link href={`/${locale}/cart`} className="font-medium underline underline-offset-4">{labels.viewCart}</Link>
           </p>}
