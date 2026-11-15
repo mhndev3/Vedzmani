@@ -217,6 +217,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
                 labels={{
                   sizes: t.product.sizes,
                   sizeOutOfStock: t.product.sizeOutOfStock,
+                  outOfStock: t.catalog.outOfStock,
+                  outOfStockMessage: t.product.outOfStockMessage,
                   addToCart: t.product.addToCart,
                   adding: t.product.adding,
                   added: t.product.added,
