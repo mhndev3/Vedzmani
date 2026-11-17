@@ -26,10 +26,10 @@ def make_order(make_variant_size, quantity=1, stock=2):
 def test_token_uses_server_amount_converted_from_toman_to_rial(make_variant_size):
     order, vs = make_order(make_variant_size)
     with patch("apps.orders.payment_services.SepClient.request_token", return_value="sep-token") as token:
-        attempt = initiate_sep_payment(order, redirect_url="https://vedzmani.ir/api/orders/payment/sep/callback/")
+        attempt = initiate_sep_payment(order, redirect_url="https://vedzmani.ir/sep/cb/")
     assert attempt.amount_rial == 10000 and attempt.shipping_amount_toman == 0 and attempt.status == SepPaymentAttempt.PENDING
     assert vs.stock_quantity == 2
-    token.assert_called_once_with(amount_rial=10000, res_num=attempt.res_num, redirect_url="https://vedzmani.ir/api/orders/payment/sep/callback/", cell_number=order.customer_phone[3:])
+    token.assert_called_once_with(amount_rial=10000, res_num=attempt.res_num, redirect_url="https://vedzmani.ir/sep/cb/", cell_number=order.customer_phone[3:])
 
 @override_settings(SEP_TERMINAL_ID="12345")
 def test_verified_out_of_stock_callback_reverses_payment(make_variant_size):
@@ -265,3 +265,23 @@ def test_refnum_owned_by_another_attempt_is_not_reversed(make_variant_size):
     assert first.status == SepPaymentAttempt.PAID
     assert vs.stock_quantity == 2
 
+
+
+def test_short_sep_callback_get_is_a_public_non_mutating_readiness_probe():
+    response = Client().get("/sep/cb/")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+    assert response["Cache-Control"].find("no-store") != -1
+
+
+def test_short_sep_callback_accepts_provider_form_post_and_returns_customer_to_result_page():
+    payload = urlencode({"ResNum": "VZ-short-callback-test", "RefNum": "ref-short-callback-test"})
+    with patch("apps.orders.views.process_sep_callback", return_value="paid") as process:
+        response = Client().post(
+            "/sep/cb/",
+            data=payload,
+            content_type="application/x-www-form-urlencoded",
+        )
+    process.assert_called_once_with(res_num="VZ-short-callback-test", ref_num="ref-short-callback-test")
+    assert response.status_code == 302
+    assert response["Location"] == "/fa/checkout/payment-result?status=success"
