@@ -57,7 +57,7 @@ class SepPaymentInitiateView(APIView):
         order = get_object_or_404(_own_orders(request.user), pk=order_id)
         try:
             attempt = initiate_sep_payment(
-                order, redirect_url=request.build_absolute_uri(reverse("sep-payment-callback"))
+                order, redirect_url=request.build_absolute_uri(reverse("sep-payment-callback-short"))
             )
         except PaymentRejected as exc:
             http_status = status.HTTP_503_SERVICE_UNAVAILABLE if exc.code in {

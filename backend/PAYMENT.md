@@ -11,9 +11,9 @@
 ## Public callback URL
 After this PR is merged and deployed behind the production HTTPS domain, register this exact URL with SEP:
 
-`https://vedzmani.ir/api/orders/payment/sep/callback/`
+`https://vedzmani.ir/sep/cb/`
 
-The endpoint accepts SEP's browser `POST` form fields (`ResNum`, `RefNum`) and redirects the customer to the Persian payment-result page. A `GET` request returns `{"status":"ready"}` as a non-mutating reachability probe; it does not verify a transaction or mean live payments are enabled. The URL is not live until the backend release is deployed.
+The short endpoint is an alias to the same `SepPaymentCallbackView` used by the original callback route. Payment initiation sends this short URL to SEP. It accepts SEP's browser `POST` form fields (`ResNum`, `RefNum`) and redirects the customer to the Persian payment-result page. A `GET` request returns `{"status":"ready"}` as a non-mutating reachability probe; it does not verify a transaction or mean live payments are enabled. The URL is not live until the backend release is deployed.
 
 ## SEP protocol
 The adapter follows SEP OnlinePG technical guide v3.6: request a token from the classic token endpoint, send the returned Token to the classic payment page, receive ResNum and RefNum at the callback, then verify server-to-server. Verify is retried only when no response was received, never after a definite negative result. A verified transaction that cannot be fulfilled is reversed.
