@@ -7,7 +7,7 @@ remain owned by the Vedzmani backend.
 import json
 import logging
 import re
-from urllib.parse import urlencode
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -38,39 +38,31 @@ class UnconfiguredDelivery(OTPDelivery):
 
 
 class MelipayamakDelivery(OTPDelivery):
-    """Send a backend-generated OTP through Melipayamak's shared service pattern."""
+    """Send a backend-generated OTP through Melipayamak Console simple API."""
+
+    API_URL = "https://console.melipayamak.com/api/send/simple/"
 
     def send(self, *, phone: str, code: str, purpose: str) -> None:
-        username = settings.MELIPAYAMAK_USERNAME
         api_key = settings.MELIPAYAMAK_API_KEY
-        endpoint = settings.MELIPAYAMAK_BASE_URL
-        body_id = settings.MELIPAYAMAK_BODY_ID
+        sender = settings.MELIPAYAMAK_SENDER
         timeout = settings.MELIPAYAMAK_TIMEOUT_SECONDS
 
-        if not username or not api_key:
-            raise OTPDeliveryError("Melipayamak credentials are not configured.")
-        if not endpoint.startswith("https://"):
-            raise OTPDeliveryError("Melipayamak endpoint must use HTTPS.")
+        if not api_key or not sender:
+            raise OTPDeliveryError("Melipayamak credentials or sender are not configured.")
         if not re.fullmatch(r"\d{6}", code):
             raise OTPDeliveryError("OTP code must contain exactly six digits.")
 
         recipient = self._normalize_iranian_mobile(phone)
-        payload = urlencode(
-            {
-                "username": username,
-                # Melipayamak's REST API expects the API key in the password field.
-                "password": api_key,
-                "text": code,
-                "to": recipient,
-                "bodyId": str(body_id),
-            }
-        ).encode("ascii")
+        payload = json.dumps(
+            {"from": sender, "to": recipient, "text": code},
+            ensure_ascii=False,
+        ).encode("utf-8")
         request = Request(
-            endpoint,
+            f"{self.API_URL}{quote(api_key, safe='')}",
             data=payload,
             headers={
                 "Accept": "application/json",
-                "Content-Type": "application/x-www-form-urlencoded",
+                "Content-Type": "application/json; charset=utf-8",
             },
             method="POST",
         )
@@ -81,20 +73,8 @@ class MelipayamakDelivery(OTPDelivery):
         except Exception:  # noqa: BLE001 - provider/network details may contain credentials or phone numbers
             raise OTPDeliveryError("Melipayamak request failed.") from None
 
-        if not isinstance(result, dict):
-            raise OTPDeliveryError("Melipayamak returned an invalid response.")
-
-        try:
-            accepted = (
-                int(result.get("RetStatus")) == 1
-                and str(result.get("StrRetStatus", "")).strip().lower() == "ok"
-                and bool(str(result.get("Value", "")).strip())
-            )
-        except (TypeError, ValueError):
-            accepted = False
-
-        if not accepted:
-            # Never include provider response text: it is not trusted and may contain sensitive data.
+        if not isinstance(result, dict) or not str(result.get("recId", "")).strip():
+            # The Console API's status field is an error description, not a success flag.
             raise OTPDeliveryError("Melipayamak rejected the OTP message.")
 
     @staticmethod
