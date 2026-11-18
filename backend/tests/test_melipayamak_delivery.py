@@ -1,4 +1,4 @@
-"""Focused tests for the Melipayamak Console simple OTP adapter."""
+""""Focused tests for the Melipayamak Console simple OTP adapter."""
 
 import json
 
@@ -24,7 +24,7 @@ class _FakeResponse:
 
 @override_settings(
     MELIPAYAMAK_API_KEY="test-console-token",
-    MELIPAYAMAK_SENDER="+9850004001314285",
+    MELIPAYAMAK_SENDER="5000400004",
     MELIPAYAMAK_TIMEOUT_SECONDS=7,
 )
 def test_sends_backend_generated_code_through_console_simple_api(monkeypatch):
@@ -47,7 +47,7 @@ def test_sends_backend_generated_code_through_console_simple_api(monkeypatch):
     assert captured["timeout"] == 7
     assert captured["headers"]["Content-type"] == "application/json; charset=utf-8"
     assert captured["payload"] == {
-        "from": "+9850004001314285",
+        "from": "5000400004",
         "to": "09123456789",
         "text": "123456",
     }
@@ -55,7 +55,7 @@ def test_sends_backend_generated_code_through_console_simple_api(monkeypatch):
 
 @override_settings(
     MELIPAYAMAK_API_KEY="test-console-token",
-    MELIPAYAMAK_SENDER="+9850004001314285",
+    MELIPAYAMAK_SENDER="5000400004",
     MELIPAYAMAK_TIMEOUT_SECONDS=7,
 )
 def test_provider_error_without_rec_id_is_not_reported_as_success(monkeypatch):
@@ -83,7 +83,7 @@ def test_missing_credentials_fail_closed_without_network_call(monkeypatch):
 
 @override_settings(
     MELIPAYAMAK_API_KEY="test-console-token",
-    MELIPAYAMAK_SENDER="+9850004001314285",
+    MELIPAYAMAK_SENDER="5000400004",
     MELIPAYAMAK_TIMEOUT_SECONDS=7,
 )
 def test_invalid_code_and_phone_are_rejected_before_network(monkeypatch):
@@ -99,7 +99,7 @@ def test_invalid_code_and_phone_are_rejected_before_network(monkeypatch):
 
 @override_settings(
     MELIPAYAMAK_API_KEY="test-console-token",
-    MELIPAYAMAK_SENDER="+9850004001314285",
+    MELIPAYAMAK_SENDER="5000400004",
     MELIPAYAMAK_TIMEOUT_SECONDS=7,
 )
 def test_network_failure_is_sanitized(monkeypatch):
