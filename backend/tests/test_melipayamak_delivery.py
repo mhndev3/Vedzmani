@@ -1,7 +1,6 @@
 """Focused tests for the Melipayamak shared-service OTP adapter."""
 
 import json
-from io import BytesIO
 from urllib.parse import parse_qs
 
 import pytest
