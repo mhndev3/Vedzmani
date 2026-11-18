@@ -1,4 +1,4 @@
-""""Focused tests for the Melipayamak Console simple OTP adapter."""
+"""Focused tests for the Melipayamak Console simple OTP adapter."""
 
 import json
 
