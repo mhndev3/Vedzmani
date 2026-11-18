@@ -158,8 +158,15 @@ OTP_VERIFY_IP_WINDOW_SECONDS = int(env("OTP_VERIFY_IP_WINDOW_SECONDS", "600"))
 # Number of trusted reverse proxies in front of Django (Nginx = 1). 0 means
 # X-Forwarded-For is ignored and REMOTE_ADDR is used for per-IP limits.
 AUTH_TRUSTED_PROXY_COUNT = int(env("AUTH_TRUSTED_PROXY_COUNT", "0"))
-# No SMS provider exists yet: the default REFUSES to send (never fakes success).
+# OTP delivery defaults to a fail-closed backend. Provider credentials are supplied only via environment.
 OTP_DELIVERY_BACKEND = env("OTP_DELIVERY_BACKEND", "apps.accounts.delivery.UnconfiguredDelivery")
+MELIPAYAMAK_USERNAME = env("MELIPAYAMAK_USERNAME", "") or ""
+MELIPAYAMAK_API_KEY = env("MELIPAYAMAK_API_KEY", "") or ""
+MELIPAYAMAK_BASE_URL = env(
+    "MELIPAYAMAK_BASE_URL", "https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber"
+) or ""
+MELIPAYAMAK_BODY_ID = int(env("MELIPAYAMAK_BODY_ID", "591009"))
+MELIPAYAMAK_TIMEOUT_SECONDS = int(env("MELIPAYAMAK_TIMEOUT_SECONDS", "10"))
 
 # Secure by default: endpoints must opt in to being public.
 REST_FRAMEWORK = {

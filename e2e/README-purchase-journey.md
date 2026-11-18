@@ -36,10 +36,10 @@ everything after login (CSRF, cart, validation, stock, order creation) is real. 
 settings, which refuse to boot with `ConsoleDelivery`.
 
 ### What real customer login still needs (owner decisions / work)
-- Choose an SMS provider (open decision in `PROJECT_CONTROL.md`); no provider exists or is configured.
-- Implement an `OTPDelivery` subclass for it (`backend/apps/accounts/delivery.py`) and set `OTP_DELIVERY_BACKEND` in the
-  production environment. Until then production answers `503 otp_delivery_unavailable`, so **no real customer can sign
-  in**.
+- Melipayamak has been selected and its REST `BaseServiceNumber` adapter is implemented in `backend/apps/accounts/delivery.py`.
+- Configure its credentials on the server and set `OTP_DELIVERY_BACKEND=apps.accounts.delivery.MelipayamakDelivery`.
+  Until this is explicitly configured and a real phone completes request + delivery + verification, production must keep
+  returning `503 otp_delivery_unavailable`, so **real customer OTP login remains unverified**.
 - Verify it end to end with the provider's sandbox or an approved test number; keep OTP rate limits at production values.
 
 ## Safety guard (`E2E_THROWAWAY_DB`)

@@ -40,12 +40,15 @@ stored as `+989XXXXXXXXX` (`apps/accounts/phone.py` is the only normalizer).
 - `remember_me=false` -> browser-session cookie; `true` -> `AUTH_REMEMBER_ME_SECONDS` (30 days).
 - Delivery: `OTP_DELIVERY_BACKEND` (`apps/accounts/delivery.py`). Default **refuses to send** (503);
   `ConsoleDelivery` (dev) / `InMemoryDelivery` (tests) are rejected by production settings.
-  To add a real SMS provider: subclass `OTPDelivery`, point the setting at it.
+  `MelipayamakDelivery` sends the backend-generated six-digit code through the REST `BaseServiceNumber` shared-pattern endpoint.
+  Configure `OTP_DELIVERY_BACKEND=apps.accounts.delivery.MelipayamakDelivery`, `MELIPAYAMAK_USERNAME`,
+  `MELIPAYAMAK_API_KEY`, and `MELIPAYAMAK_BODY_ID` (default `591009`) only in the server environment.
+  The provider API key is sent as the REST `password` parameter; it must never be committed or logged.
 
 ## OTP: development vs production (Agent 11 audit)
-- **Production login does not work yet.** No SMS provider is selected, configured or tested. With the default
-  `UnconfiguredDelivery`, `POST /otp/request/` answers `503 otp_delivery_unavailable`, so no real customer can sign in.
-  Do not describe production login as working until a provider is chosen, configured and verified end to end.
+- **Production login is not yet verified.** The Melipayamak adapter is implemented but is not configured by default.
+  With `UnconfiguredDelivery`, `POST /otp/request/` answers `503 otp_delivery_unavailable`. Do not describe production
+  login as working until server-side credentials are configured and a real phone completes delivery and verification.
 - `ConsoleDelivery` is **development only**: it writes the code to the server log (logger `apps.accounts.delivery`,
   level WARNING). It is not SMS delivery. `InMemoryDelivery` is for tests. `config.settings.prod` refuses to boot with
   either.
@@ -149,8 +152,8 @@ Evidence the owner can collect without secrets: (1) `nginx -T | grep -E "real_ip
 container shows the Cloudflare ranges; (2) the Nginx access log shows real client addresses, not Cloudflare ones; (3)
 `docker compose ps` / `ss -ltn` show no published backend port; (4) the firewall allows 80/443 only as intended.
 **Open / production dependencies (not fixed here):**
-- Real SMS provider: none chosen. Live delivery verification is **BLOCKED**. No provider environment variables exist;
-  a future adapter defines its own and must be isolated behind `OTP_DELIVERY_BACKEND`.
+- Melipayamak adapter is implemented behind `OTP_DELIVERY_BACKEND`; live delivery remains **unverified** until credentials
+  are configured on the VPS and a real phone completes request, delivery and OTP verification.
 - Cleanup exists as a command but is **not scheduled** and the OTP retention period is undecided (see above).
 - Production client-IP chain is **unverified** (see above). `AUTH_TRUSTED_PROXY_COUNT` must keep matching the proxy chain.
 - `main`'s Compose still runs `config.settings.dev` (non-Secure cookies, OTP codes and phones logged by `ConsoleDelivery`); the
@@ -159,4 +162,4 @@ container shows the Cloudflare ranges; (2) the Nginx access log shows real clien
 ## Customer password authentication
 - `POST /password/login/` accepts `{phone, password}`. Phone is normalized by the existing `PhoneField`; Django's configured password hasher and `ModelBackend` authenticate the customer. Staff accounts are refused here and continue to use the separate Django Admin password gate. Success establishes a normal Django session and rotates the session key.
 - `POST /password/set/` accepts `{password}` for an authenticated non-staff customer whose current session was established by OTP. Password login is rate-limited to 10 attempts per normalized phone and 30 per client IP in a 10-minute window. Passwords must be at least 10 characters and pass Django's configured password validators. The endpoint is CSRF-protected and does not return password data.
-- Signup remains OTP-first. A newly created account receives an unusable password until the customer sets one through `/password/set/`. Forgot-password uses the existing OTP request/verify flow, then the same password-set endpoint. Real SMS delivery remains unavailable until a provider is selected and configured; no development OTP is exposed in production.
+- Signup remains OTP-first. A newly created account receives an unusable password until the customer sets one through `/password/set/`. Forgot-password uses the existing OTP request/verify flow, then the same password-set endpoint. Real SMS delivery remains unavailable until the Melipayamak adapter is explicitly configured and live delivery is verified; no development OTP is exposed in production.
