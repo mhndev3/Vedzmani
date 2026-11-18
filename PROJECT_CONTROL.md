@@ -126,7 +126,7 @@ Next.js is the frontend/application presentation layer. Django/DRF owns authorit
 ## Auth Foundation (Agent 3, Session 1)
 - Custom `accounts.User` (phone = identifier, canonical `+989XXXXXXXXX`; Django-native is_staff/is_superuser/groups/permissions) and `OTPChallenge` (HMAC-hashed codes) live in `backend/apps/accounts`.
 - Authentication is Django session auth (DB-backed sessions, CSRF enforced); no JWT. Contract: `backend/AUTH.md`.
-- OTP delivery is isolated behind `OTP_DELIVERY_BACKEND`; no SMS provider is chosen yet, so the production default refuses to send (503).
+- OTP delivery is isolated behind `OTP_DELIVERY_BACKEND`; the Melipayamak `BaseServiceNumber` adapter and pattern `591009` are implemented. Live delivery is not yet configured or verified; the production default still refuses to send (503).
 - Behind Nginx set `AUTH_TRUSTED_PROXY_COUNT=1` (compose does) so per-IP rate limits use the real client IP.
 
 ## Cart Backend (Agent 7, Session 1)
