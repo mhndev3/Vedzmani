@@ -40,10 +40,12 @@ stored as `+989XXXXXXXXX` (`apps/accounts/phone.py` is the only normalizer).
 - `remember_me=false` -> browser-session cookie; `true` -> `AUTH_REMEMBER_ME_SECONDS` (30 days).
 - Delivery: `OTP_DELIVERY_BACKEND` (`apps/accounts/delivery.py`). Default **refuses to send** (503);
   `ConsoleDelivery` (dev) / `InMemoryDelivery` (tests) are rejected by production settings.
-  `MelipayamakDelivery` sends the backend-generated six-digit code through the REST `BaseServiceNumber` shared-pattern endpoint.
-  Configure `OTP_DELIVERY_BACKEND=apps.accounts.delivery.MelipayamakDelivery`, `MELIPAYAMAK_USERNAME`,
-  `MELIPAYAMAK_API_KEY`, and `MELIPAYAMAK_BODY_ID` (default `591009`) only in the server environment.
-  The provider API key is sent as the REST `password` parameter; it must never be committed or logged.
+  `MelipayamakDelivery` sends the backend-generated six-digit code through the Console simple-send API
+  (`POST https://console.melipayamak.com/api/send/simple/{token}`) using JSON fields `from`, `to`, and `text`.
+  Configure `OTP_DELIVERY_BACKEND=apps.accounts.delivery.MelipayamakDelivery`, `MELIPAYAMAK_API_KEY`
+  (Console API token), and `MELIPAYAMAK_SENDER` (an enabled sending line) only in the server environment.
+  A non-empty `recId` is required to treat the provider response as accepted. The token is part of the HTTPS
+  request path and must never be committed, logged, or exposed to the browser.
 
 ## OTP: development vs production (Agent 11 audit)
 - **Production login is not yet verified.** The Melipayamak adapter is implemented but is not configured by default.

@@ -1,7 +1,6 @@
-"""Focused tests for the Melipayamak shared-service OTP adapter."""
+"""Focused tests for the Melipayamak Console simple OTP adapter."""
 
 import json
-from urllib.parse import parse_qs
 
 import pytest
 from django.test import override_settings
@@ -24,60 +23,53 @@ class _FakeResponse:
 
 
 @override_settings(
-    MELIPAYAMAK_USERNAME="09920000000",
-    MELIPAYAMAK_API_KEY="test-api-key",
-    MELIPAYAMAK_BASE_URL="https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber",
-    MELIPAYAMAK_BODY_ID=591009,
+    MELIPAYAMAK_API_KEY="test-console-token",
+    MELIPAYAMAK_SENDER="5000400004",
     MELIPAYAMAK_TIMEOUT_SECONDS=7,
 )
-def test_sends_backend_generated_code_using_approved_shared_pattern(monkeypatch):
+def test_sends_backend_generated_code_through_console_simple_api(monkeypatch):
     captured = {}
 
     def fake_urlopen(request, timeout):
         captured["url"] = request.full_url
         captured["headers"] = request.headers
         captured["timeout"] = timeout
-        captured["form"] = parse_qs(request.data.decode("ascii"))
-        return _FakeResponse({"Value": "1234567890123456", "RetStatus": 1, "StrRetStatus": "Ok"})
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return _FakeResponse({"recId": "1234567890123456", "status": ""})
 
     monkeypatch.setattr("apps.accounts.delivery.urlopen", fake_urlopen)
 
     MelipayamakDelivery().send(phone="+989123456789", code="123456", purpose="login")
 
-    assert captured["url"] == "https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber"
+    assert captured["url"] == (
+        "https://console.melipayamak.com/api/send/simple/test-console-token"
+    )
     assert captured["timeout"] == 7
-    assert captured["form"] == {
-        "username": ["09920000000"],
-        "password": ["test-api-key"],
-        "text": ["123456"],
-        "to": ["09123456789"],
-        "bodyId": ["591009"],
+    assert captured["headers"]["Content-type"] == "application/json; charset=utf-8"
+    assert captured["payload"] == {
+        "from": "5000400004",
+        "to": "09123456789",
+        "text": "123456",
     }
 
 
 @override_settings(
-    MELIPAYAMAK_USERNAME="09920000000",
-    MELIPAYAMAK_API_KEY="test-api-key",
-    MELIPAYAMAK_BASE_URL="https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber",
-    MELIPAYAMAK_BODY_ID=591009,
+    MELIPAYAMAK_API_KEY="test-console-token",
+    MELIPAYAMAK_SENDER="5000400004",
     MELIPAYAMAK_TIMEOUT_SECONDS=7,
 )
-def test_provider_rejection_is_not_reported_as_success(monkeypatch):
+def test_provider_error_without_rec_id_is_not_reported_as_success(monkeypatch):
     monkeypatch.setattr(
         "apps.accounts.delivery.urlopen",
-        lambda *args, **kwargs: _FakeResponse(
-            {"Value": "35", "RetStatus": 35, "StrRetStatus": "InvalidData"}
-        ),
+        lambda *args, **kwargs: _FakeResponse({"recId": "", "status": "invalid sender"}),
     )
     with pytest.raises(OTPDeliveryError):
         MelipayamakDelivery().send(phone="09123456789", code="123456", purpose="login")
 
 
 @override_settings(
-    MELIPAYAMAK_USERNAME="",
     MELIPAYAMAK_API_KEY="",
-    MELIPAYAMAK_BASE_URL="https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber",
-    MELIPAYAMAK_BODY_ID=591009,
+    MELIPAYAMAK_SENDER="",
     MELIPAYAMAK_TIMEOUT_SECONDS=7,
 )
 def test_missing_credentials_fail_closed_without_network_call(monkeypatch):
@@ -90,10 +82,8 @@ def test_missing_credentials_fail_closed_without_network_call(monkeypatch):
 
 
 @override_settings(
-    MELIPAYAMAK_USERNAME="09920000000",
-    MELIPAYAMAK_API_KEY="test-api-key",
-    MELIPAYAMAK_BASE_URL="https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber",
-    MELIPAYAMAK_BODY_ID=591009,
+    MELIPAYAMAK_API_KEY="test-console-token",
+    MELIPAYAMAK_SENDER="5000400004",
     MELIPAYAMAK_TIMEOUT_SECONDS=7,
 )
 def test_invalid_code_and_phone_are_rejected_before_network(monkeypatch):
@@ -105,3 +95,19 @@ def test_invalid_code_and_phone_are_rejected_before_network(monkeypatch):
         MelipayamakDelivery().send(phone="09123456789", code="12345", purpose="login")
     with pytest.raises(OTPDeliveryError):
         MelipayamakDelivery().send(phone="123", code="123456", purpose="login")
+
+
+@override_settings(
+    MELIPAYAMAK_API_KEY="test-console-token",
+    MELIPAYAMAK_SENDER="5000400004",
+    MELIPAYAMAK_TIMEOUT_SECONDS=7,
+)
+def test_network_failure_is_sanitized(monkeypatch):
+    def fail(*args, **kwargs):
+        raise RuntimeError("secret-token-and-phone-must-not-leak")
+
+    monkeypatch.setattr("apps.accounts.delivery.urlopen", fail)
+    with pytest.raises(OTPDeliveryError) as exc:
+        MelipayamakDelivery().send(phone="09123456789", code="123456", purpose="login")
+    assert "secret-token" not in str(exc.value)
+    assert "09123456789" not in str(exc.value)
