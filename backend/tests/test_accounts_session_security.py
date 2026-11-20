@@ -181,7 +181,7 @@ def test_otp_request_fails_closed_when_the_rate_limit_store_is_down(monkeypatch)
 
 
 def test_otp_verify_fails_closed_when_the_rate_limit_store_is_down(monkeypatch):
-    services.request_otp(phone="+989123456789", purpose="login", ip="203.0.113.9")
+    services.request_otp(phone="+989123456789", purpose="signup", ip="203.0.113.9")
     code = InMemoryDelivery.outbox[-1]["code"]
     monkeypatch.setattr(ratelimit, "cache", _BrokenCache())
     with pytest.raises(ConnectionError):
