@@ -55,9 +55,9 @@ class MelipayamakDelivery(OTPDelivery):
 
         recipient = self._normalize_iranian_mobile(phone)
         templates = {
-            "login": f"کاربر گرامی، کد ورود شما: {code}\\nاین کد را در اختیار هیچ‌کس قرار ندهید.\\nVedzmani",
-            "signup": f"کاربر گرامی، کد تأیید ثبت‌نام شما: {code}\\nاین کد را در اختیار هیچ‌کس قرار ندهید.\\nVedzmani",
-            "password_reset": f"کاربر گرامی، کد بازیابی رمز عبور شما: {code}\\nاین کد را در اختیار هیچ‌کس قرار ندهید.\\nVedzmani",
+            "login": f"کاربر گرامی، کد ورود شما: {code}\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
+            "signup": f"کاربر گرامی، کد تأیید ثبت‌نام شما: {code}\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
+            "password_reset": f"کاربر گرامی، کد بازیابی رمز عبور شما: {code}\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
         }
         message = templates.get(purpose)
         if message is None:
