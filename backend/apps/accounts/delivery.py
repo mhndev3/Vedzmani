@@ -7,6 +7,7 @@ remain owned by the Vedzmani backend.
 import json
 import logging
 import re
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
@@ -49,7 +50,7 @@ class MelipayamakDelivery(OTPDelivery):
 
         if not api_key or not sender:
             raise OTPDeliveryError("Melipayamak credentials or sender are not configured.")
-        if not re.fullmatch(r"\d{6}", code):
+        if not re.fullmatch(r"\\d{6}", code):
             raise OTPDeliveryError("OTP code must contain exactly six digits.")
 
         recipient = self._normalize_iranian_mobile(phone)
@@ -69,24 +70,58 @@ class MelipayamakDelivery(OTPDelivery):
 
         try:
             with urlopen(request, timeout=timeout) as response:
-                result = json.loads(response.read().decode("utf-8"))
-        except Exception:  # noqa: BLE001 - provider/network details may contain credentials or phone numbers
+                http_status = getattr(response, "status", None)
+                try:
+                    result = json.loads(response.read().decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    logger.warning(
+                        "Melipayamak response invalid JSON (http_status=%s)",
+                        http_status,
+                    )
+                    raise OTPDeliveryError("Melipayamak returned an invalid response.") from None
+        except HTTPError as exc:
+            logger.warning("Melipayamak HTTP error (http_status=%s)", exc.code)
+            raise OTPDeliveryError("Melipayamak request failed.") from None
+        except URLError as exc:
+            # Log only the reason class; the reason text can contain sensitive URL data.
+            logger.warning(
+                "Melipayamak network error (reason_type=%s)",
+                type(exc.reason).__name__,
+            )
+            raise OTPDeliveryError("Melipayamak request failed.") from None
+        except (TimeoutError, OSError) as exc:
+            logger.warning("Melipayamak transport error (error_type=%s)", type(exc).__name__)
+            raise OTPDeliveryError("Melipayamak request failed.") from None
+        except OTPDeliveryError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - never log provider exception text or request URL
+            logger.warning("Melipayamak unexpected error (error_type=%s)", type(exc).__name__)
             raise OTPDeliveryError("Melipayamak request failed.") from None
 
         if not isinstance(result, dict) or not str(result.get("recId", "")).strip():
-            # The Console API's status field is an error description, not a success flag.
+            status = result.get("status") if isinstance(result, dict) else None
+            # Only expose numeric provider status codes; arbitrary text may contain PII/secrets.
+            safe_status = status if isinstance(status, int) or (
+                isinstance(status, str) and status.isdigit() and len(status) <= 6
+            ) else "non_numeric_or_missing"
+            logger.warning(
+                "Melipayamak rejected message (http_status=%s provider_status=%s response_type=%s)",
+                http_status,
+                safe_status,
+                type(result).__name__,
+            )
             raise OTPDeliveryError("Melipayamak rejected the OTP message.")
 
     @staticmethod
     def _normalize_iranian_mobile(phone: str) -> str:
-        digits = re.sub(r"\D", "", phone)
+        digits = re.sub(r"\\D", "", phone)
         if digits.startswith("0098"):
             digits = "0" + digits[4:]
         elif digits.startswith("98") and len(digits) == 12:
             digits = "0" + digits[2:]
         elif digits.startswith("9") and len(digits) == 10:
             digits = "0" + digits
-        if not re.fullmatch(r"09\d{9}", digits):
+        if not re.fullmatch(r"09\\d{9}", digits):
             raise OTPDeliveryError("Recipient must be an Iranian mobile number.")
         return digits
 
