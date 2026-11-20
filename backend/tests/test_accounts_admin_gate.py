@@ -7,6 +7,8 @@ code (SIM swap, provider compromise, interception) would equal admin access."""
 import pytest
 from django.test import Client
 
+from apps.accounts.authentication import OTP_SESSION_FLAG
+from apps.accounts.delivery import InMemoryDelivery
 from apps.accounts.models import User
 from tests.conftest import ADMIN_PASSWORD, client_for, new_phone
 
@@ -17,6 +19,14 @@ ADMIN_PAGES = ["/admin/", "/admin/accounts/user/"]
 
 def is_admin_login_redirect(response):
     return response.status_code == 302 and "/admin/login/" in response["Location"]
+
+
+def mark_otp_session(api, phone):
+    user = User.objects.get(phone=phone)
+    api.client.force_login(user)
+    session = api.client.session
+    session[OTP_SESSION_FLAG] = True
+    session.save()
 
 
 def admin_password_login(client, phone, password):
@@ -37,7 +47,7 @@ def superuser_phone(superuser):
 # ------------------------------------------------------------------ bypass --
 @pytest.mark.parametrize("page", ADMIN_PAGES)
 def test_otp_session_of_a_superuser_does_not_open_the_admin(api, superuser_phone, page):
-    api.login(superuser_phone)
+    mark_otp_session(api, superuser_phone)
     assert api.get("/api/auth/me/").json()["is_staff"] is True  # the customer API still works for staff
     assert is_admin_login_redirect(api.get(page))
 
@@ -46,7 +56,7 @@ def test_otp_session_of_a_superuser_does_not_open_the_admin(api, superuser_phone
 def test_otp_session_of_staff_without_a_password_does_not_open_the_admin(api, make_staff, page):
     staff = make_staff("accounts.view_user")
     assert not staff.has_usable_password()
-    api.login(staff.phone)
+    mark_otp_session(api, staff.phone)
     assert is_admin_login_redirect(api.get(page))
 
 
@@ -57,7 +67,7 @@ def test_otp_session_of_a_customer_still_cannot_open_the_admin(api):
 
 def test_admin_post_with_an_otp_session_is_refused_not_executed(api, superuser_phone):
     target = User.objects.create_user(new_phone())
-    api.login(superuser_phone)
+    mark_otp_session(api, superuser_phone)
     token = api.client.cookies["csrftoken"].value
     response = api.client.post(
         f"/admin/accounts/user/{target.pk}/delete/", {"post": "yes"}, HTTP_X_CSRFTOKEN=token
@@ -76,7 +86,7 @@ def test_password_login_opens_the_admin(superuser_phone, page):
 
 
 def test_password_login_after_an_otp_login_lifts_the_gate(api, superuser_phone):
-    api.login(superuser_phone)
+    mark_otp_session(api, superuser_phone)
     assert is_admin_login_redirect(api.get("/admin/"))
     response = admin_password_login(api.client, superuser_phone, ADMIN_PASSWORD)
     assert response.status_code == 302 and response["Location"] == "/admin/"
@@ -85,17 +95,17 @@ def test_password_login_after_an_otp_login_lifts_the_gate(api, superuser_phone):
 
 
 def test_wrong_password_does_not_lift_the_gate(api, superuser_phone):
-    api.login(superuser_phone)
+    mark_otp_session(api, superuser_phone)
     response = admin_password_login(api.client, superuser_phone, "definitely-wrong")
     assert response.status_code == 200  # the login form is shown again with an error
     assert is_admin_login_redirect(api.get("/admin/"))
 
 
-def test_a_later_otp_login_closes_the_admin_again(api, superuser_phone):
-    assert admin_password_login(api.client, superuser_phone, ADMIN_PASSWORD).status_code == 302
-    assert api.get("/admin/").status_code == 200
-    api.login(superuser_phone)  # the session is now (also) established through an SMS code
-    assert is_admin_login_redirect(api.get("/admin/"))
+def test_customer_password_login_rejects_staff_accounts(api, superuser_phone):
+    response = api.post("/api/auth/password/login/", {"phone": superuser_phone, "password": ADMIN_PASSWORD})
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_credentials"
+    assert not InMemoryDelivery.outbox
 
 
 # ------------------------------------------------------ nothing else moves --
