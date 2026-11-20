@@ -2,6 +2,7 @@ import pytest
 from django.contrib.sessions.models import Session
 from django.test import Client
 
+from apps.accounts.delivery import InMemoryDelivery
 from apps.accounts.models import User
 
 pytestmark = pytest.mark.django_db
@@ -154,4 +155,4 @@ def test_signup_request_for_existing_phone_does_not_send_or_authenticate(api):
     assert response.status_code == 202
     assert not api.client.session.get("_auth_user_id")
     assert not api.client.cookies.get("sessionid")
-    assert not __import__("apps.accounts.delivery", fromlist=["InMemoryDelivery"]).InMemoryDelivery.outbox
+    assert not InMemoryDelivery.outbox
