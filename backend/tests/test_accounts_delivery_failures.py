@@ -45,7 +45,7 @@ def _use_failing_adapter(monkeypatch, exc):
 def test_any_adapter_failure_is_a_503_and_leaves_no_valid_code(monkeypatch, exc):
     _use_failing_adapter(monkeypatch, exc)
     with pytest.raises(DeliveryUnavailable):
-        services.request_otp(phone=PHONE, purpose="login", ip="203.0.113.9")
+        services.request_otp(phone=PHONE, purpose="signup", ip="203.0.113.9")
     # A code that was never delivered must not stay usable.
     assert not OTPChallenge.objects.filter(expires_at__gt=timezone.now(), consumed_at__isnull=True).exists()
 
@@ -62,7 +62,7 @@ def test_adapter_failure_log_does_not_contain_provider_message_phone_or_code(mon
     _use_failing_adapter(monkeypatch, ConnectionError(SECRET_IN_MESSAGE))
     with caplog.at_level(logging.DEBUG):
         with pytest.raises(DeliveryUnavailable):
-            services.request_otp(phone=PHONE, purpose="login", ip="203.0.113.9")
+            services.request_otp(phone=PHONE, purpose="signup", ip="203.0.113.9")
     logged = "\n".join(record.getMessage() for record in caplog.records)
     assert "OTP delivery failed" in logged
     assert "SHOULD-NEVER-BE-LOGGED" not in logged and "09123456789" not in logged and "989123456789" not in logged
