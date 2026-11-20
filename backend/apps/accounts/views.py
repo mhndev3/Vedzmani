@@ -69,6 +69,7 @@ class PasswordLoginView(CSRFProtectedAPIView):
                 {"error": {"code": "invalid_credentials", "message": "Invalid phone or password."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        logout(request._request)  # discard any prior customer session before the second factor
         services.request_otp(phone=data["phone"], purpose=OTPChallenge.Purpose.LOGIN, ip=get_client_ip(request))
         request._request.session[PENDING_PASSWORD_LOGIN] = data["phone"]
         request._request.session.set_expiry(settings.OTP_TTL_SECONDS)
