@@ -54,10 +54,15 @@ class MelipayamakDelivery(OTPDelivery):
             raise OTPDeliveryError("OTP code must contain exactly six digits.")
 
         recipient = self._normalize_iranian_mobile(phone)
-        payload = json.dumps(
-            {"from": sender, "to": recipient, "text": code},
-            ensure_ascii=False,
-        ).encode("utf-8")
+        templates = {
+            "login": f"کاربر گرامی، کد ورود شما: {code}\\nاین کد را در اختیار هیچ‌کس قرار ندهید.\\nVedzmani",
+            "signup": f"کاربر گرامی، کد تأیید ثبت‌نام شما: {code}\\nاین کد را در اختیار هیچ‌کس قرار ندهید.\\nVedzmani",
+            "password_reset": f"کاربر گرامی، کد بازیابی رمز عبور شما: {code}\\nاین کد را در اختیار هیچ‌کس قرار ندهید.\\nVedzmani",
+        }
+        message = templates.get(purpose)
+        if message is None:
+            raise OTPDeliveryError("Unsupported OTP purpose.")
+        payload = json.dumps({"from": sender, "to": recipient, "text": message}, ensure_ascii=False).encode("utf-8")
         request = Request(
             f"{self.API_URL}{quote(api_key, safe='')}",
             data=payload,
