@@ -45,13 +45,18 @@ class ApiClient:
 
     # --- flow helpers -----------------------------------------------------
     def request_otp(self, phone="09123456789"):
-        return self.post("/api/auth/otp/request/", {"phone": phone})
+        from apps.accounts.models import User
+        normalized = "+98" + phone[1:] if phone.startswith("09") else phone
+        purpose = "password_reset" if User.objects.filter(phone=normalized).exists() else "signup"
+        self._otp_purpose = purpose
+        return self.post("/api/auth/otp/request/", {"phone": phone, "purpose": purpose})
 
     def last_code(self):
         return InMemoryDelivery.outbox[-1]["code"]
 
     def verify(self, code, phone="09123456789", **extra):
-        return self.post("/api/auth/otp/verify/", {"phone": phone, "code": code, **extra})
+        purpose = extra.pop("purpose", getattr(self, "_otp_purpose", "signup"))
+        return self.post("/api/auth/otp/verify/", {"phone": phone, "code": code, "purpose": purpose, **extra})
 
     def login(self, phone="09123456789", **extra):
         assert self.request_otp(phone).status_code == 202
