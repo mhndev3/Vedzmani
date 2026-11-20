@@ -113,7 +113,9 @@ def test_customer_can_set_password_only_after_otp_verification(api):
     assert second_set.status_code == 403
     api.post("/api/auth/logout/")
     login_response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
-    assert login_response.status_code == 200
+    assert login_response.status_code == 202
+    assert api.get("/api/auth/me/").status_code == 401
+    assert api.verify(api.last_code(), purpose="login").status_code == 200
 
 
 def test_password_setup_requires_otp_authenticated_session(api):
