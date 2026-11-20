@@ -88,10 +88,12 @@ class MelipayamakDelivery(OTPDelivery):
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
                 provider_error = None
             category = self._classify_provider_error(provider_error)
+            provider_code = self._safe_provider_error_code(provider_error)
             logger.warning(
-                "Melipayamak HTTP error (http_status=%s provider_error_category=%s)",
+                "Melipayamak HTTP error (http_status=%s provider_error_category=%s provider_error_code=%s)",
                 exc.code,
                 category,
+                provider_code if provider_code is not None else "unavailable",
             )
             raise OTPDeliveryError("Melipayamak request failed.") from None
         except URLError as exc:
@@ -125,25 +127,37 @@ class MelipayamakDelivery(OTPDelivery):
             raise OTPDeliveryError("Melipayamak rejected the OTP message.")
 
     @staticmethod
-    def _classify_provider_error(response: object) -> str:
-        """Map provider error text to a coarse category without logging its contents."""
-        if not isinstance(response, dict):
+    def _provider_error_strings(response: object) -> list[str]:
+        """Collect bounded string values from nested JSON without exposing them."""
+        values: list[str] = []
+        pending = [(response, 0)]
+        while pending and len(values) < 32:
+            current, depth = pending.pop()
+            if depth > 4:
+                continue
+            if isinstance(current, dict):
+                pending.extend((value, depth + 1) for value in current.values())
+            elif isinstance(current, list):
+                pending.extend((value, depth + 1) for value in current[:32])
+            elif isinstance(current, str):
+                values.append(current[:512])
+        return values
+
+    @classmethod
+    def _classify_provider_error(cls, response: object) -> str:
+        """Map nested provider error text to a coarse category without logging it."""
+        if not isinstance(response, (dict, list)):
             return "unparseable_response"
 
-        candidates = [
-            response.get(key)
-            for key in ("status", "message", "error", "detail")
-            if isinstance(response.get(key), str)
-        ]
-        message = " ".join(candidates).casefold()
+        message = " ".join(cls._provider_error_strings(response)).casefold()
         if not message:
             return "missing_error_detail"
 
         categories = {
             "ip_restriction": ("ip", "whitelist", "آی پی", "آی‌پی", "مجاز"),
             "credentials": ("token", "api key", "apikey", "auth", "credential", "احراز"),
-            "sender": ("sender", "from", "فرستنده"),
-            "recipient": ("recipient", "mobile", "phone", " شماره", "گیرنده"),
+            "sender": ("sender", "from", "فرستنده", "خط ارسال", "شماره ارسال"),
+            "recipient": ("recipient", "mobile", "phone", " شماره", "گیرنده", "مقصد"),
             "credit": ("credit", "balance", "اعتبار", "شارژ"),
             "message_content": ("message", "text", "متن", "پیام"),
             "request_format": ("invalid", "bad request", "required", "format", "پارامتر", "درخواست"),
@@ -152,6 +166,27 @@ class MelipayamakDelivery(OTPDelivery):
             if any(keyword in message for keyword in keywords):
                 return category
         return "provider_rejected_request"
+
+    @staticmethod
+    def _safe_provider_error_code(response: object) -> int | None:
+        """Return only short numeric values from known code fields; never log arbitrary text."""
+        if not isinstance(response, (dict, list)):
+            return None
+        pending = [response]
+        while pending:
+            current = pending.pop()
+            if isinstance(current, dict):
+                for key, value in current.items():
+                    if key in {"code", "error_code", "errorCode", "statusCode", "status_code"}:
+                        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 999999:
+                            return value
+                        if isinstance(value, str) and value.isdigit() and len(value) <= 6:
+                            return int(value)
+                    if isinstance(value, (dict, list)):
+                        pending.append(value)
+            elif isinstance(current, list):
+                pending.extend(current[:32])
+        return None
 
     @staticmethod
     def _normalize_iranian_mobile(phone: str) -> str:

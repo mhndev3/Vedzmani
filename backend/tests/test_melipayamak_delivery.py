@@ -135,6 +135,46 @@ def test_http_error_classifies_provider_body_without_logging_contents(monkeypatc
     assert "test-console-token" not in caplog.text
 
 
+
+@override_settings(
+    MELIPAYAMAK_API_KEY="test-console-token",
+    MELIPAYAMAK_SENDER="5000400004",
+    MELIPAYAMAK_TIMEOUT_SECONDS=7,
+)
+def test_nested_http_error_is_classified_and_numeric_code_is_safe(monkeypatch, caplog):
+    private_detail = "Invalid sender for phone 09123456789 and code 123456"
+
+    def fail(*args, **kwargs):
+        body = {"errors": [{"field": "from", "message": private_detail}], "meta": {"error_code": "2401"}}
+        raise HTTPError(
+            "https://console.melipayamak.com/api/send/simple/test-console-token",
+            400,
+            "bad request",
+            hdrs=None,
+            fp=BytesIO(json.dumps(body).encode("utf-8")),
+        )
+
+    monkeypatch.setattr("apps.accounts.delivery.urlopen", fail)
+    with caplog.at_level("WARNING", logger="apps.accounts.delivery"):
+        with pytest.raises(OTPDeliveryError):
+            MelipayamakDelivery().send(phone="09123456789", code="123456", purpose="login")
+
+    assert "provider_error_category=sender" in caplog.text
+    assert "provider_error_code=2401" in caplog.text
+    assert "09123456789" not in caplog.text
+    assert "123456" not in caplog.text
+    assert "Invalid sender" not in caplog.text
+    assert "test-console-token" not in caplog.text
+
+
+def test_provider_error_classifier_handles_nested_values_and_bounds_depth():
+    nested = {"errors": [{"detail": {"message": "sender is not allowed"}}]}
+    assert MelipayamakDelivery._classify_provider_error(nested) == "sender"
+    assert MelipayamakDelivery._classify_provider_error({"deep": {"deeper": {"x": {"y": {"z": "sender"}}}}}) == "missing_error_detail"
+    assert MelipayamakDelivery._safe_provider_error_code(
+        {"meta": [{"errorCode": "42"}]}
+    ) == 42
+
 @override_settings(
     MELIPAYAMAK_API_KEY="",
     MELIPAYAMAK_SENDER="",
