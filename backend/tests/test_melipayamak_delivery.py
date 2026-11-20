@@ -167,6 +167,11 @@ def test_nested_http_error_is_classified_and_numeric_code_is_safe(monkeypatch, c
     assert "test-console-token" not in caplog.text
 
 
+@override_settings(
+    MELIPAYAMAK_API_KEY="test-console-token",
+    MELIPAYAMAK_SENDER="5000400004",
+    MELIPAYAMAK_TIMEOUT_SECONDS=7,
+)
 def test_http_error_logs_only_allowlisted_response_shape(monkeypatch, caplog):
     private_phone = "09123456789"
     private_token = "private-token-value"
