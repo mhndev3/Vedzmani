@@ -68,6 +68,7 @@ def test_otp_session_of_a_customer_still_cannot_open_the_admin(api):
 def test_admin_post_with_an_otp_session_is_refused_not_executed(api, superuser_phone):
     target = User.objects.create_user(new_phone())
     mark_otp_session(api, superuser_phone)
+    api.get("/api/auth/csrf/")
     token = api.client.cookies["csrftoken"].value
     response = api.client.post(
         f"/admin/accounts/user/{target.pk}/delete/", {"post": "yes"}, HTTP_X_CSRFTOKEN=token
