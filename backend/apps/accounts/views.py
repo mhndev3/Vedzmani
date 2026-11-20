@@ -30,6 +30,8 @@ from .serializers import (
 )
 
 BACKEND = "django.contrib.auth.backends.ModelBackend"
+PENDING_PASSWORD_LOGIN = "pending_password_login_phone"
+OTP_PASSWORD_SETUP_FLAG = "otp_password_setup_allowed"
 
 
 @require_GET
@@ -67,10 +69,10 @@ class PasswordLoginView(CSRFProtectedAPIView):
                 {"error": {"code": "invalid_credentials", "message": "Invalid phone or password."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        login(request._request, user, backend=BACKEND)
-        request._request.session.pop(OTP_SESSION_FLAG, None)
-        request._request.session.set_expiry(0)
-        return Response({"user": CurrentUserSerializer(user).data})
+        services.request_otp(phone=data["phone"], purpose=OTPChallenge.Purpose.LOGIN, ip=get_client_ip(request))
+        request._request.session[PENDING_PASSWORD_LOGIN] = data["phone"]
+        request._request.session.set_expiry(settings.OTP_TTL_SECONDS)
+        return Response({"detail": "OTP request accepted."}, status=status.HTTP_202_ACCEPTED)
 
 
 class SetPasswordView(CSRFProtectedAPIView):
@@ -87,7 +89,7 @@ class SetPasswordView(CSRFProtectedAPIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if not request._request.session.get(OTP_SESSION_FLAG):
+        if not request._request.session.get(OTP_PASSWORD_SETUP_FLAG):
             return Response(
                 {
                     "error": {
@@ -107,6 +109,7 @@ class SetPasswordView(CSRFProtectedAPIView):
         request.user.set_password(password)
         request.user.save(update_fields=["password"])
         update_session_auth_hash(request._request, request.user)
+        request._request.session.pop(OTP_PASSWORD_SETUP_FLAG, None)
         request._request.session.pop(OTP_SESSION_FLAG, None)
         return Response({"detail": "Password set."})
 
@@ -120,7 +123,7 @@ class OTPRequestView(CSRFProtectedAPIView):
         serializer.is_valid(raise_exception=True)
         services.request_otp(
             phone=serializer.validated_data["phone"],
-            purpose=OTPChallenge.Purpose.LOGIN,
+            purpose=serializer.validated_data["purpose"],
             ip=get_client_ip(request),
         )
         # Identical for every phone: reveals nothing about account existence.
@@ -135,16 +138,18 @@ class OTPVerifyView(CSRFProtectedAPIView):
         serializer = OTPVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        user, created = services.verify_otp(
-            phone=data["phone"],
-            purpose=OTPChallenge.Purpose.LOGIN,
-            code=data["code"],
-            ip=get_client_ip(request),
-        )
         django_request = request._request
+        purpose = data["purpose"]
+        if purpose == OTPChallenge.Purpose.LOGIN and django_request.session.get(PENDING_PASSWORD_LOGIN) != data["phone"]:
+            return Response({"error": {"code": "otp_invalid", "message": "The verification code is incorrect."}}, status=status.HTTP_400_BAD_REQUEST)
+        user, created = services.verify_otp(phone=data["phone"], purpose=purpose, code=data["code"], ip=get_client_ip(request))
+        if purpose == OTPChallenge.Purpose.LOGIN:
+            django_request.session.pop(PENDING_PASSWORD_LOGIN, None)
         login(django_request, user, backend=BACKEND)  # rotates the session key
         # Established by an SMS code only: valid for the customer API, refused by Django Admin (password required).
         django_request.session[OTP_SESSION_FLAG] = True
+        if purpose in (OTPChallenge.Purpose.SIGNUP, OTPChallenge.Purpose.PASSWORD_RESET):
+            django_request.session[OTP_PASSWORD_SETUP_FLAG] = True
         # Deterministic remember-me: browser-session cookie vs. fixed lifetime.
         django_request.session.set_expiry(settings.AUTH_REMEMBER_ME_SECONDS if data["remember_me"] else 0)
         return Response({"user": CurrentUserSerializer(user).data, "is_new_user": created})
