@@ -46,7 +46,11 @@ class ApiClient:
     # --- flow helpers -----------------------------------------------------
     def request_otp(self, phone="09123456789"):
         from apps.accounts.models import User
-        normalized = "+98" + phone[1:] if phone.startswith("09") else phone
+        from apps.accounts.phone import InvalidPhoneNumber, normalize_phone
+        try:
+            normalized = normalize_phone(phone)
+        except InvalidPhoneNumber:
+            normalized = phone
         purpose = "password_reset" if User.objects.filter(phone=normalized).exists() else "signup"
         self._otp_purpose = purpose
         return self.post("/api/auth/otp/request/", {"phone": phone, "purpose": purpose})
