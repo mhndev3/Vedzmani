@@ -89,11 +89,13 @@ class MelipayamakDelivery(OTPDelivery):
                 provider_error = None
             category = self._classify_provider_error(provider_error)
             provider_code = self._safe_provider_error_code(provider_error)
+            response_shape = self._safe_provider_error_shape(provider_error)
             logger.warning(
-                "Melipayamak HTTP error (http_status=%s provider_error_category=%s provider_error_code=%s)",
+                "Melipayamak HTTP error (http_status=%s provider_error_category=%s provider_error_code=%s provider_error_shape=%s)",
                 exc.code,
                 category,
                 provider_code if provider_code is not None else "unavailable",
+                response_shape,
             )
             raise OTPDeliveryError("Melipayamak request failed.") from None
         except URLError as exc:
@@ -166,6 +168,46 @@ class MelipayamakDelivery(OTPDelivery):
             if any(keyword in message for keyword in keywords):
                 return category
         return "provider_rejected_request"
+
+    @staticmethod
+    def _safe_provider_error_shape(response: object) -> str:
+        """Describe JSON structure using allowlisted field labels and value types only."""
+        if not isinstance(response, (dict, list)):
+            return f"root={type(response).__name__}"
+
+        known_fields = {
+            "data", "detail", "details", "error", "errors", "error_code",
+            "errorcode", "message", "meta", "msg", "parameter", "param",
+            "reason", "recid", "request_id", "status", "status_code",
+            "statuscode", "success", "trace_id", "validation",
+        }
+        entries: list[str] = []
+        pending = [(response, "$", 0)]
+        visited = 0
+        while pending and len(entries) < 12 and visited < 64:
+            current, path, depth = pending.pop(0)
+            visited += 1
+            if depth >= 4:
+                continue
+            if isinstance(current, dict):
+                for key, value in list(current.items())[:32]:
+                    safe_key = key.casefold() if isinstance(key, str) and key.casefold() in known_fields else "other"
+                    child_path = f"{path}.{safe_key}"
+                    entries.append(f"{child_path}:{type(value).__name__}")
+                    if isinstance(value, (dict, list)):
+                        pending.append((value, child_path, depth + 1))
+                    if len(entries) >= 12:
+                        break
+            elif isinstance(current, list):
+                for value in current[:8]:
+                    child_path = f"{path}[]"
+                    entries.append(f"{child_path}:{type(value).__name__}")
+                    if isinstance(value, (dict, list)):
+                        pending.append((value, child_path, depth + 1))
+                    if len(entries) >= 12:
+                        break
+
+        return f"root={type(response).__name__};fields={','.join(entries) or 'none'}"
 
     @staticmethod
     def _safe_provider_error_code(response: object) -> int | None:

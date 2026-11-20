@@ -167,6 +167,62 @@ def test_nested_http_error_is_classified_and_numeric_code_is_safe(monkeypatch, c
     assert "test-console-token" not in caplog.text
 
 
+@override_settings(
+    MELIPAYAMAK_API_KEY="test-console-token",
+    MELIPAYAMAK_SENDER="5000400004",
+    MELIPAYAMAK_TIMEOUT_SECONDS=7,
+)
+def test_http_error_logs_only_allowlisted_response_shape(monkeypatch, caplog):
+    private_phone = "09123456789"
+    private_token = "private-token-value"
+    private_message = "private provider detail"
+
+    def fail(*args, **kwargs):
+        body = {
+            "errors": [{"message": private_message, "customer_phone": private_phone}],
+            "meta": {"error_code": "2401", "access_token": private_token},
+        }
+        raise HTTPError(
+            "https://console.melipayamak.com/api/send/simple/test-console-token",
+            400,
+            "bad request",
+            hdrs=None,
+            fp=BytesIO(json.dumps(body).encode("utf-8")),
+        )
+
+    monkeypatch.setattr("apps.accounts.delivery.urlopen", fail)
+    with caplog.at_level("WARNING", logger="apps.accounts.delivery"):
+        with pytest.raises(OTPDeliveryError):
+            MelipayamakDelivery().send(phone=private_phone, code="123456", purpose="login")
+
+    assert "provider_error_shape=root=dict" in caplog.text
+    assert "$.errors:list" in caplog.text
+    assert "$.meta:dict" in caplog.text
+    assert "$.errors[].message:str" in caplog.text
+    assert "$.errors[].other:str" in caplog.text
+    assert private_phone not in caplog.text
+    assert private_token not in caplog.text
+    assert private_message not in caplog.text
+    assert "123456" not in caplog.text
+    assert "test-console-token" not in caplog.text
+
+
+def test_safe_provider_error_shape_bounds_depth_and_collection_size():
+    response = {
+        "errors": [{"detail": {"message": "secret", "customer_name": "private"}}],
+        "unknown_sensitive_field_name": "private",
+    }
+
+    shape = MelipayamakDelivery._safe_provider_error_shape(response)
+
+    assert shape.startswith("root=dict;fields=")
+    assert "$.errors:list" in shape
+    assert "$.errors[].detail:dict" in shape
+    assert "unknown_sensitive_field_name" not in shape
+    assert "secret" not in shape
+    assert "private" not in shape
+
+
 def test_provider_error_classifier_handles_nested_values_and_bounds_depth():
     nested = {"errors": [{"detail": {"message": "sender is not allowed"}}]}
     assert MelipayamakDelivery._classify_provider_error(nested) == "sender"
