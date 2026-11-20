@@ -106,6 +106,36 @@ def test_http_error_logs_status_without_request_url_or_body(monkeypatch, caplog)
 
 
 @override_settings(
+    MELIPAYAMAK_API_KEY="test-console-token",
+    MELIPAYAMAK_SENDER="5000400004",
+    MELIPAYAMAK_TIMEOUT_SECONDS=7,
+)
+def test_http_error_classifies_provider_body_without_logging_contents(monkeypatch, caplog):
+    private_detail = "Invalid sender for phone 09123456789 and code 123456"
+
+    def fail(*args, **kwargs):
+        raise HTTPError(
+            "https://console.melipayamak.com/api/send/simple/test-console-token",
+            400,
+            "bad request",
+            hdrs=None,
+            fp=BytesIO(json.dumps({"status": private_detail}).encode("utf-8")),
+        )
+
+    monkeypatch.setattr("apps.accounts.delivery.urlopen", fail)
+    with caplog.at_level("WARNING", logger="apps.accounts.delivery"):
+        with pytest.raises(OTPDeliveryError):
+            MelipayamakDelivery().send(phone="09123456789", code="123456", purpose="login")
+
+    assert "http_status=400" in caplog.text
+    assert "provider_error_category=sender" in caplog.text
+    assert "09123456789" not in caplog.text
+    assert "123456" not in caplog.text
+    assert "Invalid sender" not in caplog.text
+    assert "test-console-token" not in caplog.text
+
+
+@override_settings(
     MELIPAYAMAK_API_KEY="",
     MELIPAYAMAK_SENDER="",
     MELIPAYAMAK_TIMEOUT_SECONDS=7,
