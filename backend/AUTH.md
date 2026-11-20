@@ -11,8 +11,9 @@ Secure in production). **No tokens in localStorage.** CSRF is enforced on every 
 ## Endpoints
 | Method | Path | Auth | Success |
 |---|---|---|---|
-| POST | `/otp/request/` `{phone}` | public | `202 {"detail": "OTP request accepted."}` (identical for known/unknown phones) |
-| POST | `/otp/verify/` `{phone, code, remember_me?}` | public | `200 {"user": {id, phone, is_staff}, "is_new_user": bool}` + session cookie |
+| POST | `/password/login/` `{phone, password}` | public | `202` and sends a login OTP; does not create an authenticated session |
+| POST | `/otp/request/` `{phone, purpose: signup\|password_reset}` | public | `202` (same response for eligible/ineligible phones) |
+| POST | `/otp/verify/` `{phone, purpose, code, remember_me?}` | public | `200 {user, is_new_user}` + session cookie; login purpose requires a preceding successful password login |
 | GET | `/me/` | session | `200 {id, phone, is_staff}`; `401` if anonymous |
 | POST | `/logout/` | session | `204`; deletes the server-side session (idempotent) |
 
