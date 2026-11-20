@@ -10,7 +10,7 @@ const otpLogCommand = process.env.E2E_OTP_LOG_COMMAND;
 const PRODUCT = "e2e-hoodie-10";
 
 async function readOtp(canonicalPhone: string): Promise<string> {
-  const prefix = `phone=${canonicalPhone} purpose=login code=`;
+  const prefix = `phone=${canonicalPhone} purpose=signup code=`;
   for (let i = 0; i < 20; i++) {
     const log = execSync(otpLogCommand!, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
     const line = log.split(/\r?\n/).filter((entry) => entry.includes(prefix)).at(-1);
