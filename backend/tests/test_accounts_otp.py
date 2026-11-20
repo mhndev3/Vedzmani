@@ -25,7 +25,7 @@ def test_valid_otp_request_sends_code_and_stores_only_a_hash(api):
     assert sent["phone"] == CANON and sent["code"].isdigit() and len(sent["code"]) == 6
 
     challenge = OTPChallenge.objects.get()
-    assert challenge.phone == CANON and challenge.purpose == "login"
+    assert challenge.phone == CANON and challenge.purpose == "signup"
     assert challenge.attempt_count == 0 and challenge.consumed_at is None
     assert len(challenge.code_hash) == 64 and sent["code"] not in challenge.code_hash
     ttl = challenge.expires_at - challenge.created_at

@@ -53,7 +53,7 @@ def test_sends_backend_generated_code_through_console_simple_api(monkeypatch):
     assert captured["payload"] == {
         "from": "5000400004",
         "to": "09123456789",
-        "text": "123456",
+        "text": "کاربر گرامی، کد ورود شما: 123456\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
     }
 
 
@@ -280,3 +280,28 @@ def test_unexpected_network_failure_is_sanitized_and_classified(monkeypatch, cap
     assert "error_type=RuntimeError" in caplog.text
     assert "secret-token" not in caplog.text
     assert "09123456789" not in caplog.text
+
+
+
+@override_settings(
+    MELIPAYAMAK_API_KEY="test-console-token",
+    MELIPAYAMAK_SENDER="5000400004",
+    MELIPAYAMAK_TIMEOUT_SECONDS=7,
+)
+def test_each_otp_purpose_uses_its_own_persian_message(monkeypatch):
+    payloads = []
+
+    def fake_urlopen(request, timeout):
+        payloads.append(json.loads(request.data.decode("utf-8"))["text"])
+        return _FakeResponse({"recId": "1234567890123456", "status": ""})
+
+    monkeypatch.setattr("apps.accounts.delivery.urlopen", fake_urlopen)
+    delivery = MelipayamakDelivery()
+    for purpose in ("login", "signup", "password_reset"):
+        delivery.send(phone="09123456789", code="123456", purpose=purpose)
+
+    assert payloads == [
+        "کاربر گرامی، کد ورود شما: 123456\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
+        "کاربر گرامی، کد تأیید ثبت‌نام شما: 123456\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
+        "کاربر گرامی، کد بازیابی رمز عبور شما: 123456\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
+    ]

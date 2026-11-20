@@ -40,9 +40,14 @@ def _hash_code(*, code: str, salt: str, phone: str, purpose: str) -> str:
 
 
 def request_otp(*, phone: str, purpose: str, ip: str) -> None:
-    """Issue and deliver a code. Never reveals whether the phone has an
-    account (the User table is not touched here at all)."""
+    """Issue a purpose-bound code without revealing account existence."""
     ratelimit.enforce_otp_request(ip, phone)
+    account = User.objects.filter(phone=phone).first()
+    eligible = ((purpose == OTPChallenge.Purpose.SIGNUP and account is None) or
+                (purpose in (OTPChallenge.Purpose.LOGIN, OTPChallenge.Purpose.PASSWORD_RESET)
+                 and account is not None and not account.is_staff))
+    if not eligible:
+        return
 
     code = f"{secrets.randbelow(10**CODE_LENGTH):0{CODE_LENGTH}d}"
     salt = secrets.token_hex(8)
@@ -106,8 +111,18 @@ def verify_otp(*, phone: str, purpose: str, code: str, ip: str) -> tuple[User, b
             if hmac.compare_digest(expected, challenge.code_hash):
                 challenge.consumed_at = now
                 challenge.save(update_fields=["consumed_at"])
-                user, created = User.objects.get_or_create_by_phone(phone)
-                if not user.is_active:
+                if purpose == OTPChallenge.Purpose.SIGNUP:
+                    if User.objects.filter(phone=phone).exists():
+                        failure = OTPInvalid
+                    else:
+                        user, created = User.objects.get_or_create_by_phone(phone)
+                        if not created:
+                            failure = OTPInvalid
+                else:
+                    user = User.objects.filter(phone=phone, is_staff=False).first()
+                    if user is None:
+                        failure = OTPInvalid
+                if failure is None and user is not None and not user.is_active:
                     failure = AccountDisabled
             else:
                 challenge.attempt_count += 1

@@ -11,8 +11,9 @@ Secure in production). **No tokens in localStorage.** CSRF is enforced on every 
 ## Endpoints
 | Method | Path | Auth | Success |
 |---|---|---|---|
-| POST | `/otp/request/` `{phone}` | public | `202 {"detail": "OTP request accepted."}` (identical for known/unknown phones) |
-| POST | `/otp/verify/` `{phone, code, remember_me?}` | public | `200 {"user": {id, phone, is_staff}, "is_new_user": bool}` + session cookie |
+| POST | `/password/login/` `{phone, password}` | public | `202` and sends a login OTP; does not create an authenticated session |
+| POST | `/otp/request/` `{phone, purpose: signup\|password_reset}` | public | `202` (same response for eligible/ineligible phones) |
+| POST | `/otp/verify/` `{phone, purpose, code, remember_me?}` | public | `200 {user, is_new_user}` + session cookie; login purpose requires a preceding successful password login |
 | GET | `/me/` | session | `200 {id, phone, is_staff}`; `401` if anonymous |
 | POST | `/logout/` | session | `204`; deletes the server-side session (idempotent) |
 
@@ -161,7 +162,8 @@ container shows the Cloudflare ranges; (2) the Nginx access log shows real clien
 - `main`'s Compose still runs `config.settings.dev` (non-Secure cookies, OTP codes and phones logged by `ConsoleDelivery`); the
   production compose with `config.settings.prod` exists only on unmerged infra branches.
 
-## Customer password authentication
-- `POST /password/login/` accepts `{phone, password}`. Phone is normalized by the existing `PhoneField`; Django's configured password hasher and `ModelBackend` authenticate the customer. Staff accounts are refused here and continue to use the separate Django Admin password gate. Success establishes a normal Django session and rotates the session key.
-- `POST /password/set/` accepts `{password}` for an authenticated non-staff customer whose current session was established by OTP. Password login is rate-limited to 10 attempts per normalized phone and 30 per client IP in a 10-minute window. Passwords must be at least 10 characters and pass Django's configured password validators. The endpoint is CSRF-protected and does not return password data.
-- Signup remains OTP-first. A newly created account receives an unusable password until the customer sets one through `/password/set/`. Forgot-password uses the existing OTP request/verify flow, then the same password-set endpoint. Real SMS delivery remains unavailable until the Melipayamak adapter is explicitly configured and live delivery is verified; no development OTP is exposed in production.
+## Customer password authentication and OTP purposes
+- `POST /password/login/` validates phone + password, invalidates any prior customer session, and sends a purpose=`login` OTP. It returns `202`; `/me/` remains `401` until the code is verified. The login OTP endpoint cannot be requested directly: verification also requires a server-side pending marker created only after successful password authentication.
+- `POST /otp/request/` accepts purpose `signup` or `password_reset`; `/otp/verify/` accepts `signup`, `password_reset`, or `login`. Signup codes create only previously absent accounts; reset codes apply only to existing accounts. Ineligible requests return the same `202` response and do not send a message, avoiding account enumeration.
+- Melipayamak sends distinct Persian messages for login, registration, and password recovery. Each includes the code, a warning not to share it, and the Vedzmani name.
+- `POST /password/set/` accepts `{password}` only after signup or password-reset verification, not after ordinary login OTP. Passwords must be at least 10 characters and pass Django's configured password validators. Password login is rate-limited to 10 attempts per normalized phone and 30 per client IP in a 10-minute window.

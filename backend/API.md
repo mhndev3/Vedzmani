@@ -18,7 +18,7 @@ to all of `/api/` and the known inconsistencies. Pinned by `tests/test_api_contr
 
 ## Auth / CSRF
 - Session cookie auth. Call `GET /api/auth/csrf/` once, then send the token as `X-CSRFToken` on every unsafe request.
-- Customer signup and password recovery use `POST /api/auth/otp/request/` + `POST /api/auth/otp/verify/`; new customers set a password with `POST /api/auth/password/set/` after OTP verification. Returning customers may use `POST /api/auth/password/login/` with their phone and password. Staff login remains separate at Django Admin. See `AUTH.md` for validation, rate limits and provider constraints.
+- Signup and password recovery use purpose-bound OTP request/verify. Password login first validates phone + password, then sends a login OTP; no authenticated session is created until that code is verified. Staff login remains separate at Django Admin. See `AUTH.md` for details.
 - A missing/invalid token is always 403 `csrf_failed` (message fixed; the reason is not echoed).
 - `GET /api/auth/me/` is `Cache-Control: no-store`-class (never cacheable); cart and orders are the same.
 

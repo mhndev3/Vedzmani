@@ -1,7 +1,9 @@
 import pytest
 from django.contrib.sessions.models import Session
+from django.core.cache import cache
 from django.test import Client
 
+from apps.accounts.delivery import InMemoryDelivery
 from apps.accounts.models import User
 
 pytestmark = pytest.mark.django_db
@@ -88,9 +90,11 @@ def test_inactive_user_cannot_authenticate(api):
 def test_password_login_authenticates_phone_and_password(api):
     user = User.objects.create_user(PHONE, password="Secure-Vedzmani-2026!")
     response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
-    assert response.status_code == 200
-    assert response.json()["user"]["id"] == user.pk
-    assert api.client.session.get_expire_at_browser_close() is True
+    assert response.status_code == 202
+    assert api.get("/api/auth/me/").status_code == 401
+    verified = api.verify(api.last_code(), purpose="login")
+    assert verified.status_code == 200
+    assert verified.json()["user"]["id"] == user.pk
     assert api.get("/api/auth/me/").status_code == 200
 
 
@@ -110,8 +114,11 @@ def test_customer_can_set_password_only_after_otp_verification(api):
     second_set = api.post("/api/auth/password/set/", {"password": "Another-Secure-Password-2026!"})
     assert second_set.status_code == 403
     api.post("/api/auth/logout/")
+    cache.clear()  # the signup OTP cooldown is shared with later login OTP requests
     login_response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
-    assert login_response.status_code == 200
+    assert login_response.status_code == 202
+    assert api.get("/api/auth/me/").status_code == 401
+    assert api.verify(api.last_code(), purpose="login").status_code == 200
 
 
 def test_password_setup_requires_otp_authenticated_session(api):
@@ -130,3 +137,23 @@ def test_password_login_is_rate_limited(api):
     limited = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "wrong-password"})
     assert limited.status_code == 429
     assert limited.json()["error"]["code"] == "rate_limited"
+
+
+
+def test_password_login_otp_does_not_allow_password_change(api):
+    user = User.objects.create_user(PHONE, password="Secure-Vedzmani-2026!")
+    response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
+    assert response.status_code == 202
+    assert api.get("/api/auth/me/").status_code == 401
+    assert api.verify(api.last_code(), purpose="login").status_code == 200
+    denied = api.post("/api/auth/password/set/", {"password": "Another-Secure-Password-2026!"})
+    assert denied.status_code == 403
+    assert user.check_password("Secure-Vedzmani-2026!")
+
+
+def test_signup_request_for_existing_phone_does_not_send_or_authenticate(api):
+    user = User.objects.create_user(PHONE)
+    response = api.post("/api/auth/otp/request/", {"phone": PHONE, "purpose": "signup"})
+    assert response.status_code == 202
+    assert not api.client.session.get("_auth_user_id")
+    assert not InMemoryDelivery.outbox
