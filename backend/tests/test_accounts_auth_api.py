@@ -134,3 +134,24 @@ def test_password_login_is_rate_limited(api):
     limited = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "wrong-password"})
     assert limited.status_code == 429
     assert limited.json()["error"]["code"] == "rate_limited"
+
+
+
+def test_password_login_otp_does_not_allow_password_change(api):
+    user = User.objects.create_user(PHONE, password="Secure-Vedzmani-2026!")
+    response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
+    assert response.status_code == 202
+    assert api.get("/api/auth/me/").status_code == 401
+    assert api.verify(api.last_code(), purpose="login").status_code == 200
+    denied = api.post("/api/auth/password/set/", {"password": "Another-Secure-Password-2026!"})
+    assert denied.status_code == 403
+    assert user.check_password("Secure-Vedzmani-2026!")
+
+
+def test_signup_request_for_existing_phone_does_not_send_or_authenticate(api):
+    user = User.objects.create_user(PHONE)
+    response = api.post("/api/auth/otp/request/", {"phone": PHONE, "purpose": "signup"})
+    assert response.status_code == 202
+    assert not api.client.session.get("_auth_user_id")
+    assert not api.client.cookies.get("sessionid")
+    assert not __import__("apps.accounts.delivery", fromlist=["InMemoryDelivery"]).InMemoryDelivery.outbox
