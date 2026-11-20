@@ -130,12 +130,12 @@ def test_concurrent_user_creation_for_one_phone_yields_one_user():
 
 @pytest.mark.django_db(transaction=True)
 def test_otp_cannot_be_consumed_twice_under_concurrency():
-    services.request_otp(phone="+989123456789", purpose="login", ip="203.0.113.9")
+    services.request_otp(phone="+989123456789", purpose="signup", ip="203.0.113.9")
     code = InMemoryDelivery.outbox[-1]["code"]
 
     def attempt(i):
         try:
-            return services.verify_otp(phone="+989123456789", purpose="login", code=code, ip="203.0.113.9")
+            return services.verify_otp(phone="+989123456789", purpose="signup", code=code, ip="203.0.113.9")
         except OTPConsumed:
             return None
 
