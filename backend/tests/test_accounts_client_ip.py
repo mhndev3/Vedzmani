@@ -97,11 +97,11 @@ def test_rotating_a_spoofed_prefix_does_not_buy_new_otp_request_buckets(api, set
     settings.OTP_REQUEST_COOLDOWN_SECONDS = 0
     settings.OTP_REQUEST_IP_LIMIT = 2
     statuses = [
-        _post(api, "/api/auth/otp/request/", {"phone": f"0912000000{i}"}, xff=f"10.0.0.{i}, 203.0.113.7").status_code
+        _post(api, "/api/auth/otp/request/", {"phone": f"0912000000{i}", "purpose": "signup"}, xff=f"10.0.0.{i}, 203.0.113.7").status_code
         for i in range(4)
     ]
     assert statuses == [202, 202, 429, 429]  # same last entry -> same bucket, whatever the client prepended
-    other_client = _post(api, "/api/auth/otp/request/", {"phone": "09120000099"}, xff="198.51.100.20")
+    other_client = _post(api, "/api/auth/otp/request/", {"phone": "09120000099", "purpose": "signup"}, xff="198.51.100.20")
     assert other_client.status_code == 202  # a genuinely different address has its own bucket
 
 
@@ -113,7 +113,7 @@ def test_known_limitation_a_direct_hit_that_bypasses_nginx_chooses_its_own_ident
     settings.OTP_REQUEST_COOLDOWN_SECONDS = 0
     settings.OTP_REQUEST_IP_LIMIT = 1
     statuses = [
-        _post(api, "/api/auth/otp/request/", {"phone": f"0912111111{i}"}, xff=f"198.51.100.{i}", remote="203.0.113.50").status_code
+        _post(api, "/api/auth/otp/request/", {"phone": f"0912111111{i}", "purpose": "signup"}, xff=f"198.51.100.{i}", remote="203.0.113.50").status_code
         for i in range(3)
     ]
     assert statuses == [202, 202, 202]  # the per-IP limit never triggers: each request claims a new "client"
@@ -125,7 +125,7 @@ def test_users_behind_one_unresolved_edge_address_share_one_verify_budget(api, s
     the others. Safe against spoofing, but an availability risk until real client IPs reach Nginx."""
     settings.OTP_VERIFY_IP_LIMIT = 3
     edge = "104.16.0.1"
-    abuser = [_post(api, "/api/auth/otp/verify/", {"phone": "09121234567", "code": "000000"}, xff=edge).status_code for _ in range(4)]
+    abuser = [_post(api, "/api/auth/otp/verify/", {"phone": "09121234567", "code": "000000", "purpose": "signup"}, xff=edge).status_code for _ in range(4)]
     assert abuser[-1] == 429
-    innocent = _post(api, "/api/auth/otp/verify/", {"phone": "09127654321", "code": "000000"}, xff=edge)
+    innocent = _post(api, "/api/auth/otp/verify/", {"phone": "09127654321", "code": "000000", "purpose": "signup"}, xff=edge)
     assert innocent.status_code == 429  # a different real user, same edge address
