@@ -53,7 +53,7 @@ def test_sends_backend_generated_code_through_console_simple_api(monkeypatch):
     assert captured["payload"] == {
         "from": "5000400004",
         "to": "09123456789",
-        "text": "کاربر گرامی، کد ورود شما: 123456\\nاین کد را در اختیار هیچ‌کس قرار ندهید.\\nVedzmani",
+        "text": "کاربر گرامی، کد ورود شما: 123456\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
     }
 
 
