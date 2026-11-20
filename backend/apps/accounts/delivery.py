@@ -80,7 +80,19 @@ class MelipayamakDelivery(OTPDelivery):
                     )
                     raise OTPDeliveryError("Melipayamak returned an invalid response.") from None
         except HTTPError as exc:
-            logger.warning("Melipayamak HTTP error (http_status=%s)", exc.code)
+            # Provider error bodies may contain arbitrary data. Read a small bounded
+            # response and log only a coarse allowlisted category, never its text.
+            try:
+                error_body = exc.read(4096)
+                provider_error = json.loads(error_body.decode("utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                provider_error = None
+            category = self._classify_provider_error(provider_error)
+            logger.warning(
+                "Melipayamak HTTP error (http_status=%s provider_error_category=%s)",
+                exc.code,
+                category,
+            )
             raise OTPDeliveryError("Melipayamak request failed.") from None
         except URLError as exc:
             # Log only the reason class; the reason text can contain sensitive URL data.
@@ -111,6 +123,35 @@ class MelipayamakDelivery(OTPDelivery):
                 type(result).__name__,
             )
             raise OTPDeliveryError("Melipayamak rejected the OTP message.")
+
+    @staticmethod
+    def _classify_provider_error(response: object) -> str:
+        """Map provider error text to a coarse category without logging its contents."""
+        if not isinstance(response, dict):
+            return "unparseable_response"
+
+        candidates = [
+            response.get(key)
+            for key in ("status", "message", "error", "detail")
+            if isinstance(response.get(key), str)
+        ]
+        message = " ".join(candidates).casefold()
+        if not message:
+            return "missing_error_detail"
+
+        categories = {
+            "ip_restriction": ("ip", "whitelist", "آی پی", "آی‌پی", "مجاز"),
+            "credentials": ("token", "api key", "apikey", "auth", "credential", "احراز"),
+            "sender": ("sender", "from", "فرستنده"),
+            "recipient": ("recipient", "mobile", "phone", " شماره", "گیرنده"),
+            "credit": ("credit", "balance", "اعتبار", "شارژ"),
+            "message_content": ("message", "text", "متن", "پیام"),
+            "request_format": ("invalid", "bad request", "required", "format", "پارامتر", "درخواست"),
+        }
+        for category, keywords in categories.items():
+            if any(keyword in message for keyword in keywords):
+                return category
+        return "provider_rejected_request"
 
     @staticmethod
     def _normalize_iranian_mobile(phone: str) -> str:
