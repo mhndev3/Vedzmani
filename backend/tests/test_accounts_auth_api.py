@@ -88,9 +88,11 @@ def test_inactive_user_cannot_authenticate(api):
 def test_password_login_authenticates_phone_and_password(api):
     user = User.objects.create_user(PHONE, password="Secure-Vedzmani-2026!")
     response = api.post("/api/auth/password/login/", {"phone": PHONE, "password": "Secure-Vedzmani-2026!"})
-    assert response.status_code == 200
-    assert response.json()["user"]["id"] == user.pk
-    assert api.client.session.get_expire_at_browser_close() is True
+    assert response.status_code == 202
+    assert api.get("/api/auth/me/").status_code == 401
+    verified = api.verify(api.last_code(), purpose="login")
+    assert verified.status_code == 200
+    assert verified.json()["user"]["id"] == user.pk
     assert api.get("/api/auth/me/").status_code == 200
 
 
