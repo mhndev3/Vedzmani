@@ -176,7 +176,7 @@ class _BrokenCache:
 def test_otp_request_fails_closed_when_the_rate_limit_store_is_down(monkeypatch):
     monkeypatch.setattr(ratelimit, "cache", _BrokenCache())
     with pytest.raises(ConnectionError):
-        services.request_otp(phone="+989123456789", purpose="login", ip="203.0.113.9")
+        services.request_otp(phone="+989123456789", purpose="signup", ip="203.0.113.9")
     assert not InMemoryDelivery.outbox and not OTPChallenge.objects.exists()  # nothing created, nothing sent
 
 
@@ -185,7 +185,7 @@ def test_otp_verify_fails_closed_when_the_rate_limit_store_is_down(monkeypatch):
     code = InMemoryDelivery.outbox[-1]["code"]
     monkeypatch.setattr(ratelimit, "cache", _BrokenCache())
     with pytest.raises(ConnectionError):
-        services.verify_otp(phone="+989123456789", purpose="login", code=code, ip="203.0.113.9")
+        services.verify_otp(phone="+989123456789", purpose="signup", code=code, ip="203.0.113.9")
     challenge = OTPChallenge.objects.get()
     assert challenge.consumed_at is None and not User.objects.exists()  # no login without the abuse controls
 
