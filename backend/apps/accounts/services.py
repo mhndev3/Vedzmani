@@ -42,9 +42,10 @@ def _hash_code(*, code: str, salt: str, phone: str, purpose: str) -> str:
 def request_otp(*, phone: str, purpose: str, ip: str) -> None:
     """Issue a purpose-bound code without revealing account existence."""
     ratelimit.enforce_otp_request(ip, phone)
-    exists = User.objects.filter(phone=phone, is_staff=False).exists()
-    eligible = ((purpose == OTPChallenge.Purpose.SIGNUP and not exists) or
-                (purpose in (OTPChallenge.Purpose.LOGIN, OTPChallenge.Purpose.PASSWORD_RESET) and exists))
+    account = User.objects.filter(phone=phone).first()
+    eligible = ((purpose == OTPChallenge.Purpose.SIGNUP and account is None) or
+                (purpose in (OTPChallenge.Purpose.LOGIN, OTPChallenge.Purpose.PASSWORD_RESET)
+                 and account is not None and not account.is_staff))
     if not eligible:
         return
 
