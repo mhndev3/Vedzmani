@@ -100,7 +100,9 @@ class OTPChallenge(models.Model):
     """One issued one-time code. Only an HMAC of the code is stored."""
 
     class Purpose(models.TextChoices):
-        LOGIN = "login", "Login / signup"
+        LOGIN = "login", "Password login second factor"
+        SIGNUP = "signup", "New customer registration"
+        PASSWORD_RESET = "password_reset", "Password recovery"
 
     phone = models.CharField(max_length=16)
     purpose = models.CharField(max_length=32, choices=Purpose.choices)
