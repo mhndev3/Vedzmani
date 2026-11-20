@@ -233,7 +233,7 @@ def test_purge_skips_a_locked_row_without_waiting_and_picks_it_up_next_run(kind)
 
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_purges_and_verification_never_lose_or_reuse_a_valid_code():
-    services.request_otp(phone=PHONE, purpose="login", ip="203.0.113.9")
+    services.request_otp(phone=PHONE, purpose="signup", ip="203.0.113.9")
     code = InMemoryDelivery.outbox[-1]["code"]
     for i in range(30):
         make_challenge(expires_at=ago(days=60), phone=f"+98912000{i:04d}")
@@ -252,7 +252,7 @@ def test_concurrent_purges_and_verification_never_lose_or_reuse_a_valid_code():
     for t in threads:
         t.start()
     try:
-        user, created = services.verify_otp(phone=PHONE, purpose="login", code=code, ip="203.0.113.9")
+        user, created = services.verify_otp(phone=PHONE, purpose="signup", code=code, ip="203.0.113.9")
     finally:
         stop.set()
         for t in threads:
