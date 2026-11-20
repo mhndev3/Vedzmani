@@ -22,10 +22,12 @@ class PhoneField(serializers.CharField):
 
 class OTPRequestSerializer(serializers.Serializer):
     phone = PhoneField()
+    purpose = serializers.ChoiceField(choices=["signup", "password_reset"])
 
 
 class OTPVerifySerializer(serializers.Serializer):
     phone = PhoneField()
+    purpose = serializers.ChoiceField(choices=["login", "signup", "password_reset"])
     code = serializers.CharField(max_length=16, trim_whitespace=True)
     remember_me = serializers.BooleanField(required=False, default=False)
 
