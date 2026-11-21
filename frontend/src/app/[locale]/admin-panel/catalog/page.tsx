@@ -72,33 +72,55 @@ export default function AdminCatalogPage() {
   const [stockChanges, setStockChanges] = useState<Record<number, string>>({});
   const [stockReasons, setStockReasons] = useState<Record<number, string>>({});
 
+  const loadCatalog = useCallback(async () => {
+    const [p, c, co, s, v, vs] = await Promise.all([
+      getAll<Product>("/api/admin/catalog/products/"),
+      getAll<Category>("/api/admin/catalog/categories/"),
+      getAll<Collection>("/api/admin/catalog/collections/"),
+      getAll<Size>("/api/admin/catalog/sizes/"),
+      getAll<Color>("/api/admin/catalog/colors/"),
+      getAll<VariantSize>("/api/admin/catalog/variant-sizes/"),
+    ]);
+    return { products: p, categories: c, collections: co, sizes: s, colors: v, variantSizes: vs };
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [p, c, co, s, v, vs] = await Promise.all([
-        getAll<Product>("/api/admin/catalog/products/"),
-        getAll<Category>("/api/admin/catalog/categories/"),
-        getAll<Collection>("/api/admin/catalog/collections/"),
-        getAll<Size>("/api/admin/catalog/sizes/"),
-        getAll<Color>("/api/admin/catalog/colors/"),
-        getAll<VariantSize>("/api/admin/catalog/variant-sizes/"),
-      ]);
-      setProducts(p);
-      setCategories(c);
-      setCollections(co);
-      setSizes(s);
-      setColors(v);
-      setVariantSizes(vs);
-      setSelected((current) => current ? p.find((item) => item.id === current.id) ?? null : null);
+      const data = await loadCatalog();
+      setProducts(data.products);
+      setCategories(data.categories);
+      setCollections(data.collections);
+      setSizes(data.sizes);
+      setColors(data.colors);
+      setVariantSizes(data.variantSizes);
+      setSelected((current) => current ? data.products.find((item) => item.id === current.id) ?? null : null);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadCatalog]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    let cancelled = false;
+    void loadCatalog().then((data) => {
+      if (cancelled) return;
+      setProducts(data.products);
+      setCategories(data.categories);
+      setCollections(data.collections);
+      setSizes(data.sizes);
+      setColors(data.colors);
+      setVariantSizes(data.variantSizes);
+      setLoading(false);
+    }).catch((e: unknown) => {
+      if (!cancelled) setError(errorMessage(e));
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [loadCatalog]);
 
   const visibleProducts = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
