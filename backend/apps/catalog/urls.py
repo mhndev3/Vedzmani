@@ -1,10 +1,10 @@
 from django.urls import path
 
 from . import views
-from .homepage_public import HomepageSectionsPublicView
+from .homepage_public import HomepageSectionsPublicView\nfrom .homepage_banner_public import HomepageBannersPublicView
 
 urlpatterns = [
-    path("homepage-sections/", HomepageSectionsPublicView.as_view(), name="catalog-homepage-sections"),
+    path("homepage-sections/", HomepageSectionsPublicView.as_view(), name="catalog-homepage-sections"),\n    path("homepage-banners/", HomepageBannersPublicView.as_view(), name="catalog-homepage-banners"),
     path("filters/", views.FilterOptionsView.as_view(), name="catalog-filter-options"),
     path("products/", views.ProductListView.as_view(), name="catalog-product-list"),
     path("variant-products/", views.VariantProductListView.as_view(), name="catalog-variant-product-list"),
