@@ -188,6 +188,9 @@ def _finish_reversal(attempt, client, provider_state):
         elif provider_state == "REVERT":
             attempt.status = TorobPayPaymentAttempt.CANCELED
             attempt.save(update_fields=["status", "updated_at"])
+            Order.objects.filter(
+                pk=attempt.order_id, payment_status=Order.UNPAID
+            ).update(payment_status=Order.FAILED, updated_at=timezone.now())
             return True
         else:
             return False
@@ -202,6 +205,9 @@ def _finish_reversal(attempt, client, provider_state):
     attempt.provider_status = "REVERT"
     attempt.last_error_code = ""
     attempt.save(update_fields=["status", "provider_status", "last_error_code", "updated_at"])
+    Order.objects.filter(
+        pk=attempt.order_id, payment_status=Order.UNPAID
+    ).update(payment_status=Order.FAILED, updated_at=timezone.now())
     return True
 
 
