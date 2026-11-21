@@ -398,3 +398,42 @@ def test_image_build_collects_static_files_under_prod_settings_before_serving():
     assert "whitenoise.storage.CompressedManifestStaticFilesStorage" in prod_settings
     assert "mkdir -p /app/staticfiles /app/media" in dockerfile
     assert "chown app:app /app/staticfiles /app/media" in dockerfile
+
+
+def test_production_provider_environment_is_complete_and_payments_stay_disabled():
+    compose = COMPOSE.read_text(encoding="utf-8")
+    backend = _without_comments(_service_block(compose, "backend"))
+    template = _example_values()
+
+    for key in (
+        "OTP_DELIVERY_BACKEND",
+        "MELIPAYAMAK_API_KEY",
+        "MELIPAYAMAK_SENDER",
+        "MELIPAYAMAK_TIMEOUT_SECONDS",
+        "TOROBPAY_CLIENT_ID",
+        "TOROBPAY_CLIENT_SECRET",
+        "TOROBPAY_USERNAME",
+        "TOROBPAY_PASSWORD",
+    ):
+        assert re.search(rf"^\s+{key}: ", backend, re.MULTILINE), f"{key} must reach the backend"
+        assert key in template, f"{key} must be documented in .env.production.example"
+
+    assert re.search(r'^\s+ORDERS_ENABLED: "false"$', backend, re.MULTILINE)
+    assert re.search(r'^\s+SEP_PAYMENT_ENABLED: "false"$', backend, re.MULTILINE)
+    assert re.search(r'^\s+TOROBPAY_ENABLED: "false"$', backend, re.MULTILINE)
+    assert template["SEP_PAYMENT_ENABLED"].lower() == "false"
+    assert template["TOROBPAY_ENABLED"].lower() == "false"
+
+    # No live provider credentials belong in the committed production template.
+    for key in ("MELIPAYAMAK_API_KEY", "TOROBPAY_CLIENT_ID", "TOROBPAY_CLIENT_SECRET",
+                "TOROBPAY_USERNAME", "TOROBPAY_PASSWORD"):
+        value = template[key]
+        assert not value or (value.startswith("<") and value.endswith(">")), f"{key} must be blank or a placeholder"
+
+
+def test_real_environment_files_are_ignored_but_examples_are_trackable():
+    ignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert ".env" in ignore
+    assert ".env.*" in ignore
+    assert "!.env.example" in ignore
+    assert "!.env.production.example" in ignore

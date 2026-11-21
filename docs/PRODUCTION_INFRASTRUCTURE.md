@@ -64,11 +64,23 @@ actually in effect is not known (section 0).
 ## 3. Environment variables
 
 Template: `.env.production.example`. Copy it to `.env.production` on the server (git-ignored), never commit it.
-Required (compose fails fast if unset): `RELEASE_TAG`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
-`DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`, `NEXT_PUBLIC_API_URL`,
-`ORIGIN_CERT_DIR`. Optional: `PRIMARY_HOST`, `DJANGO_HSTS_SECONDS` (keep 0 until HTTPS is verified end to end).
+Always pass it explicitly with `docker compose --env-file /home/vzinfra/prod/.env.production ...`; Compose does not
+automatically load a file named `.env.production`. Keep the real file outside every release checkout and set its
+permissions to `600`.
+
+Required (Compose fails fast if unset): `RELEASE_TAG`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+`DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`,
+`NEXT_PUBLIC_API_URL`, `ORIGIN_CERT_DIR`, `OTP_DELIVERY_BACKEND`, `MELIPAYAMAK_API_KEY`,
+`MELIPAYAMAK_SENDER`. Optional provider settings and credentials are listed in the template. The production Compose
+file hardcodes `ORDERS_ENABLED`, `SEP_PAYMENT_ENABLED` and `TOROBPAY_ENABLED` to `false`; TorobPay credentials
+can therefore be present for the OAuth-only connection check without enabling customer payments.
+
+Keep the server-local `server.override.yml` for host-specific mounts such as the populated Cloudflare real-IP file.
+Do not store credentials in that override or in a release checkout; after adopting this Compose mapping, remove
+duplicate OTP environment entries from the override. Keep the override itself outside Git.
+
 `prod.py` refuses to boot with an empty host list, a development or placeholder secret key, or a dev OTP backend.
-An automated test keeps the template and the compose file in step (section 10).
+An automated test keeps the template, provider mappings and disabled-payment defaults in step (section 10).
 
 ## 4. Cloudflare real client IP
 
