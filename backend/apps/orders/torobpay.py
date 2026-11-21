@@ -9,7 +9,7 @@ import json
 import socket
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from django.conf import settings
 from django.core.cache import cache
@@ -146,6 +146,9 @@ class TorobPayClient:
             for key in ("paymentToken", "paymentPageUrl")
         ):
             raise TorobPayError("invalid_payment_token_response")
+        page_url = urlsplit(response["paymentPageUrl"])
+        if page_url.scheme != "https" or not page_url.hostname or page_url.username or page_url.password:
+            raise TorobPayError("invalid_payment_page_url")
         return response
 
     def verify(self, payment_token):
