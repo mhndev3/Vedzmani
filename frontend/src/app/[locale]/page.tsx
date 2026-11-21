@@ -17,10 +17,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <HomepageHeroSlider />
       {content.sections.length > 0 ? content.sections.map((section) => (
         section.section_type === "categories" ? (
-          <HomeCategoryGrid key={section.id} locale={locale} categories={section.categories} title={section.title} eyebrow={section.eyebrow} />
+          <HomeCategoryGrid key={section.id} sectionId={`home-categories-${section.id}`} locale={locale} categories={section.categories} title={section.title} eyebrow={section.eyebrow} />
         ) : (
           <NewestProductsCarousel
             key={section.id}
+            sectionId={`home-newest-products-${section.id}`}
             locale={locale}
             t={t}
             products={section.products}
