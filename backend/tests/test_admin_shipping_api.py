@@ -58,7 +58,7 @@ def test_shipping_method_rejects_inconsistent_rates_and_delivery_windows(make_st
 
 
 def test_shipping_methods_can_be_deactivated_but_not_deleted(make_staff):
-    client = client_for(make_staff("orders.view_shippingmethod", "orders.add_shippingmethod", "orders.change_shippingmethod"))
+    client = client_for(make_staff("orders.view_shippingmethod", "orders.add_shippingmethod", "orders.change_shippingmethod", "orders.delete_shippingmethod"))
     created = client.post("/api/admin/shipping/methods/", {
         "code": "local-courier", "name": "پیک", "pricing_mode": "quote", "is_active": True,
     }, content_type="application/json")
