@@ -14,7 +14,7 @@ from rest_framework.exceptions import ValidationError
 
 from .models import ColorVariant, VariantImage
 
-MAX_UPLOAD_BYTES = 12 * 1024 * 1024
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 MAX_IMAGE_PIXELS = 40_000_000
 ACCEPTED_SOURCE_FORMATS = {"JPEG", "PNG", "WEBP"}
 
@@ -23,7 +23,7 @@ def _write_uploaded_webp(upload, variant: ColorVariant) -> tuple[str, int, int, 
     if not upload or upload.size <= 0:
         raise ValidationError({"file": "فایل تصویر خالی است."})
     if upload.size > MAX_UPLOAD_BYTES:
-        raise ValidationError({"file": "حجم هر تصویر نباید بیشتر از ۱۲ مگابایت باشد."})
+        raise ValidationError({"file": "حجم هر تصویر نباید بیشتر از ۸ مگابایت باشد."})
 
     try:
         upload.seek(0)
