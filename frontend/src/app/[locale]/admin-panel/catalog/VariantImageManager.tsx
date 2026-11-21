@@ -36,6 +36,7 @@ export default function VariantImageManager({ variantId }: { variantId: number }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [altText, setAltText] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -59,7 +60,9 @@ export default function VariantImageManager({ variantId }: { variantId: number }
       const body = new FormData();
       body.append("variant", String(variantId));
       body.append("file", file);
+      body.append("alt_text", altText);
       await apiUploadRequest<ImageItem>("/api/admin/catalog/images/upload/", body);
+      setAltText("");
       setNotice("تصویر اضافه شد و پردازش نسخه‌های بهینه آغاز شد.");
       await refresh();
     } catch (e) {
@@ -110,7 +113,11 @@ export default function VariantImageManager({ variantId }: { variantId: number }
           <h4 className="font-semibold">تصاویر این رنگ</h4>
           <p className="mt-1 text-xs text-muted-foreground">تصویر اول، تصویر اصلی کارت محصول است. فرمت‌های JPEG، PNG و WebP تا ۱۲ مگابایت پذیرفته می‌شوند.</p>
         </div>
-        <label className={buttonClass + " cursor-pointer"}>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-xs">متن جایگزین تصویر
+            <input value={altText} onChange={(event) => setAltText(event.target.value)} maxLength={200} className="mt-1 block w-52 rounded-lg border border-border bg-background px-2 py-2 text-xs" placeholder="مثلاً نمای روبه‌روی بافت" />
+          </label>
+          <label className={buttonClass + " cursor-pointer"}>
           {busy ? "در حال انجام…" : "＋ افزودن تصویر"}
           <input
             type="file"
@@ -123,7 +130,8 @@ export default function VariantImageManager({ variantId }: { variantId: number }
               void upload(file);
             }}
           />
-        </label>
+          </label>
+        </div>
       </div>
       {error && <p role="alert" className="mt-3 rounded-lg bg-destructive/10 p-2 text-xs text-destructive">{error}</p>}
       {notice && <p role="status" className="mt-3 rounded-lg bg-muted p-2 text-xs">{notice}</p>}
