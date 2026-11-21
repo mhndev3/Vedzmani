@@ -37,7 +37,10 @@ export async function generateMetadata({ params }: Pick<Props, "params">): Promi
   const { locale, slug } = await params;
   if (!isLocale(locale)) return {};
   const data = await categoryData(slug);
-  return { title: data?.name ?? getDictionary(locale).catalog.title };
+  return {
+    title: data?.name ?? getDictionary(locale).catalog.title,
+    alternates: { canonical: `/${locale}/categories/${encodeURIComponent(slug)}` },
+  };
 }
 
 export default async function CategoryPage({ params, searchParams }: Props) {
