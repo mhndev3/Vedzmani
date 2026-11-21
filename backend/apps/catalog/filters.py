@@ -155,12 +155,18 @@ def _variant_search_q(term: str) -> Q:
         collection__is_active=True,
         collection__name__icontains=term,
     )
+    # Numeric variant codes are identifiers, not free text. Match them exactly so
+    # searching for code "02" does not also return codes such as "102".
+    code_match = (
+        Q(product_code=term) | Q(product__product_code=term)
+        if term.isdigit()
+        else Q(product_code__icontains=term) | Q(product__product_code__icontains=term)
+    )
     return (
         Q(product__name__icontains=term)
         | Q(name__icontains=term)
         | Q(slug__icontains=term)
-        | Q(product_code__icontains=term)
-        | Q(product__product_code__icontains=term)
+        | code_match
         | Q(product__slug__icontains=term)
         | Q(product__description__icontains=term)
         | Q(product__category__name__icontains=term)
