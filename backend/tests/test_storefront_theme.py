@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from tests.conftest import client_for
@@ -33,7 +35,7 @@ def test_theme_draft_is_not_public_until_published(make_staff):
     draft = valid_settings()
     response = client.patch(
         "/api/admin/storefront/theme/",
-        data=__import__("json").dumps(draft),
+        data=json.dumps(draft),
         content_type="application/json",
     )
     assert response.status_code == 200, response.content
@@ -69,7 +71,7 @@ def test_theme_rejects_unapproved_tokens(make_staff, overrides):
     ))
     response = client.patch(
         "/api/admin/storefront/theme/",
-        data=__import__("json").dumps(valid_settings(**overrides)),
+        data=json.dumps(valid_settings(**overrides)),
         content_type="application/json",
     )
     assert response.status_code == 400
