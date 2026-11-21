@@ -243,3 +243,42 @@ def test_callback_amount_mismatch_is_reverted_and_never_fulfills(make_variant_si
     assert variant_size.stock_quantity == 2
     assert [call[0] for call in client.calls].count("revert") == 1
     assert not any(call[0] == "settle" for call in client.calls)
+
+
+def test_torobpay_callback_accepts_provider_form_post_and_redirects_safely():
+    from urllib.parse import urlencode
+    from unittest.mock import patch
+    from django.test import Client
+
+    transaction_id = str(uuid.uuid4())
+    payload = urlencode({
+        "transactionId": transaction_id,
+        "state": "OK",
+        "amount": "10000",
+    })
+    with patch(
+        "apps.orders.views.process_torobpay_callback",
+        return_value="paid",
+    ) as process:
+        response = Client().post(
+            "/api/orders/payment/torobpay/callback/",
+            data=payload,
+            content_type="application/x-www-form-urlencoded",
+        )
+
+    process.assert_called_once_with(
+        transaction_id=transaction_id,
+        state="OK",
+        amount="10000",
+    )
+    assert response.status_code == 302
+    assert response["Location"] == "/fa/checkout/payment-result?status=success"
+
+
+def test_torobpay_callback_get_is_non_mutating_readiness_probe():
+    from django.test import Client
+
+    response = Client().get("/api/orders/payment/torobpay/callback/")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+    assert "no-store" in response["Cache-Control"]
