@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { apiRequest, BrowserApiError } from "@/lib/browser-api";
+import VariantImageManager from "./VariantImageManager";
 
 type Page<T> = { results: T[]; next: string | null; count: number };
 type Category = { id: number; name: string; slug: string; is_active: boolean; position: number };
@@ -303,6 +304,7 @@ export default function AdminCatalogPage() {
                         })}
                         {variantSizes.filter((vs) => vs.variant === color.id).length === 0 && <p className="text-xs text-muted-foreground">هنوز سایزی برای این رنگ ثبت نشده است.</p>}
                       </div>
+                      <VariantImageManager variantId={color.id} />
                     </div>}
                   </div>)}
                   {selectedColors.length === 0 && <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">هنوز رنگی برای این محصول ثبت نشده است.</p>}
@@ -312,7 +314,7 @@ export default function AdminCatalogPage() {
           )}
         </section>
       </div>
-      <p className="mt-7 text-xs leading-6 text-muted-foreground">تغییر موجودی فقط از مسیر ثبت گردش حسابرسی‌شده انجام می‌شود. حذف سخت، آپلود و مرتب‌سازی تصاویر در این مرحله فعال نیستند و در فاز جداگانه به pipeline فعلی تصاویر متصل خواهند شد.</p>
+      <p className="mt-7 text-xs leading-6 text-muted-foreground">تغییر موجودی فقط از مسیر ثبت گردش حسابرسی‌شده انجام می‌شود. تصاویر هر رنگ جداگانه مدیریت می‌شوند و اولین تصویر، تصویر اصلی کارت محصول است.</p>
     </main>
   );
 }
