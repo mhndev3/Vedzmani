@@ -12,10 +12,12 @@ from apps.catalog.models import (
     Collection,
     ColorVariant,
     Product,
+    ProductSizeDescription,
     ProductSizeMeasurement,
     Size,
     VariantImage,
     VariantSize,
+    VariantSizeDescription,
     VariantSizeMeasurement,
 )
 from apps.inventory.models import InventoryAdjustment
@@ -28,10 +30,12 @@ from .admin_serializers import (
     ColorVariantAdminSerializer,
     InventoryAdjustmentAdminSerializer,
     ProductAdminSerializer,
+    ProductSizeDescriptionAdminSerializer,
     ProductSizeMeasurementAdminSerializer,
     SizeAdminSerializer,
     VariantImageReadSerializer,
     VariantSizeAdminSerializer,
+    VariantSizeDescriptionAdminSerializer,
     VariantSizeMeasurementAdminSerializer,
 )
 
@@ -103,6 +107,16 @@ class VariantSizeAdminViewSet(StaffModelPermissionViewSet):
 class ProductSizeMeasurementAdminViewSet(StaffModelPermissionViewSet):
     queryset = ProductSizeMeasurement.objects.select_related("product", "size")
     serializer_class = ProductSizeMeasurementAdminSerializer
+
+
+class ProductSizeDescriptionAdminViewSet(StaffModelPermissionViewSet):
+    queryset = ProductSizeDescription.objects.select_related("product", "size")
+    serializer_class = ProductSizeDescriptionAdminSerializer
+
+
+class VariantSizeDescriptionAdminViewSet(StaffModelPermissionViewSet):
+    queryset = VariantSizeDescription.objects.select_related("variant_size__variant__product", "variant_size__size")
+    serializer_class = VariantSizeDescriptionAdminSerializer
 
 
 class VariantSizeMeasurementAdminViewSet(StaffModelPermissionViewSet):
