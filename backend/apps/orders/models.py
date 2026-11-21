@@ -2,14 +2,14 @@
 
 PostgreSQL is the source of truth. An order *snapshots* everything it needs (product/color/size names,
 SKU, unit price, customer phone) so later catalog or user edits can never rewrite history. Order items keep
-a PROTECT reference to the purchased `VariantSize` (for the future inventory/restock work) and PROTECT the
+a PROTECT reference to the purchased VariantSize (for the future inventory/restock work) and PROTECT the
 user, so neither can be deleted out from under an order.
 
 Delivery details (recipient name, province, city, address, postal code) are snapshotted on the order at checkout
-(Agent 11). The delivery phone is NOT stored separately: it is `customer_phone`, the account phone at order time.
+(Agent 11). The delivery phone is NOT stored separately: it is customer_phone, the account phone at order time.
 Orders created before delivery details existed keep blank values for these columns (see ORDERS.md).
 
-`payment_status` is server-owned; only a verified provider callback can move it to `paid`. Shipping is configured separately before payments can be enabled. All monetary values use Iranian Toman.
+payment_status is server-owned; only a verified provider callback can move it to paid. Shipping is configured separately before payments can be enabled. All monetary values use Iranian Toman.
 """
 
 from django.conf import settings
@@ -27,21 +27,17 @@ class Order(models.Model):
     FAILED = "failed"
     PAYMENT_STATUS_CHOICES = [(UNPAID, "Unpaid"), (PAID, "Paid"), (FAILED, "Failed")]
 
-    # The only delivery fields a client may supply at checkout (the API serializer and the service must agree).
     DELIVERY_FIELDS = ("recipient_name", "province", "city", "address", "postal_code")
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default=UNPAID)
-    customer_phone = models.CharField(max_length=16)  # snapshot of User.phone at order time
-    # Delivery snapshot (Iran). Defaults are "" so orders that predate these columns stay valid (blank, not NULL).
+    customer_phone = models.CharField(max_length=16)
     recipient_name = models.CharField(max_length=120, default="")
     province = models.CharField(max_length=60, default="")
     city = models.CharField(max_length=60, default="")
     address = models.CharField(max_length=255, default="")
-    postal_code = models.CharField(max_length=10, default="")  # exactly 10 ASCII digits for new orders
-    # Whole-unit Decimal like the catalog/cart; sum of the item subtotals, computed on the server.
-    # Shipping is NOT included (no shipping policy exists yet), so this is not a final delivered price.
+    postal_code = models.CharField(max_length=10, default="")
     total = models.DecimalField(max_digits=18, decimal_places=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -60,14 +56,13 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     variant_size = models.ForeignKey("catalog.VariantSize", on_delete=models.PROTECT, related_name="order_items")
-    # --- snapshot: never read from the live catalog after creation ---
     product_name = models.CharField(max_length=200)
     color_name = models.CharField(max_length=60)
     size_label = models.CharField(max_length=40)
     sku = models.CharField(max_length=64)
     unit_price = models.DecimalField(max_digits=14, decimal_places=0)
     quantity = models.PositiveIntegerField()
-    subtotal = models.DecimalField(max_digits=18, decimal_places=0)  # unit_price * quantity
+    subtotal = models.DecimalField(max_digits=18, decimal_places=0)
 
     class Meta:
         ordering = ["id"]
@@ -125,7 +120,6 @@ class ShippingMethod(models.Model):
     TIPAX = "tipax"
     OTHER = "other"
     PROVIDER_CHOICES = [(POST, "Post"), (TIPAX, "Tipax"), (OTHER, "Other")]
-
     FIXED = "fixed"
     QUOTE = "quote"
     PRICING_CHOICES = [(FIXED, "Fixed tariff"), (QUOTE, "Carrier quote required")]
@@ -167,9 +161,9 @@ class ShippingMethod(models.Model):
     def __str__(self):
         return self.name
 
+
 class TorobPayPaymentAttempt(models.Model):
     """Server-owned TorobPay CPG attempt. Never stores provider credentials or raw callback bodies."""
-
     INITIATING = "initiating"
     NEW = "new"
     IPG = "ipg"
@@ -181,27 +175,17 @@ class TorobPayPaymentAttempt(models.Model):
     OUT_OF_STOCK = "out_of_stock"
     REVERSAL_PENDING = "reversal_pending"
     STATUS_CHOICES = [
-        (INITIATING, "Initiating"),
-        (NEW, "New"),
-        (IPG, "IPG"),
-        (VERIFY_FOR_W, "Verify for merchant"),
-        (SETTLE_FOR_W, "Settle for merchant"),
-        (ONGOING, "Ongoing"),
-        (FAILED, "Failed"),
-        (CANCELED, "Canceled"),
-        (OUT_OF_STOCK, "Out of stock"),
-        (REVERSAL_PENDING, "Reversal pending"),
+        (INITIATING, "Initiating"), (NEW, "New"), (IPG, "IPG"),
+        (VERIFY_FOR_W, "Verify for merchant"), (SETTLE_FOR_W, "Settle for merchant"),
+        (ONGOING, "Ongoing"), (FAILED, "Failed"), (CANCELED, "Canceled"),
+        (OUT_OF_STOCK, "Out of stock"), (REVERSAL_PENDING, "Reversal pending"),
     ]
 
-    order = models.ForeignKey(
-        Order, on_delete=models.PROTECT, related_name="torobpay_payment_attempts"
-    )
-    # Generated by Vedzmani before token creation and echoed by TorobPay on return.
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="torobpay_payment_attempts")
     merchant_transaction_id = models.UUIDField(unique=True)
-    # Provider-issued opaque token is needed for verify/status/settle/revert/cancel.
     payment_token = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    payment_page_url = models.URLField(max_length=2048, blank=True, default="")
     provider_transaction_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
-    # Order.total and all catalog/order monetary values are Toman; provider API requires Rial.
     amount_toman = models.PositiveBigIntegerField()
     amount_rial = models.PositiveBigIntegerField()
     status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=INITIATING)
@@ -217,20 +201,12 @@ class TorobPayPaymentAttempt(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [
-            models.Index(
-                fields=["order", "-created_at"], name="torob_pay_order_created_idx"
-            ),
-            models.Index(
-                fields=["status", "created_at"], name="torob_pay_status_created_idx"
-            ),
+            models.Index(fields=["order", "-created_at"], name="torob_pay_order_created_idx"),
+            models.Index(fields=["status", "created_at"], name="torob_pay_status_created_idx"),
         ]
         constraints = [
-            models.CheckConstraint(
-                condition=Q(amount_toman__gt=0), name="torobpay_amount_toman_positive"
-            ),
-            models.CheckConstraint(
-                condition=Q(amount_rial__gt=0), name="torobpay_amount_rial_positive"
-            ),
+            models.CheckConstraint(condition=Q(amount_toman__gt=0), name="torobpay_amount_toman_positive"),
+            models.CheckConstraint(condition=Q(amount_rial__gt=0), name="torobpay_amount_rial_positive"),
         ]
 
     def __str__(self) -> str:

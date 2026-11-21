@@ -1,6 +1,6 @@
 """Orders API. Authentication = existing Django session auth (401 when anonymous, CSRF on POST).
-The owner is always `request.user`. The only client input to order creation is the Iranian delivery details
-(`CheckoutSerializer`); any other key in the body (user id, total, status, payment status, phone, ...) is ignored."""
+The owner is always request.user. Client input never controls order totals or payment state.
+"""
 
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponseRedirect
@@ -18,15 +18,32 @@ from . import services
 from .models import Order
 from .payment_services import PaymentRejected, initiate_sep_payment, process_sep_callback
 from .serializers import CheckoutSerializer, OrderSerializer
+from .torobpay_services import (
+    check_torobpay_eligibility,
+    initiate_torobpay_payment,
+    process_torobpay_callback,
+)
 
 
 def _own_orders(user):
-    """Every read goes through this queryset, so another user's order can never be reached (it simply 404s).
-    Items are prefetched in one extra query; both orderings are explicit so the output is deterministic."""
+    """Every read goes through this queryset, so another user's order can never be reached."""
     return Order.objects.filter(user=user).prefetch_related("items").order_by("-created_at", "-id")
 
 
-@method_decorator(never_cache, name="dispatch")  # user-specific: never cached by browsers/proxies
+def _payment_error_response(exc):
+    unavailable = {
+        "payment_disabled", "payment_not_configured", "shipping_not_configured",
+        "provider_unavailable", "not_configured", "disabled",
+    }
+    http_status = (
+        status.HTTP_503_SERVICE_UNAVAILABLE
+        if exc.code in unavailable
+        else status.HTTP_409_CONFLICT
+    )
+    return Response({"error": {"code": exc.code}}, status=http_status)
+
+
+@method_decorator(never_cache, name="dispatch")
 class OrderListCreateView(APIView):
     def get(self, request):
         return Response(OrderSerializer(_own_orders(request.user), many=True).data)
@@ -37,8 +54,6 @@ class OrderListCreateView(APIView):
                 {"error": {"code": "orders_disabled", "message": "Order placement is temporarily disabled."}},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        # Validate BEFORE the transaction: invalid delivery details take no lock and change nothing
-        # (no order, no stock change, cart untouched). Authentication and CSRF were already enforced by DRF.
         details = CheckoutSerializer(data=request.data)
         details.is_valid(raise_exception=True)
         order = services.create_order(request.user, details.validated_data)
@@ -60,15 +75,41 @@ class SepPaymentInitiateView(APIView):
                 order, redirect_url=request.build_absolute_uri(reverse("sep-payment-callback-short"))
             )
         except PaymentRejected as exc:
-            http_status = status.HTTP_503_SERVICE_UNAVAILABLE if exc.code in {
-                "payment_disabled", "payment_not_configured", "shipping_not_configured"
-            } else status.HTTP_409_CONFLICT
-            return Response({"error": {"code": exc.code}}, status=http_status)
+            return _payment_error_response(exc)
         except Exception:
             return Response({"error": {"code": "payment_unavailable"}}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response({
             "payment_url": settings.SEP_PAYMENT_URL, "token": attempt.token,
             "res_num": attempt.res_num, "amount_rial": attempt.amount_rial,
+        })
+
+
+class TorobPayEligibilityView(APIView):
+    def get(self, request, order_id: int):
+        order = get_object_or_404(_own_orders(request.user), pk=order_id)
+        try:
+            result = check_torobpay_eligibility(order)
+        except PaymentRejected as exc:
+            return _payment_error_response(exc)
+        return Response(result)
+
+
+class TorobPayPaymentInitiateView(APIView):
+    def post(self, request, order_id: int):
+        order = get_object_or_404(_own_orders(request.user), pk=order_id)
+        try:
+            attempt = initiate_torobpay_payment(
+                order,
+                return_url=request.build_absolute_uri(reverse("torobpay-payment-callback")),
+            )
+        except PaymentRejected as exc:
+            return _payment_error_response(exc)
+        except Exception:
+            return Response({"error": {"code": "payment_unavailable"}}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({
+            "payment_url": attempt.payment_page_url,
+            "transaction_id": str(attempt.merchant_transaction_id),
+            "amount_rial": attempt.amount_rial,
         })
 
 
@@ -79,17 +120,32 @@ class SepPaymentCallbackView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        # Safe provider-configuration probe. GET never looks up or changes a payment.
         return Response({"status": "ready"})
 
     def post(self, request):
-        # SEP submits this endpoint as a browser form POST (application/x-www-form-urlencoded).
-        # DRF parses that as request.data; JSON is also accepted for controlled diagnostics.
         result = process_sep_callback(
             res_num=str(request.data.get("ResNum") or ""),
             ref_num=str(request.data.get("RefNum") or ""),
         )
-        # The provider returns the customer browser to this endpoint. Send it to a small,
-        # non-sensitive frontend result page; never trust callback fields as proof of payment.
+        page_status = "success" if result == "paid" else "pending" if result == "pending" else "failed"
+        return HttpResponseRedirect(f"/fa/checkout/payment-result?status={page_status}")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(never_cache, name="dispatch")
+class TorobPayPaymentCallbackView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        # Non-mutating reachability probe only.
+        return Response({"status": "ready"})
+
+    def post(self, request):
+        result = process_torobpay_callback(
+            transaction_id=str(request.data.get("transactionId") or ""),
+            state=str(request.data.get("state") or "").upper(),
+            amount=str(request.data.get("amount") or ""),
+        )
         page_status = "success" if result == "paid" else "pending" if result == "pending" else "failed"
         return HttpResponseRedirect(f"/fa/checkout/payment-result?status={page_status}")
