@@ -28,7 +28,7 @@ const sections = [
     description: "دسترسی مطابق مجوزهای فعلی حساب مدیریت",
     links: [
       { label: "مدیریت اختصاصی سفارش‌ها", href: "/fa/admin-panel/orders" },
-      { label: "مشتریان", href: "/admin/accounts/user/" },
+      { label: "مدیریت اختصاصی مشتریان", href: "/fa/admin-panel/customers" },
       { label: "سبدهای خرید", href: "/admin/cart/cart/" },
     ],
   },
@@ -123,6 +123,12 @@ export default function AdminWorkspacePage() {
       <Link href={"/" + locale + "/admin-panel/storefront/theme"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
         <div><h2 className="font-bold">شخصی‌سازی ظاهر فروشگاه</h2><p className="mt-1 text-sm text-muted-foreground">قالب‌های رنگ، فونت، گردی اجزا و حرکت‌های رابط کاربری</p></div>
         <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">تنظیم ظاهر ←</span>
+      </Link>
+
+
+      <Link href={"/" + locale + "/admin-panel/customers"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
+        <div><h2 className="font-bold">مدیریت مشتریان</h2><p className="mt-1 text-sm text-muted-foreground">فهرست حساب‌ها، وضعیت عضویت و خلاصه سفارش‌ها با رعایت حریم خصوصی</p></div>
+        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مشاهده مشتریان ←</span>
       </Link>
 
       <Link href={"/" + locale + "/admin-panel/shipping"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">\n        <div><h2 className="font-bold">مدیریت روش‌های ارسال</h2><p className="mt-1 text-sm text-muted-foreground">تعریف شرکت حمل، تعرفه‌ها، محدوده سرویس‌دهی و زمان تحویل</p></div>\n        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت ارسال ←</span>\n      </Link>\n\n      <Link href={"/" + locale + "/admin-panel/homepage"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">
