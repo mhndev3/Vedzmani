@@ -197,3 +197,12 @@ SEP_TOKEN_URL = env("SEP_TOKEN_URL", "https://sep.shaparak.ir/onlinepg/onlinepg"
 SEP_PAYMENT_URL = env("SEP_PAYMENT_URL", "https://sep.shaparak.ir/OnlinePG/OnlinePG")
 SEP_VERIFY_URL = env("SEP_VERIFY_URL", "https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/VerifyTransaction")
 SEP_REVERSE_URL = env("SEP_REVERSE_URL", "https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/ReverseTransaction")
+
+# TorobPay CPG: disabled until merchant credentials and shipping policy are configured.
+TOROBPAY_ENABLED = env_bool("TOROBPAY_ENABLED", False)
+TOROBPAY_CLIENT_ID = env("TOROBPAY_CLIENT_ID", "") or ""
+TOROBPAY_CLIENT_SECRET = env("TOROBPAY_CLIENT_SECRET", "") or ""
+TOROBPAY_USERNAME = env("TOROBPAY_USERNAME", "") or ""
+TOROBPAY_PASSWORD = env("TOROBPAY_PASSWORD", "") or ""
+TOROBPAY_BASE_URL = (env("TOROBPAY_BASE_URL", "https://cpg.torobpay.com") or "").rstrip("/")
+TOROBPAY_TIMEOUT_SECONDS = int(env("TOROBPAY_TIMEOUT_SECONDS", "15"))
