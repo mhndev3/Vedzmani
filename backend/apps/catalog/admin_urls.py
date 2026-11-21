@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from apps.orders.admin_api import AdminOrderDetailView, AdminOrderListView
 from apps.accounts.admin_customers import AdminCustomerDetailView, AdminCustomerListView
+from apps.accounts.support_api import AdminSupportTicketDetailView, AdminSupportTicketListView
 from apps.orders.admin_shipping import ShippingMethodAdminViewSet
 from .homepage_admin import HomepageSectionAdminViewSet
 from .homepage_banner_admin import HomepageBannerAdminViewSet
@@ -43,6 +44,8 @@ urlpatterns = [
     path("storefront/theme/", StorefrontThemeAdminView.as_view(), name="admin-storefront-theme"),
     path("customers/", AdminCustomerListView.as_view(), name="admin-customer-list"),
     path("customers/<int:customer_id>/", AdminCustomerDetailView.as_view(), name="admin-customer-detail"),
+    path("support/tickets/", AdminSupportTicketListView.as_view(), name="admin-support-ticket-list"),
+    path("support/tickets/<int:ticket_id>/", AdminSupportTicketDetailView.as_view(), name="admin-support-ticket-detail"),
     path("orders/", AdminOrderListView.as_view(), name="admin-order-list"),
     path("orders/<int:order_id>/", AdminOrderDetailView.as_view(), name="admin-order-detail"),
     path("", include(router.urls)),
