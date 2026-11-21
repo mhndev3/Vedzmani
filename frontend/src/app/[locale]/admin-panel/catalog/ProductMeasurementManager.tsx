@@ -95,7 +95,6 @@ export default function ProductMeasurementManager({
 
   async function addShared(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedSize || !newName.trim() || !newValue.trim()) return;
     const size = Number((event.currentTarget.elements.namedItem("size") as HTMLInputElement).value);
     const draft = sharedDrafts[size];
     if (!draft?.name.trim() || !draft.value.trim()) return;
