@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 
 type Size = { id: number; code: string; label: string; position: number };
+type Color = { id: number; name: string };
 type VariantSize = { id: number; variant: number; size: number; sku: string; stock_quantity: number };
 type Page<T> = { results: T[]; next: string | null };
 type Measurement = { id: number; product: number; size: number; name: string; value: string; unit: string; position: number };
@@ -36,19 +37,18 @@ function errorText(error: unknown) {
 export default function ProductMeasurementManager({
   productId,
   sizes,
+  colors,
   variantSizes,
 }: {
   productId: number;
   sizes: Size[];
+  colors: Color[];
   variantSizes: VariantSize[];
 }) {
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [variantMeasurements, setVariantMeasurements] = useState<VariantMeasurement[]>([]);
   const [descriptions, setDescriptions] = useState<SizeDescription[]>([]);
-  const [selectedSize, setSelectedSize] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newValue, setNewValue] = useState("");
-  const [newUnit, setNewUnit] = useState("سانتی‌متر");
+  const [sharedDrafts, setSharedDrafts] = useState<Record<number, { name: string; value: string; unit: string }>>({});
   const [newVariantName, setNewVariantName] = useState<Record<number, string>>({});
   const [newVariantValue, setNewVariantValue] = useState<Record<number, string>>({});
   const [newVariantUnit, setNewVariantUnit] = useState<Record<number, string>>({});
@@ -94,13 +94,15 @@ export default function ProductMeasurementManager({
   async function addShared(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedSize || !newName.trim() || !newValue.trim()) return;
-    const size = Number(selectedSize);
+    const size = Number((event.currentTarget.elements.namedItem("size") as HTMLInputElement).value);
+    const draft = sharedDrafts[size];
+    if (!draft?.name.trim() || !draft.value.trim()) return;
     const position = measurements.filter((item) => item.size === size).length;
     await runSave(async () => {
       await apiRequest("POST", "/api/admin/catalog/product-measurements/", {
-        product: productId, size, name: newName.trim(), value: newValue.trim(), unit: newUnit.trim(), position,
+        product: productId, size, name: draft.name.trim(), value: draft.value.trim(), unit: draft.unit.trim(), position,
       });
-      setNewName(""); setNewValue("");
+      setSharedDrafts((old) => ({ ...old, [size]: { name: "", value: "", unit: "سانتی‌متر" } }));
     }, "اندازه مشترک برای این سایز ثبت شد.");
   }
 
@@ -167,11 +169,11 @@ export default function ProductMeasurementManager({
             </div>
             <div className="mt-4 border-t border-border pt-3">
               <form onSubmit={addShared} className="grid gap-2 sm:grid-cols-[1fr_1fr_120px_auto]">
-                <input type="hidden" value={selectedSize} readOnly />
-                <label className="text-xs">عنوان اندازه<input required className={inputClass} value={selectedSize === String(size.id) ? newName : ""} onFocus={() => setSelectedSize(String(size.id))} onChange={(e) => { setSelectedSize(String(size.id)); setNewName(e.target.value); }} placeholder="مثلاً دور سینه" /></label>
-                <label className="text-xs">مقدار<input required className={inputClass} value={selectedSize === String(size.id) ? newValue : ""} onFocus={() => setSelectedSize(String(size.id))} onChange={(e) => { setSelectedSize(String(size.id)); setNewValue(e.target.value); }} placeholder="مثلاً ۹۶" /></label>
-                <label className="text-xs">واحد<input className={inputClass} value={selectedSize === String(size.id) ? newUnit : "سانتی‌متر"} onFocus={() => setSelectedSize(String(size.id))} onChange={(e) => { setSelectedSize(String(size.id)); setNewUnit(e.target.value); }} /></label>
-                <div className="flex items-end"><button disabled={saving || selectedSize !== String(size.id) || !newName.trim() || !newValue.trim()} className={buttonClass}>افزودن</button></div>
+                <input type="hidden" name="size" value={size.id} />
+                <label className="text-xs">عنوان اندازه<input required className={inputClass} value={sharedDrafts[size.id]?.name ?? ""} onChange={(e) => setSharedDrafts((old) => ({ ...old, [size.id]: { name: e.target.value, value: old[size.id]?.value ?? "", unit: old[size.id]?.unit ?? "سانتی‌متر" } }))} placeholder="مثلاً دور سینه" /></label>
+                <label className="text-xs">مقدار<input required className={inputClass} value={sharedDrafts[size.id]?.value ?? ""} onChange={(e) => setSharedDrafts((old) => ({ ...old, [size.id]: { name: old[size.id]?.name ?? "", value: e.target.value, unit: old[size.id]?.unit ?? "سانتی‌متر" } }))} placeholder="مثلاً ۹۶" /></label>
+                <label className="text-xs">واحد<input className={inputClass} value={sharedDrafts[size.id]?.unit ?? "سانتی‌متر"} onChange={(e) => setSharedDrafts((old) => ({ ...old, [size.id]: { name: old[size.id]?.name ?? "", value: old[size.id]?.value ?? "", unit: e.target.value } }))} /></label>
+                <div className="flex items-end"><button disabled={saving || !sharedDrafts[size.id]?.name.trim() || !sharedDrafts[size.id]?.value.trim()} className={buttonClass}>افزودن</button></div>
               </form>
             </div>
             <label className="mt-4 block text-xs">توضیحات این سایز<textarea rows={2} className={inputClass} value={descriptionDrafts[size.id] ?? ""} onChange={(e) => setDescriptionDrafts((old) => ({ ...old, [size.id]: e.target.value }))} placeholder="راهنمای اندازه یا توضیح تکمیلی…" /></label>
@@ -186,7 +188,7 @@ export default function ProductMeasurementManager({
           {variantSizes.map((variantSize) => {
             const rows = variantMeasurements.filter((item) => item.variant_size === variantSize.id);
             return <div key={variantSize.id} className="rounded-xl border border-border p-3">
-              <h5 className="text-sm font-semibold">{labelForSize(variantSize.size)} <span className="text-xs font-normal text-muted-foreground">· شناسه ترکیب {variantSize.id}</span></h5>
+              <h5 className="text-sm font-semibold">{colors.find((color) => color.id === variantSize.variant)?.name ?? "رنگ"} · {labelForSize(variantSize.size)}</h5>
               <div className="mt-2 space-y-2">
                 {rows.map((item) => <div key={item.id} className="grid gap-2 sm:grid-cols-[1fr_1fr_120px_auto]">
                   <input aria-label="عنوان اندازه اختصاصی" className={inputClass} value={item.name} onChange={(e) => setVariantMeasurements((old) => old.map((row) => row.id === item.id ? { ...row, name: e.target.value } : row))} />
