@@ -76,7 +76,27 @@ export async function generateMetadata({
 // Runs before first paint: stored choice, else system preference.
 const themeScript = `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches;if(d)document.documentElement.classList.add("dark")}catch(e){}})()`;
 
-type StorefrontThemeSettings = { primary: string; primary_foreground: string; accent: string; accent_foreground: string; font: "system" | "persian-modern" | "classic"; radius: "compact" | "medium" | "rounded"; motion: "none" | "subtle" | "standard" };\n\nexport default async function RootLayout({
+type StorefrontThemeSettings = {
+  primary: string;
+  primary_foreground: string;
+  accent: string;
+  accent_foreground: string;
+  font: "system" | "persian-modern" | "classic";
+  radius: "compact" | "medium" | "rounded";
+  motion: "none" | "subtle" | "standard";
+};
+
+const defaultTheme: StorefrontThemeSettings = {
+  primary: "#171717",
+  primary_foreground: "#fafafa",
+  accent: "#e5e5e5",
+  accent_foreground: "#171717",
+  font: "system",
+  radius: "medium",
+  motion: "standard",
+};
+
+export default async function RootLayout({
   children,
   params,
 }: {
@@ -86,6 +106,27 @@ type StorefrontThemeSettings = { primary: string; primary_foreground: string; ac
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
+  let theme = defaultTheme;
+  try {
+    const response = await apiGet<{ settings: StorefrontThemeSettings }>("/api/catalog/storefront/theme/");
+    theme = response.settings;
+  } catch {
+    // Keep the compiled default theme if the configuration API is unavailable.
+  }
+
+  const themeStyle = {
+    "--store-primary": theme.primary,
+    "--store-primary-foreground": theme.primary_foreground,
+    "--store-accent": theme.accent,
+    "--store-accent-foreground": theme.accent_foreground,
+    "--store-radius": theme.radius === "compact" ? "0.35rem" : theme.radius === "rounded" ? "1rem" : "0.5rem",
+    "--store-font-family": theme.font === "classic"
+      ? '"Noto Naskh Arabic", Tahoma, serif'
+      : theme.font === "persian-modern"
+        ? 'Tahoma, "Noto Sans Arabic", sans-serif'
+        : "var(--font-body)",
+    "--store-motion-duration": theme.motion === "subtle" ? "180ms" : "280ms",
+  } as CSSProperties;
 
   return (
     <html lang={locale} dir={localeMeta[locale].dir} data-motion={theme.motion} suppressHydrationWarning>
