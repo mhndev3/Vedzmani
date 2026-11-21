@@ -23,8 +23,8 @@ def test_homepage_banner_admin_requires_staff_and_model_permission(customer_clie
     assert client_for(make_staff()).get("/api/admin/homepage/banners/").status_code == 403
 
 
-def test_homepage_banner_draft_publish_and_public_visibility(make_staff, settings):
-    settings.MEDIA_ROOT = "/tmp/vedzmani-test-media"
+def test_homepage_banner_draft_publish_and_public_visibility(make_staff, settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
     client = client_for(make_staff(
         "catalog.add_homepagebanner",
         "catalog.view_homepagebanner",
