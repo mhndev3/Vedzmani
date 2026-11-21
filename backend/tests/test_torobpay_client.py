@@ -108,7 +108,6 @@ def test_provider_error_body_is_not_exposed_in_exception():
     assert "password" not in str(raised.value).lower()
 
 
-
 @override_settings(
     TOROBPAY_ENABLED=False,
     TOROBPAY_CLIENT_ID="client-id",
@@ -121,3 +120,41 @@ def test_disabled_client_does_not_make_provider_request():
         with pytest.raises(TorobPayError, match="disabled"):
             TorobPayClient().access_token()
     send.assert_not_called()
+
+
+@override_settings(
+    TOROBPAY_ENABLED=False,
+    TOROBPAY_CLIENT_ID="client-id",
+    TOROBPAY_CLIENT_SECRET="client-secret",
+    TOROBPAY_USERNAME="merchant-user",
+    TOROBPAY_PASSWORD="merchant-password",
+)
+def test_connection_check_performs_oauth_only_while_payments_are_disabled():
+    class OAuthResponse:
+        status = 200
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self, size): return b'{"access_token":"jwt-never-returned-by-command"}'
+
+    with patch("apps.orders.torobpay.urlopen", return_value=OAuthResponse()) as send:
+        assert TorobPayClient().check_connection() is True
+
+    assert send.call_count == 1
+    request = send.call_args.args[0]
+    assert request.full_url.endswith("/api/online/v1/oauth/token")
+    assert request.get_method() == "POST"
+    assert request.get_header("Authorization", "").startswith("Basic ")
+    assert "payment" not in request.full_url
+    assert "eligible" not in request.full_url
+
+
+@override_settings(
+    TOROBPAY_ENABLED=False,
+    TOROBPAY_CLIENT_ID="",
+    TOROBPAY_CLIENT_SECRET="",
+    TOROBPAY_USERNAME="",
+    TOROBPAY_PASSWORD="",
+)
+def test_connection_check_fails_without_credentials():
+    with pytest.raises(TorobPayError, match="not_configured"):
+        TorobPayClient().check_connection()

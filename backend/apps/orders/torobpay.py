@@ -34,8 +34,10 @@ class TorobPayClient:
     def __init__(self):
         self.base_url = settings.TOROBPAY_BASE_URL.rstrip("/")
 
-    def _credentials(self):
-        if not settings.TOROBPAY_ENABLED:
+    def _credentials(self, *, allow_when_disabled=False):
+        # The explicit exception is used only by the OAuth-only management command.
+        # Normal payment API calls remain blocked by TOROBPAY_ENABLED.
+        if not settings.TOROBPAY_ENABLED and not allow_when_disabled:
             raise TorobPayError("disabled")
         values = (
             settings.TOROBPAY_CLIENT_ID,
@@ -84,8 +86,10 @@ class TorobPayClient:
             raise TorobPayError("invalid_provider_response", http_status=http_status)
         return data, http_status
 
-    def access_token(self, *, force_refresh=False):
-        client_id, client_secret, username, password = self._credentials()
+    def access_token(self, *, force_refresh=False, allow_when_disabled=False):
+        client_id, client_secret, username, password = self._credentials(
+            allow_when_disabled=allow_when_disabled
+        )
         cache_digest = hashlib.sha256(f"{client_id}:{client_secret}".encode("utf-8")).hexdigest()[:24]
         cache_key = f"torobpay:jwt:{cache_digest}"
         if not force_refresh:
@@ -106,6 +110,11 @@ class TorobPayClient:
             raise TorobPayError("token_rejected", http_status=http_status)
         cache.set(cache_key, token, self.TOKEN_CACHE_SECONDS)
         return token
+
+    def check_connection(self):
+        """Perform only a fresh OAuth request; never call payment or eligibility APIs."""
+        self.access_token(force_refresh=True, allow_when_disabled=True)
+        return True
 
     def _api(self, method, path, *, payload=None, query=None):
         token = self.access_token()
