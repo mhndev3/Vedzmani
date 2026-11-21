@@ -1,5 +1,6 @@
 """Public homepage banners. Draft and out-of-window content is never exposed."""
-from django.db import models\nfrom django.utils import timezone
+from django.db import models
+from django.utils import timezone
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
