@@ -12,10 +12,8 @@ const sections = [
     description: "محصولات، رنگ‌ها، سایزها، تصاویر و مجموعه‌ها",
     links: [
       { label: "مدیریت محصولات", href: "/admin/catalog/product/" },
-      { label: "دسته‌بندی‌ها", href: "/admin/catalog/category/" },
       { label: "رنگ‌بندی‌ها", href: "/admin/catalog/colorvariant/" },
       { label: "سایزها", href: "/admin/catalog/size/" },
-      { label: "کالکشن‌ها", href: "/admin/catalog/collection/" },
     ],
   },
   {
@@ -110,6 +108,11 @@ export default function AdminWorkspacePage() {
       <Link href={"/" + locale + "/admin-panel/catalog"} className="mt-7 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">
         <div><h2 className="font-bold">مدیریت اختصاصی محصولات</h2><p className="mt-1 text-sm text-muted-foreground">ساخت و ویرایش محصول، رنگ‌بندی، سایزبندی و کنترل موجودی</p></div>
         <span className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">ورود به کاتالوگ ←</span>
+      </Link>
+
+      <Link href={"/" + locale + "/admin-panel/catalog/taxonomy"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
+        <div><h2 className="font-bold">مدیریت دسته‌بندی‌ها و مجموعه‌ها</h2><p className="mt-1 text-sm text-muted-foreground">ساخت، ویرایش، مرتب‌سازی و فعال‌سازی ساختار کاتالوگ</p></div>
+        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت ساختار ←</span>
       </Link>
 
       <div className="mt-8 flex items-center justify-between gap-3">
