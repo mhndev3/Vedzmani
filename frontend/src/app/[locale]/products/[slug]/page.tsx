@@ -54,7 +54,10 @@ export async function generateMetadata({ params }: Pick<Props, "params">): Promi
   if (!isLocale(locale)) return {};
   try {
     const product = await getProduct(slug);
-    return { title: product?.name ?? getDictionary(locale).product.notFoundTitle };
+    return {
+      title: product?.name ?? getDictionary(locale).product.notFoundTitle,
+      alternates: { canonical: `/${locale}/products/${encodeURIComponent(slug)}` },
+    };
   } catch {
     return {};
   }

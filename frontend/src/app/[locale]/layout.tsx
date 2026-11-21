@@ -24,12 +24,31 @@ export const viewport: Viewport = {
   ],
 };
 
-/**
- * Indexing stays OFF (staging protection from the foundation) until
- * SITE_ALLOW_INDEXING=true is set at build time for production.
- */
+/** Indexing remains disabled in development/preview builds. */
 const allowIndexing = process.env.SITE_ALLOW_INDEXING === "true";
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://vedzmani.ir";
+const organizationId = `${siteUrl}/#organization`;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": organizationId,
+      name: "ودزمانی",
+      alternateName: "Vedzmani",
+      url: siteUrl,
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      url: siteUrl,
+      name: "ودزمانی",
+      alternateName: "Vedzmani",
+      publisher: { "@id": organizationId },
+      inLanguage: "fa-IR",
+    },
+  ],
+};
 
 export async function generateMetadata({
   params,
@@ -40,12 +59,13 @@ export async function generateMetadata({
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
   return {
-    metadataBase: siteUrl ? new URL(siteUrl) : undefined,
+    metadataBase: new URL(siteUrl),
     title: { default: t.meta.title, template: `%s | ${siteConfig.name}` },
     description: t.meta.description,
+    applicationName: "Vedzmani",
     openGraph: {
       type: "website",
-      siteName: siteConfig.name,
+      siteName: "ودزمانی | Vedzmani",
       locale: localeMeta[locale].ogLocale,
     },
     robots: allowIndexing ? { index: true, follow: true } : { index: false, follow: false },
@@ -70,6 +90,10 @@ export default async function RootLayout({
     <html lang={locale} dir={localeMeta[locale].dir} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
+        />
       </head>
       <body className="flex min-h-dvh flex-col bg-background text-foreground antialiased">
         <a
