@@ -17,7 +17,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <HomepageHeroSlider />
       {content.sections.length > 0 ? content.sections.map((section) => (
         section.section_type === "categories" ? (
-          <HomeCategoryGrid key={section.id} locale={locale} categories={section.categories} title={section.title} />
+          <HomeCategoryGrid key={section.id} locale={locale} categories={section.categories} title={section.title} eyebrow={section.eyebrow} />
         ) : (
           <NewestProductsCarousel
             key={section.id}
@@ -27,7 +27,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             emptyText={t.home.emptySection}
             title={section.title}
             eyebrow={section.eyebrow}
-            viewAllHref={section.show_view_all && section.view_all_url ? `/${locale}${section.view_all_url}` : undefined}\n            showViewAll={section.show_view_all}
+            viewAllHref={section.show_view_all && section.view_all_url ? (section.view_all_url.startsWith(`/${locale}/`) ? section.view_all_url : `/${locale}${section.view_all_url}`) : undefined}\n            showViewAll={section.show_view_all}
           />
         )
       )) : (
