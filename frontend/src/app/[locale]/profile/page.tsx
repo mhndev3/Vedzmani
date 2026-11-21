@@ -13,7 +13,9 @@ type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ next
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
-  return isLocale(locale) ? { title: getDictionary(locale).profile.title } : {};
+  return isLocale(locale)
+    ? { title: getDictionary(locale).profile.title, robots: { index: false, follow: false } }
+    : {};
 }
 
 type MeState = { kind: "anonymous" } | { kind: "ok"; profile: CustomerProfile } | { kind: "error" };
