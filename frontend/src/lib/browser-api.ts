@@ -107,3 +107,16 @@ export function errorKey(e: unknown): string {
 export function errorText(messages: Record<string, string>, e: unknown): string {
   return messages[errorKey(e)] ?? messages.generic;
 }
+
+
+/** Multipart upload helper. The browser sets the boundary; never set Content-Type manually. */
+export async function apiUploadRequest<T>(path: string, body: FormData): Promise<T> {
+  const headers: Record<string, string> = { "X-CSRFToken": await csrfToken() };
+  const res = await send(path, { method: "POST", headers, body });
+  if (!res.ok) throw await parseError(res);
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new BrowserApiError(res.status, "network_error");
+  }
+}
