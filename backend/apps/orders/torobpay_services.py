@@ -249,6 +249,16 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
             attempt.provider_status = provider_state
             attempt.save(update_fields=["provider_status", "updated_at"])
 
+            # Once a previous callback decided that this payment cannot be fulfilled,
+            # retries may only retry its refund/cancel. They must never re-enter settlement.
+            if attempt.status in {
+                TorobPayPaymentAttempt.REVERSAL_PENDING,
+                TorobPayPaymentAttempt.OUT_OF_STOCK,
+            }:
+                if _finish_reversal(attempt, client, provider_state):
+                    return "out_of_stock" if attempt.last_error_code == "out_of_stock" else "failed"
+                return "pending"
+
             if provider_state == "PENDING":
                 if state != "OK":
                     return "pending"
