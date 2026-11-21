@@ -42,7 +42,6 @@ DEBUG = False
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 
 INSTALLED_APPS = [
-    # django.contrib.admin, with a site that refuses OTP-only sessions (apps/accounts/admin_site.py).
     "apps.accounts.admin_config.PasswordLoginAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -90,7 +89,6 @@ TEMPLATES = [
     },
 ]
 
-# PostgreSQL is the single source of truth (Django ORM). No second database.
 DATABASES = {
     "default": dj_database_url.parse(
         required("DATABASE_URL"),
@@ -99,8 +97,6 @@ DATABASES = {
     )
 }
 
-# Redis: cache / short-lived state ONLY. Never authoritative for
-# inventory, orders or payments.
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
@@ -126,46 +122,32 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR / "media")) or BASE_DIR / "media")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Cross-origin / CSRF. Default topology is same-origin behind Nginx, so CORS
-# is closed unless origins are listed explicitly.
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = False
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 CSRF_FAILURE_VIEW = "apps.core.views.csrf_failure"
 
-# --- Authentication (phone + OTP, Django session auth) ---------------------
-# Public CDN base for product images (storage keys are stored, never URLs).
-MEDIA_CDN_BASE_URL = env("MEDIA_CDN_BASE_URL", "")
-
 AUTH_USER_MODEL = "accounts.User"
-
-# Sessions live in PostgreSQL (Django default DB backend): auth state is never
-# kept only in Redis, and logout really deletes the server-side session row.
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
 SESSION_SAVE_EVERY_REQUEST = False
-# "Remember me" lifetime; without it the session cookie dies with the browser.
 AUTH_REMEMBER_ME_SECONDS = int(env("AUTH_REMEMBER_ME_SECONDS", str(60 * 60 * 24 * 30)))
 
 OTP_TTL_SECONDS = int(env("OTP_TTL_SECONDS", "300"))
 OTP_MAX_ATTEMPTS = int(env("OTP_MAX_ATTEMPTS", "5"))
 OTP_REQUEST_COOLDOWN_SECONDS = int(env("OTP_REQUEST_COOLDOWN_SECONDS", "60"))
-OTP_REQUEST_PHONE_LIMIT = int(env("OTP_REQUEST_PHONE_LIMIT", "5"))  # per hour
-OTP_REQUEST_IP_LIMIT = int(env("OTP_REQUEST_IP_LIMIT", "20"))  # per hour
+OTP_REQUEST_PHONE_LIMIT = int(env("OTP_REQUEST_PHONE_LIMIT", "5"))
+OTP_REQUEST_IP_LIMIT = int(env("OTP_REQUEST_IP_LIMIT", "20"))
 OTP_VERIFY_IP_LIMIT = int(env("OTP_VERIFY_IP_LIMIT", "30"))
 OTP_VERIFY_IP_WINDOW_SECONDS = int(env("OTP_VERIFY_IP_WINDOW_SECONDS", "600"))
-# Number of trusted reverse proxies in front of Django (Nginx = 1). 0 means
-# X-Forwarded-For is ignored and REMOTE_ADDR is used for per-IP limits.
 AUTH_TRUSTED_PROXY_COUNT = int(env("AUTH_TRUSTED_PROXY_COUNT", "0"))
-# OTP delivery defaults to a fail-closed backend. Provider credentials are supplied only via environment.
 OTP_DELIVERY_BACKEND = env("OTP_DELIVERY_BACKEND", "apps.accounts.delivery.UnconfiguredDelivery")
 MELIPAYAMAK_API_KEY = env("MELIPAYAMAK_API_KEY", "") or ""
 MELIPAYAMAK_SENDER = env("MELIPAYAMAK_SENDER", "") or ""
 MELIPAYAMAK_TIMEOUT_SECONDS = int(env("MELIPAYAMAK_TIMEOUT_SECONDS", "10"))
 
-# Secure by default: endpoints must opt in to being public.
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_AUTHENTICATION_CLASSES": ["apps.accounts.authentication.SessionAuthentication401"],
@@ -180,14 +162,11 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": env("DJANGO_LOG_LEVEL", "INFO")},
 }
 
-# Cart limits (not documented by product requirements yet; conservative V1 defaults).
-CART_MAX_ITEM_QUANTITY = int(env("CART_MAX_ITEM_QUANTITY", "10"))  # units of one VariantSize
-CART_MAX_LINES = int(env("CART_MAX_LINES", "50"))  # distinct VariantSizes per cart
+CART_MAX_ITEM_QUANTITY = int(env("CART_MAX_ITEM_QUANTITY", "10"))
+CART_MAX_LINES = int(env("CART_MAX_LINES", "50"))
 
-# Order creation is enabled by default in development and tests; production settings override it to False.
 ORDERS_ENABLED = env_bool("ORDERS_ENABLED", True)
 
-# SEP stays disabled unless a real terminal is configured and the owner enables it.
 SEP_PAYMENT_ENABLED = env_bool("SEP_PAYMENT_ENABLED", False)
 SEP_TERMINAL_ID = env("SEP_TERMINAL_ID", "") or ""
 _sep_shipping_amount = env("SEP_SHIPPING_AMOUNT_TOMAN")
@@ -198,7 +177,6 @@ SEP_PAYMENT_URL = env("SEP_PAYMENT_URL", "https://sep.shaparak.ir/OnlinePG/Onlin
 SEP_VERIFY_URL = env("SEP_VERIFY_URL", "https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/VerifyTransaction")
 SEP_REVERSE_URL = env("SEP_REVERSE_URL", "https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/ReverseTransaction")
 
-# TorobPay CPG: disabled until merchant credentials and shipping policy are configured.
 TOROBPAY_ENABLED = env_bool("TOROBPAY_ENABLED", False)
 TOROBPAY_CLIENT_ID = env("TOROBPAY_CLIENT_ID", "") or ""
 TOROBPAY_CLIENT_SECRET = env("TOROBPAY_CLIENT_SECRET", "") or ""
@@ -206,3 +184,7 @@ TOROBPAY_USERNAME = env("TOROBPAY_USERNAME", "") or ""
 TOROBPAY_PASSWORD = env("TOROBPAY_PASSWORD", "") or ""
 TOROBPAY_BASE_URL = (env("TOROBPAY_BASE_URL", "https://cpg.torobpay.com") or "").rstrip("/")
 TOROBPAY_TIMEOUT_SECONDS = int(env("TOROBPAY_TIMEOUT_SECONDS", "15"))
+_torobpay_shipping_amount = env("TOROBPAY_SHIPPING_AMOUNT_TOMAN")
+TOROBPAY_SHIPPING_AMOUNT_TOMAN = (
+    int(_torobpay_shipping_amount) if _torobpay_shipping_amount is not None else None
+)
