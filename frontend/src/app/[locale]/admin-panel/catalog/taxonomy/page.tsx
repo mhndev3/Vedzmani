@@ -54,7 +54,6 @@ export default function AdminTaxonomyPage() {
 
   const endpoint = group === "categories" ? "/api/admin/catalog/categories/" : "/api/admin/catalog/collections/";
   const entries = group === "categories" ? categories : collections;
-  const setEntries = group === "categories" ? setCategories : setCollections;
 
   const refresh = useCallback(async () => {
     setLoading(true);
