@@ -1,13 +1,12 @@
 from decimal import Decimal
-from unittest.mock import Mock
 import uuid
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 
-from apps.catalog.models import VariantSize
 from apps.orders.models import Order, OrderItem, TorobPayPaymentAttempt
+from apps.orders.payment_services import PaymentRejected
 from apps.orders.torobpay_services import (
     check_torobpay_eligibility,
     initiate_torobpay_payment,
@@ -126,7 +125,7 @@ def test_torobpay_initiation_fails_closed_when_orders_are_disabled(make_variant_
     order, _ = make_order(make_variant_size)
     client = FakeTorobPayClient()
 
-    with pytest.raises(Exception, match="payment_disabled"):
+    with pytest.raises(PaymentRejected, match="payment_disabled"):
         initiate_torobpay_payment(
             order,
             return_url="https://vedzmani.ir/api/orders/payment/torobpay/callback/",
@@ -145,7 +144,7 @@ def test_torobpay_initiation_fails_closed_until_shipping_is_configured(make_vari
     order, _ = make_order(make_variant_size)
     client = FakeTorobPayClient()
 
-    with pytest.raises(Exception, match="shipping_not_configured"):
+    with pytest.raises(PaymentRejected, match="shipping_not_configured"):
         initiate_torobpay_payment(
             order,
             return_url="https://vedzmani.ir/api/orders/payment/torobpay/callback/",
