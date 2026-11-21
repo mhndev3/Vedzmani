@@ -58,18 +58,20 @@ export default function ProductMeasurementManager({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  const variantSizeIdKey = variantSizes.map((item) => item.id).join(",");
   const refresh = useCallback(async () => {
     const [shared, specific, descriptionsData] = await Promise.all([
       getAll<Measurement>("/api/admin/catalog/product-measurements/"),
       getAll<VariantMeasurement>("/api/admin/catalog/variant-size-measurements/"),
       getAll<SizeDescription>("/api/admin/catalog/product-size-descriptions/"),
     ]);
+    const allowedVariantSizeIds = new Set(variantSizeIdKey.split(",").filter(Boolean).map(Number));
     setMeasurements(shared.filter((item) => item.product === productId));
-    setVariantMeasurements(specific.filter((item) => variantSizes.some((variantSize) => variantSize.id === item.variant_size)));
+    setVariantMeasurements(specific.filter((item) => allowedVariantSizeIds.has(item.variant_size)));
     const productDescriptions = descriptionsData.filter((item) => item.product === productId);
     setDescriptions(productDescriptions);
     setDescriptionDrafts(Object.fromEntries(productDescriptions.map((item) => [item.size, item.description])));
-  }, [productId, variantSizes]);
+  }, [productId, variantSizeIdKey]);
 
   useEffect(() => {
     let active = true;
@@ -78,7 +80,7 @@ export default function ProductMeasurementManager({
     return () => { active = false; };
   }, [refresh]);
 
-  const activeSizes = useMemo(() => sizes.filter((size) => variantSizes.some((item) => item.size === size.id)), [sizes, variantSizes]);
+  const activeSizes = sizes;
   const labelForSize = (id: number) => sizes.find((size) => size.id === id)?.label ?? "سایز نامشخص";
 
   async function runSave(action: () => Promise<void>, success: string) {
