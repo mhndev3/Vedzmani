@@ -115,7 +115,7 @@ export default function AdminWorkspacePage() {
         <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت ساختار ←</span>
       </Link>
 
-      <div className="mt-8 flex items-center justify-between gap-3">
+      <Link href={"/" + locale + "/admin-panel/homepage"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">\n        <div><h2 className="font-bold">مدیریت صفحه اصلی</h2><p className="mt-1 text-sm text-muted-foreground">ساخت و انتشار بخش‌های دسته‌بندی و محصولات منتخب در ویترین فروشگاه</p></div>\n        <span className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">مدیریت صفحه اصلی ←</span>\n      </Link>\n\n      <div className="mt-8 flex items-center justify-between gap-3">
         <h2 className="text-xl font-bold">بخش‌های فروشگاه</h2>
         <span className="text-xs text-muted-foreground">نسخه اولیه فضای مدیریت</span>
       </div>

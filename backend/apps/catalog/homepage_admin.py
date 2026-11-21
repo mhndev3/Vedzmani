@@ -15,6 +15,11 @@ class HomepageSectionAdminSerializer(serializers.ModelSerializer):
         fields = ["id", "title", "eyebrow", "section_type", "status", "position", "item_limit", "show_view_all", "view_all_url", "categories", "products", "created_at", "updated_at", "published_at"]
         read_only_fields = ["id", "created_at", "updated_at", "published_at"]
 
+    def validate_view_all_url(self, value):
+        if value and (not value.startswith("/") or value.startswith("//")):
+            raise serializers.ValidationError("Only same-site relative paths are allowed.")
+        return value
+
     def validate_item_limit(self, value):
         if value < 1 or value > 24:
             raise serializers.ValidationError("تعداد نمایش باید بین ۱ تا ۲۴ باشد.")
