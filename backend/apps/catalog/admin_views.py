@@ -4,13 +4,14 @@ The public catalog endpoints remain unchanged. Every endpoint requires both an a
 relevant Django model permission. Deactivation is used instead of hard deletion; stock changes are routed through
 the audited inventory service.
 """
+from django.shortcuts import get_object_or_404
+
 from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
 
 from apps.catalog.models import (
     Category,
