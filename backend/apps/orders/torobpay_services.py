@@ -27,13 +27,13 @@ ACTIVE_ATTEMPT_STATUSES = (
 )
 
 
-def _require_torobpay_ready():
+def _require_torobpay_ready(*, require_item_amount_mode=False):
     if not settings.ORDERS_ENABLED or not settings.TOROBPAY_ENABLED:
         raise PaymentRejected("payment_disabled")
     shipping = settings.TOROBPAY_SHIPPING_AMOUNT_TOMAN
     if shipping is None or shipping < 0:
         raise PaymentRejected("shipping_not_configured")
-    if settings.TOROBPAY_CART_ITEM_AMOUNT_MODE not in {"unit", "line_total"}:
+    if require_item_amount_mode and settings.TOROBPAY_CART_ITEM_AMOUNT_MODE not in {"unit", "line_total"}:
         raise PaymentRejected("cart_item_amount_mode_not_configured")
     return shipping
 
@@ -104,7 +104,7 @@ def check_torobpay_eligibility(order, *, client=None):
 
 
 def initiate_torobpay_payment(order, *, return_url, client=None):
-    shipping_toman = _require_torobpay_ready()
+    shipping_toman = _require_torobpay_ready(require_item_amount_mode=True)
     if not isinstance(return_url, str) or not return_url.startswith("https://"):
         raise PaymentRejected("invalid_return_url")
 
