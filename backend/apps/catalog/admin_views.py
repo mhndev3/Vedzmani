@@ -4,8 +4,13 @@ The public catalog endpoints remain unchanged. Every endpoint requires both an a
 relevant Django model permission. Deactivation is used instead of hard deletion; stock changes are routed through
 the audited inventory service.
 """
-from rest_framework import generics, mixins, viewsets
+from rest_framework import generics, mixins, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
 
 from apps.catalog.models import (
     Category,
@@ -22,6 +27,7 @@ from apps.catalog.models import (
 )
 from apps.inventory.models import InventoryAdjustment
 
+from .admin_media import deactivate_variant_image, reorder_variant_images, upload_variant_image
 from .pagination import CatalogPagination
 
 from .admin_serializers import (
@@ -43,7 +49,6 @@ from .admin_serializers import (
 class StaffDjangoModelPermissions(DjangoModelPermissions):
     """Require staff status and explicit model permissions for reads and writes."""
 
-    # DRF leaves GET/HEAD/OPTIONS open by default; admin data must require view permission too.
     perms_map = {
         "GET": ["%(app_label)s.view_%(model_name)s"],
         "OPTIONS": ["%(app_label)s.view_%(model_name)s"],
@@ -122,17 +127,76 @@ class VariantSizeMeasurementAdminViewSet(StaffModelPermissionViewSet):
     serializer_class = VariantSizeMeasurementAdminSerializer
 
 
+class VariantImageAdminPermissions(StaffDjangoModelPermissions):
+    """Map image actions to the exact model permission they mutate."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated or not user.is_staff:
+            return False
+        action_name = getattr(view, "action", None)
+        permission = {
+            "list": "catalog.view_variantimage",
+            "retrieve": "catalog.view_variantimage",
+            "upload": "catalog.add_variantimage",
+            "reorder": "catalog.change_variantimage",
+            "deactivate": "catalog.change_variantimage",
+        }.get(action_name)
+        if not permission or not user.has_perm(permission):
+            return False
+        if action_name == "upload":
+            return user.has_perm("catalog.view_colorvariant")
+        return True
+
+
 class VariantImageAdminViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Image metadata is readable; binary upload and storage-key mutation are not exposed yet."""
+    """Staff-only image upload, ordering, primary selection, and safe deactivation."""
 
     queryset = VariantImage.objects.select_related("variant__product").order_by("variant_id", "position", "id")
     serializer_class = VariantImageReadSerializer
-    permission_classes = [StaffDjangoModelPermissions]
+    permission_classes = [VariantImageAdminPermissions]
     pagination_class = CatalogPagination
+
+    def get_queryset(self):
+        queryset = super().get_queryset().filter(is_active=True)
+        variant_id = self.request.query_params.get("variant")
+        if variant_id:
+            queryset = queryset.filter(variant_id=variant_id)
+        return queryset
+
+    @action(detail=False, methods=["post"], parser_classes=[MultiPartParser, FormParser], url_path="upload")
+    def upload(self, request):
+        variant_id = request.data.get("variant")
+        if not str(variant_id or "").isdigit():
+            raise ValidationError({"variant": "رنگ محصول معتبر نیست."})
+        variant = get_object_or_404(ColorVariant, pk=int(variant_id))
+        image = upload_variant_image(
+            variant_id=variant.pk,
+            upload=request.FILES.get("file"),
+            alt_text=str(request.data.get("alt_text") or ""),
+        )
+        return Response(self.get_serializer(image).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"], url_path="reorder")
+    def reorder(self, request):
+        variant_id = request.data.get("variant")
+        image_ids = request.data.get("image_ids")
+        if not str(variant_id or "").isdigit() or not isinstance(image_ids, list):
+            raise ValidationError({"detail": "رنگ و فهرست تصاویر الزامی است."})
+        if not all(isinstance(value, int) and not isinstance(value, bool) for value in image_ids):
+            raise ValidationError({"image_ids": "شناسه تصاویر باید عدد صحیح باشد."})
+        images = reorder_variant_images(variant_id=int(variant_id), image_ids=image_ids)
+        return Response(self.get_serializer(images, many=True).data)
+
+    @action(detail=True, methods=["patch"], url_path="deactivate")
+    def deactivate(self, request, pk=None):
+        image = get_object_or_404(VariantImage, pk=pk, is_active=True)
+        image = deactivate_variant_image(image_id=image.pk)
+        return Response(self.get_serializer(image).data)
 
 
 class InventoryAdjustmentPermissions(StaffDjangoModelPermissions):
