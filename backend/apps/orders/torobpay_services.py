@@ -33,6 +33,8 @@ def _require_torobpay_ready():
     shipping = settings.TOROBPAY_SHIPPING_AMOUNT_TOMAN
     if shipping is None or shipping < 0:
         raise PaymentRejected("shipping_not_configured")
+    if settings.TOROBPAY_CART_ITEM_AMOUNT_MODE not in {"unit", "line_total"}:
+        raise PaymentRejected("cart_item_amount_mode_not_configured")
     return shipping
 
 
@@ -59,7 +61,11 @@ def _payment_payload(order, attempt, shipping_toman, return_url):
             "id": item.sku,
             "name": item.product_name,
             "count": item.quantity,
-            "amount": _rial_from_toman(item.unit_price),
+            "amount": _rial_from_toman(
+                item.unit_price
+                if settings.TOROBPAY_CART_ITEM_AMOUNT_MODE == "unit"
+                else item.subtotal
+            ),
             "category": item.variant_size.variant.product.category.name,
         })
 
@@ -72,8 +78,10 @@ def _payment_payload(order, attempt, shipping_toman, return_url):
         "cartList": [{
             "cartId": str(order.pk),
             "totalAmount": attempt.amount_rial,
+            "taxAmount": 0,
             "shippingAmount": shipping_rial,
-            "includeShipping": True,
+            "isTaxIncluded": False,
+            "isShipmentIncluded": True,
             "cartItems": cart_items,
         }],
         "address": order.address,
