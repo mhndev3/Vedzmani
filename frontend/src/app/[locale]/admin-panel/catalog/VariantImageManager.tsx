@@ -52,7 +52,24 @@ export default function VariantImageManager({ variantId }: { variantId: number }
     }
   }, [variantId]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const page = await apiRequest<ImagePage>("GET", `/api/admin/catalog/images/?variant=${variantId}`);
+        if (!cancelled) {
+          setImages(page.results);
+          setError("");
+        }
+      } catch (e) {
+        if (!cancelled) setError(message(e));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [variantId]);
 
   async function upload(file?: File) {
     if (!file) return;
