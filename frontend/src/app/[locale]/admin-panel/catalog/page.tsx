@@ -69,8 +69,8 @@ export default function AdminCatalogPage() {
   const [variantId, setVariantId] = useState<number | null>(null);
   const [sizeId, setSizeId] = useState("");
   const [sku, setSku] = useState("");
-  const [stockChange, setStockChange] = useState("");
-  const [stockReason, setStockReason] = useState("");
+  const [stockChanges, setStockChanges] = useState<Record<number, string>>({});
+  const [stockReasons, setStockReasons] = useState<Record<number, string>>({});
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -106,7 +106,6 @@ export default function AdminCatalogPage() {
   }, [products, search]);
 
   const selectedColors = selected ? colors.filter((color) => color.product === selected.id) : [];
-  const currentVariantSizes = variantSizes.filter((item) => item.variant === variantId);
   const formatPrice = (value: string | number) => Number(value).toLocaleString("fa-IR") + " تومان";
 
   function resetProductForm(product?: Product) {
@@ -129,10 +128,10 @@ export default function AdminCatalogPage() {
       const saved = selected && showForm
         ? await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${selected.id}/`, payload)
         : await apiRequest<Product>("POST", "/api/admin/catalog/products/", payload);
-      setSelected(saved);
       setShowForm(false);
       setNotice("اطلاعات محصول ذخیره شد.");
       await refresh();
+      setSelected(saved);
     } catch (e) { setError(errorMessage(e)); }
     finally { setSaving(false); }
   }
@@ -178,8 +177,9 @@ export default function AdminCatalogPage() {
     event.preventDefault();
     setSaving(true); setError(""); setNotice("");
     try {
-      await apiRequest<Adjustment>("POST", "/api/admin/inventory/adjustments/", { variant_size: item.id, quantity_change: Number(stockChange), reason: stockReason });
-      setStockChange(""); setStockReason("");
+      await apiRequest<Adjustment>("POST", "/api/admin/inventory/adjustments/", { variant_size: item.id, quantity_change: Number(stockChanges[item.id]), reason: stockReasons[item.id] });
+      setStockChanges((old) => ({ ...old, [item.id]: "" }));
+      setStockReasons((old) => ({ ...old, [item.id]: "" }));
       setNotice("گردش موجودی با موفقیت ثبت شد.");
       await refresh();
     } catch (e) { setError(errorMessage(e)); }
@@ -273,9 +273,9 @@ export default function AdminCatalogPage() {
                           return <div key={item.id} className="rounded-xl bg-muted/50 p-3">
                             <div className="flex items-center justify-between gap-2 text-sm"><strong>{size?.label || "سایز نامشخص"}</strong><span>موجودی: <b>{item.stock_quantity.toLocaleString("fa-IR")}</b></span></div>
                             <form onSubmit={(e) => void adjustStock(e, item)} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_auto]">
-                              <label className="text-xs">تغییر تعداد<input required type="number" step="1" value={variantId === color.id ? stockChange : ""} onChange={(e) => setStockChange(e.target.value)} className={inputClass} dir="ltr" placeholder="+10 / -2" /></label>
-                              <label className="text-xs">دلیل تغییر<input required value={stockReason} onChange={(e) => setStockReason(e.target.value)} className={inputClass} placeholder="مثلاً ورود بار جدید" /></label>
-                              <div className="flex items-end"><button disabled={saving || !stockChange || Number(stockChange) === 0} className={secondaryClass}>ثبت گردش</button></div>
+                              <label className="text-xs">تغییر تعداد<input required type="number" step="1" value={stockChanges[item.id] ?? ""} onChange={(e) => setStockChanges((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} dir="ltr" placeholder="+10 / -2" /></label>
+                              <label className="text-xs">دلیل تغییر<input required value={stockReasons[item.id] ?? ""} onChange={(e) => setStockReasons((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} placeholder="مثلاً ورود بار جدید" /></label>
+                              <div className="flex items-end"><button disabled={saving || !stockChanges[item.id] || Number(stockChanges[item.id]) === 0 || !stockReasons[item.id]?.trim()} className={secondaryClass}>ثبت گردش</button></div>
                             </form>
                           </div>;
                         })}
