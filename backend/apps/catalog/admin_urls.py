@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from .homepage_admin import HomepageSectionAdminViewSet
 from .homepage_banner_admin import HomepageBannerAdminViewSet
+from .storefront_theme import StorefrontThemeAdminView
 from .admin_views import (
     CategoryAdminViewSet,
     CollectionAdminViewSet,
@@ -35,6 +36,7 @@ router.register("catalog/variant-size-descriptions", VariantSizeDescriptionAdmin
 router.register("catalog/images", VariantImageAdminViewSet, basename="admin-catalog-image")
 
 urlpatterns = [
+    path("storefront/theme/", StorefrontThemeAdminView.as_view(), name="admin-storefront-theme"),
     path("", include(router.urls)),
     path("inventory/adjustments/", InventoryAdjustmentAdminView.as_view(), name="admin-inventory-adjustments"),
 ]

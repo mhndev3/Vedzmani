@@ -120,6 +120,11 @@ export default function AdminWorkspacePage() {
         <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت بنرها ←</span>
       </Link>
 
+      <Link href={"/" + locale + "/admin-panel/storefront/theme"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
+        <div><h2 className="font-bold">شخصی‌سازی ظاهر فروشگاه</h2><p className="mt-1 text-sm text-muted-foreground">قالب‌های رنگ، فونت، گردی اجزا و حرکت‌های رابط کاربری</p></div>
+        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">تنظیم ظاهر ←</span>
+      </Link>
+
       <Link href={"/" + locale + "/admin-panel/homepage"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">
         <div><h2 className="font-bold">مدیریت صفحه اصلی</h2><p className="mt-1 text-sm text-muted-foreground">ساخت و انتشار بخش‌های دسته‌بندی و محصولات منتخب در ویترین فروشگاه</p></div>
         <span className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">مدیریت صفحه اصلی ←</span>

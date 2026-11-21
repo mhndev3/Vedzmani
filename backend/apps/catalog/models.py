@@ -423,3 +423,37 @@ class HomepageBanner(models.Model):
 
     def __str__(self):
         return self.title or f"Homepage banner #{self.pk}"
+
+def default_storefront_theme_settings():
+    return {
+        "primary": "#171717",
+        "primary_foreground": "#fafafa",
+        "accent": "#e5e5e5",
+        "accent_foreground": "#171717",
+        "font": "system",
+        "radius": "medium",
+        "motion": "standard",
+    }
+
+
+class StorefrontTheme(models.Model):
+    """Singleton draft/published design tokens for the public storefront."""
+
+    draft_settings = models.JSONField(default=default_storefront_theme_settings)
+    published_settings = models.JSONField(default=default_storefront_theme_settings)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "storefront theme"
+        verbose_name_plural = "storefront theme"
+
+    def __str__(self):
+        return "Storefront theme"
