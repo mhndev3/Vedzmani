@@ -62,7 +62,20 @@ export default function AdminHomepageBannersPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const rows = await apiRequest<Banner[]>("GET", "/api/admin/homepage/banners/");
+        if (active) setBanners(rows.sort((a, b) => a.position - b.position || a.id - b.id));
+      } catch (e) {
+        if (active) setError(message(e));
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   function reset() {
     setEditingId(null); setDraft({ ...blank(), position: banners.length });
