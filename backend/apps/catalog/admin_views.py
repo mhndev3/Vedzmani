@@ -108,6 +108,15 @@ class VariantImageAdminViewSet(
     permission_classes = [StaffDjangoModelPermissions]
 
 
+class InventoryAdjustmentPermissions(StaffDjangoModelPermissions):
+    """Stock writers must also be allowed to inspect the stock item they are changing."""
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        return request.method != "POST" or request.user.has_perm("catalog.view_variantsize")
+
+
 class InventoryAdjustmentAdminView(generics.ListCreateAPIView):
     """Read the append-only stock audit log or create an adjustment through the locking service."""
 
@@ -115,4 +124,4 @@ class InventoryAdjustmentAdminView(generics.ListCreateAPIView):
         "variant_size__variant__product", "variant_size__size", "created_by"
     )
     serializer_class = InventoryAdjustmentAdminSerializer
-    permission_classes = [StaffDjangoModelPermissions]
+    permission_classes = [InventoryAdjustmentPermissions]
