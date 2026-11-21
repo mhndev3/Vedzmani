@@ -15,9 +15,11 @@
   --card: #fafafa;
   --muted-foreground: #525252;
   --border: #e5e5e5;
-  --primary: #171717;
-  --primary-foreground: #fafafa;
-  --ring: #171717;
+  --primary: var(--store-primary, #171717);
+  --primary-foreground: var(--store-primary-foreground, #fafafa);
+  --accent: var(--store-accent, #e5e5e5);
+  --accent-foreground: var(--store-accent-foreground, #171717);
+  --ring: var(--store-primary, #171717);
 
   /* Typography hook: to add a local Persian/Latin font later, put its
      family first in these stacks (no component changes needed). */
@@ -40,9 +42,11 @@ html[lang="fa"] {
   --card: #111315;
   --muted-foreground: #a3a3a3;
   --border: #2e2e2e;
-  --primary: #fafafa;
-  --primary-foreground: #171717;
-  --ring: #e5e5e5;
+  --primary: var(--store-primary, #fafafa);
+  --primary-foreground: var(--store-primary-foreground, #171717);
+  --accent: var(--store-accent, #1a1a1a);
+  --accent-foreground: var(--store-accent-foreground, #fafafa);
+  --ring: var(--store-primary, #e5e5e5);
 }
 
 @theme inline {
@@ -53,7 +57,11 @@ html[lang="fa"] {
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
   --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);\n  --color-accent: var(--accent);\n  --color-accent-foreground: var(--accent-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-ring: var(--ring);
   --radius-lg: var(--radius);
 }
@@ -122,4 +130,14 @@ body {
 }
 
 .auth-step { animation: auth-step-enter 280ms cubic-bezier(.2,.75,.25,1) both; }
-\n\nhtml[data-motion="none"] *,\nhtml[data-motion="none"] *::before,\nhtml[data-motion="none"] *::after {\n  animation-duration: 0.01ms !important;\n  transition-duration: 0.01ms !important;\n  scroll-behavior: auto !important;\n}\n\n.auth-step { animation-duration: var(--store-motion-duration, 280ms); }\n
+
+
+html[data-motion="none"] *,
+html[data-motion="none"] *::before,
+html[data-motion="none"] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.auth-step { animation-duration: var(--store-motion-duration, 280ms); }
