@@ -4,6 +4,7 @@ PostgreSQL is the source of truth for both. Redis is only used for
 rate-limit counters (see ratelimit.py), never for authentication state.
 """
 
+from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import IntegrityError, models, transaction
