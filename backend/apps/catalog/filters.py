@@ -155,12 +155,18 @@ def _variant_search_q(term: str) -> Q:
         collection__is_active=True,
         collection__name__icontains=term,
     )
+    # Numeric variant codes are identifiers, not free text. Match them exactly so
+    # searching for code "02" does not also return codes such as "102".
+    code_match = (
+        Q(product_code=term) | Q(product__product_code=term)
+        if term.isdigit()
+        else Q(product_code__icontains=term) | Q(product__product_code__icontains=term)
+    )
     return (
         Q(product__name__icontains=term)
         | Q(name__icontains=term)
         | Q(slug__icontains=term)
-        | Q(product_code__icontains=term)
-        | Q(product__product_code__icontains=term)
+        | code_match
         | Q(product__slug__icontains=term)
         | Q(product__description__icontains=term)
         | Q(product__category__name__icontains=term)
@@ -200,7 +206,12 @@ def build_variant_queryset(params: dict):
     )
 
     for term in (params.get("search") or "").split()[:MAX_SEARCH_TERMS]:
-        qs = qs.filter(_variant_search_q(term))
+        if term.isdigit():
+            # Prefer an exact numeric card-code hit over incidental matches in slugs or names.
+            exact_code = qs.filter(Q(product_code=term) | Q(product__product_code=term))
+            qs = exact_code if exact_code.exists() else qs.filter(_variant_search_q(term))
+        else:
+            qs = qs.filter(_variant_search_q(term))
 
     if params.get("category"):
         qs = qs.filter(product__category__slug__in=params["category"])

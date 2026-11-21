@@ -98,6 +98,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
         <MobileNav
           items={items}
           categories={categoryItems}
+          admin={isAdmin ? { href: "/" + locale + "/admin-panel", label: "پنل مدیریت" } : undefined}
           labels={{
             open: t.a11y.openMenu,
             close: t.a11y.closeMenu,
