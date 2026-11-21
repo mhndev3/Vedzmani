@@ -73,14 +73,15 @@ def _write_uploaded_webp(upload, variant: ColorVariant) -> tuple[str, int, int, 
 def upload_variant_image(*, variant_id: int, upload, alt_text: str = "") -> VariantImage:
     with transaction.atomic():
         variant = ColorVariant.objects.select_for_update().get(pk=variant_id)
-        active_images = list(VariantImage.objects.select_for_update().filter(variant=variant, is_active=True))
+        all_images = list(VariantImage.objects.select_for_update().filter(variant=variant))
+        active_images = [item for item in all_images if item.is_active]
         key, width, height, file_size = _write_uploaded_webp(upload, variant)
         try:
             image = VariantImage.objects.create(
                 variant=variant,
                 storage_key=key,
                 alt_text=alt_text[:200],
-                position=max((item.position for item in active_images), default=-1) + 1,
+                position=max((item.position for item in all_images), default=-1) + 1,
                 is_primary=not any(item.is_primary for item in active_images),
                 width=width,
                 height=height,
