@@ -7,7 +7,7 @@ import type { ProductCardData } from "@/lib/catalog";
 
 export function NewestProductsCarousel({
   locale, t, products, emptyText, title, eyebrow = "تازه‌های فروشگاه",
-  viewAllHref, showViewAll = true,
+  viewAllHref, showViewAll = true, sectionId = "home-newest-products",
 }: {
   locale: Locale;
   t: Dictionary;
@@ -17,13 +17,14 @@ export function NewestProductsCarousel({
   eyebrow?: string;
   viewAllHref?: string;
   showViewAll?: boolean;
+  sectionId?: string;
 }) {
   return (
-    <section aria-label={title} className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
+    <section aria-labelledby={sectionId} className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
       <div className="mb-5 flex items-end justify-between gap-3">
         <div className="min-w-0">
           {eyebrow && <p className="mb-1 text-xs font-medium tracking-wide text-muted-foreground">{eyebrow}</p>}
-          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h2>
+          <h2 id={sectionId} className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h2>
         </div>
         {showViewAll && <Link href={viewAllHref || `/${locale}/products`} prefetch={false} className="inline-flex h-10 shrink-0 items-center rounded-full border border-border bg-card px-4 text-sm font-semibold transition hover:bg-muted">مشاهده همه</Link>}
       </div>
