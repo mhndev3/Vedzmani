@@ -3,6 +3,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .homepage_admin import HomepageSectionAdminViewSet
+from .homepage_banner_admin import HomepageBannerAdminViewSet
 from .admin_views import (
     CategoryAdminViewSet,
     CollectionAdminViewSet,
@@ -20,6 +21,7 @@ from .admin_views import (
 
 router = DefaultRouter()
 router.register("homepage/sections", HomepageSectionAdminViewSet, basename="admin-homepage-section")
+router.register("homepage/banners", HomepageBannerAdminViewSet, basename="admin-homepage-banner")
 router.register("catalog/products", ProductAdminViewSet, basename="admin-catalog-product")
 router.register("catalog/categories", CategoryAdminViewSet, basename="admin-catalog-category")
 router.register("catalog/collections", CollectionAdminViewSet, basename="admin-catalog-collection")
