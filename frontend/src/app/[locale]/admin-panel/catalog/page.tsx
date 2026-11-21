@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 import VariantImageManager from "./VariantImageManager";
 import ProductMeasurementManager from "./ProductMeasurementManager";
+import InventoryHistory from "./InventoryHistory";
 
 type Page<T> = { results: T[]; next: string | null; count: number };
 type Category = { id: number; name: string; slug: string; is_active: boolean; position: number };
@@ -308,6 +309,7 @@ export default function AdminCatalogPage() {
                               <label className="text-xs">دلیل تغییر<input required value={stockReasons[item.id] ?? ""} onChange={(e) => setStockReasons((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} placeholder="مثلاً ورود بار جدید" /></label>
                               <div className="flex items-end"><button disabled={saving || !stockChanges[item.id] || Number(stockChanges[item.id]) === 0 || !stockReasons[item.id]?.trim()} className={secondaryClass}>ثبت گردش</button></div>
                             </form>
+                            <InventoryHistory variantSizeId={item.id} />
                           </div>;
                         })}
                         {variantSizes.filter((vs) => vs.variant === color.id).length === 0 && <p className="text-xs text-muted-foreground">هنوز سایزی برای این رنگ ثبت نشده است.</p>}
