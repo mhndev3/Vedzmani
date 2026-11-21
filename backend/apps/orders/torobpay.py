@@ -35,6 +35,8 @@ class TorobPayClient:
         self.base_url = settings.TOROBPAY_BASE_URL.rstrip("/")
 
     def _credentials(self):
+        if not settings.TOROBPAY_ENABLED:
+            raise TorobPayError("disabled")
         values = (
             settings.TOROBPAY_CLIENT_ID,
             settings.TOROBPAY_CLIENT_SECRET,
@@ -84,7 +86,7 @@ class TorobPayClient:
 
     def access_token(self, *, force_refresh=False):
         client_id, client_secret, username, password = self._credentials()
-        cache_digest = hashlib.sha256(client_id.encode("utf-8")).hexdigest()[:24]
+        cache_digest = hashlib.sha256(f"{client_id}:{client_secret}".encode("utf-8")).hexdigest()[:24]
         cache_key = f"torobpay:jwt:{cache_digest}"
         if not force_refresh:
             cached = cache.get(cache_key)
