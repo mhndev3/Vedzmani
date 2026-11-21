@@ -2,6 +2,9 @@
 from decimal import Decimal
 
 import pytest
+from django.contrib.auth.models import Permission
+
+from apps.accounts.models import User
 
 from apps.catalog.models import (
     Category,
@@ -13,7 +16,7 @@ from apps.catalog.models import (
     VariantSizeMeasurement,
 )
 from apps.inventory.models import InventoryAdjustment
-from tests.conftest import client_for
+from tests.conftest import client_for, new_phone
 
 pytestmark = pytest.mark.django_db
 
@@ -179,3 +182,11 @@ def test_admin_api_does_not_offer_hard_delete(make_staff, make_variant_size):
     response = client.delete(f"/api/admin/catalog/products/{product.pk}/")
     assert response.status_code == 405
     assert Product.objects.filter(pk=product.pk).exists()
+
+
+def test_non_staff_user_with_model_permission_is_still_denied():
+    user = User.objects.create_user(new_phone())
+    permission = Permission.objects.get(content_type__app_label="catalog", codename="view_product")
+    user.user_permissions.add(permission)
+    client = client_for(user)
+    assert client.get("/api/admin/catalog/products/").status_code == 403
