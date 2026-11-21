@@ -60,8 +60,6 @@ html[lang="fa"] {
   --color-primary-foreground: var(--primary-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
   --color-ring: var(--ring);
   --radius-lg: var(--radius);
 }
