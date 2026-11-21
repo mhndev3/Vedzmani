@@ -12,10 +12,12 @@ from apps.catalog.models import (
     Collection,
     ColorVariant,
     Product,
+    ProductSizeDescription,
     ProductSizeMeasurement,
     Size,
     VariantImage,
     VariantSize,
+    VariantSizeDescription,
     VariantSizeMeasurement,
 )
 from apps.inventory.models import InventoryAdjustment
@@ -95,6 +97,20 @@ class ProductSizeMeasurementAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductSizeMeasurement
         fields = ["id", "product", "size", "name", "value", "unit", "position"]
+        read_only_fields = ["id"]
+
+
+class ProductSizeDescriptionAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductSizeDescription
+        fields = ["id", "product", "size", "description"]
+        read_only_fields = ["id"]
+
+
+class VariantSizeDescriptionAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VariantSizeDescription
+        fields = ["id", "variant_size", "description"]
         read_only_fields = ["id"]
 
 
