@@ -141,6 +141,12 @@ export default function AdminWorkspacePage() {
         <span className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">مدیریت صفحه اصلی ←</span>
       </Link>
 
+
+      <Link href={"/" + locale + "/admin-panel/audit-log"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
+        <div><h2 className="font-bold">تاریخچه فعالیت مدیران</h2><p className="mt-1 text-sm text-muted-foreground">مشاهده عملیات مدیریتی، زمان اجرا و نتیجه درخواست‌ها</p></div>
+        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مشاهده تاریخچه ←</span>
+      </Link>
+
       <div className="mt-8 flex items-center justify-between gap-3">
         <h2 className="text-xl font-bold">بخش‌های فروشگاه</h2>
         <span className="text-xs text-muted-foreground">نسخه اولیه فضای مدیریت</span>

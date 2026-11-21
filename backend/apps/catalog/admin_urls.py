@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from apps.orders.admin_api import AdminOrderDetailView, AdminOrderListView
 from apps.accounts.admin_customers import AdminCustomerDetailView, AdminCustomerListView
+from apps.accounts.admin_audit_api import AdminAuditEventListView
 from apps.accounts.support_api import AdminSupportTicketDetailView, AdminSupportTicketListView
 from apps.orders.admin_shipping import ShippingMethodAdminViewSet
 from .homepage_admin import HomepageSectionAdminViewSet
@@ -42,6 +43,7 @@ router.register("catalog/images", VariantImageAdminViewSet, basename="admin-cata
 
 urlpatterns = [
     path("storefront/theme/", StorefrontThemeAdminView.as_view(), name="admin-storefront-theme"),
+    path("audit-log/", AdminAuditEventListView.as_view(), name="admin-audit-log"),
     path("customers/", AdminCustomerListView.as_view(), name="admin-customer-list"),
     path("customers/<int:customer_id>/", AdminCustomerDetailView.as_view(), name="admin-customer-detail"),
     path("support/tickets/", AdminSupportTicketListView.as_view(), name="admin-support-ticket-list"),
