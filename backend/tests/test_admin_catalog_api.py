@@ -65,7 +65,7 @@ def test_product_create_update_and_read_only_color_summary(make_staff):
     assert created.status_code == 201, created.content
     product_id = created.json()["id"]
     assert created.json()["price"] == "1250000"
-    assert created.json()["colors"] == []
+    assert "colors" not in created.json()  # variants have their own model permissions and endpoint
 
     changed = client.patch(
         f"/api/admin/catalog/products/{product_id}/",
