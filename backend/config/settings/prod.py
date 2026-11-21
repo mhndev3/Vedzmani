@@ -57,3 +57,6 @@ X_FRAME_OPTIONS = "DENY"
 # No payment provider is configured: refuse order creation until the owner enables the full payment flow.
 ORDERS_ENABLED = env_bool("ORDERS_ENABLED", False)
 SEP_PAYMENT_ENABLED = env_bool("SEP_PAYMENT_ENABLED", False)
+
+# TorobPay remains disabled by default, even when credentials are present.
+TOROBPAY_ENABLED = env_bool("TOROBPAY_ENABLED", False)
