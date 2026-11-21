@@ -121,3 +121,47 @@ class OTPChallenge(models.Model):
             ),
             models.Index(fields=["expires_at"], name="otp_expires_at_idx"),
         ]
+
+
+
+class SupportTicket(models.Model):
+    STATUS_OPEN = "open"
+    STATUS_IN_PROGRESS = "in_progress"
+    STATUS_WAITING_CUSTOMER = "waiting_customer"
+    STATUS_RESOLVED = "resolved"
+    STATUS_CLOSED = "closed"
+    STATUS_CHOICES = [
+        (STATUS_OPEN, "Open"), (STATUS_IN_PROGRESS, "In progress"),
+        (STATUS_WAITING_CUSTOMER, "Waiting for customer"),
+        (STATUS_RESOLVED, "Resolved"), (STATUS_CLOSED, "Closed"),
+    ]
+    CATEGORY_CHOICES = [
+        ("order", "Order"), ("shipping", "Shipping"),
+        ("product", "Product"), ("payment", "Payment"), ("other", "Other"),
+    ]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="support_tickets")
+    subject = models.CharField(max_length=160)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="other")
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+        indexes = [models.Index(fields=["status", "-updated_at"], name="support_status_updated_idx")]
+
+    def __str__(self):
+        return f"ticket:{self.pk}"
+
+
+class SupportTicketMessage(models.Model):
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="support_messages")
+    body = models.TextField(max_length=5000)
+    is_internal = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [models.Index(fields=["ticket", "created_at"], name="support_msg_ticket_created_idx")]
+
