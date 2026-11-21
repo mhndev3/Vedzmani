@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useParams } from "next/navigation";
 import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 
@@ -92,6 +92,7 @@ export default function StorefrontThemePage() {
   async function publish() {
     setSaving(true); setError(""); setNotice("");
     try {
+      await apiRequest("PATCH", "/api/admin/storefront/theme/", { settings: draft });
       await apiRequest("POST", "/api/admin/storefront/theme/", { action: "publish" });
       setPublished(draft);
       setNotice("قالب جدید منتشر شد و در ویترین فروشگاه اعمال می‌شود.");
@@ -106,7 +107,7 @@ export default function StorefrontThemePage() {
     "--preview-accent-foreground": draft.accent_foreground,
     borderRadius: draft.radius === "compact" ? "8px" : draft.radius === "rounded" ? "24px" : "14px",
     fontFamily: draft.font === "classic" ? '"Noto Naskh Arabic", Tahoma, serif' : draft.font === "persian-modern" ? 'Tahoma, "Noto Sans Arabic", sans-serif' : 'system-ui, Tahoma, sans-serif',
-  } as React.CSSProperties;
+  } as CSSProperties;
 
   return <main dir="rtl" className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
     <div className="mb-7">
