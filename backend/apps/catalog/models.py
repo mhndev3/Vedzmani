@@ -345,3 +345,42 @@ class Favorite(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.product_id}"
+
+
+class HomepageSection(models.Model):
+    """Configurable homepage section. Drafts are stored independently of storefront rendering."""
+
+    TYPE_CATEGORIES = "categories"
+    TYPE_PRODUCTS = "products"
+    TYPE_NEWEST_PRODUCTS = "newest_products"
+    TYPE_CHOICES = [
+        (TYPE_CATEGORIES, "Category grid"),
+        (TYPE_PRODUCTS, "Selected products"),
+        (TYPE_NEWEST_PRODUCTS, "Newest products"),
+    ]
+    STATUS_DRAFT = "draft"
+    STATUS_PUBLISHED = "published"
+    STATUS_CHOICES = [(STATUS_DRAFT, "Draft"), (STATUS_PUBLISHED, "Published")]
+
+    title = models.CharField(max_length=120)
+    eyebrow = models.CharField(max_length=120, blank=True)
+    section_type = models.CharField(max_length=24, choices=TYPE_CHOICES)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    position = models.PositiveIntegerField(default=0)
+    item_limit = models.PositiveSmallIntegerField(default=8)
+    show_view_all = models.BooleanField(default=True)
+    view_all_url = models.CharField(max_length=240, blank=True)
+    categories = models.ManyToManyField(Category, blank=True, related_name="homepage_sections")
+    products = models.ManyToManyField(Product, blank=True, related_name="homepage_sections")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        indexes = [
+            models.Index(fields=["status", "position"], name="home_section_status_pos_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.title
