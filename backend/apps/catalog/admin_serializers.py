@@ -4,7 +4,6 @@ All write paths deliberately expose model fields rather than accepting arbitrary
 Related records are managed through their own permission-checked endpoints. Stock and image storage keys are
 never writable through these serializers.
 """
-from django.db import transaction
 from rest_framework import serializers
 
 from apps.catalog.models import (
