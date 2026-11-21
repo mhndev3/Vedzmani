@@ -79,6 +79,7 @@ def test_image_reorder_sets_first_as_primary_and_rejects_partial_lists(make_staf
 
 def test_deactivating_primary_promotes_next_image(make_staff, make_variant_size, tmp_path):
     row = make_variant_size()
+    clear_fixture_image(row)
     client = client_for(make_staff(
         "catalog.add_variantimage", "catalog.view_variantimage", "catalog.view_colorvariant",
         "catalog.change_variantimage",
