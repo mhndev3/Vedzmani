@@ -5,6 +5,8 @@ restoration need a separately reviewed business workflow. Customer PII is indepe
 """
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
@@ -87,6 +89,7 @@ class AdminOrderPagination(PageNumberPagination):
     max_page_size = 50
 
 
+@method_decorator(never_cache, name="dispatch")
 class AdminOrderListView(APIView):
     permission_classes = [StaffOrderViewPermission]
     pagination_class = AdminOrderPagination
@@ -123,6 +126,7 @@ class AdminOrderListView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
+@method_decorator(never_cache, name="dispatch")
 class AdminOrderDetailView(APIView):
     permission_classes = [StaffOrderViewPermission]
 
