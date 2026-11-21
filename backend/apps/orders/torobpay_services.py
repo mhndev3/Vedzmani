@@ -292,6 +292,8 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
                     attempt.save(update_fields=[
                         "provider_status", "status", "last_error_code", "updated_at"
                     ])
+                    if _finish_reversal(attempt, client, provider_state):
+                        return "failed"
                     return "pending"
                 attempt.provider_transaction_id = provider_transaction_id
                 attempt.verified_at = timezone.now()
