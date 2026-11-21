@@ -114,3 +114,55 @@ class SepPaymentAttempt(models.Model):
     def __str__(self) -> str:
         return f"sep:{self.res_num}:{self.status}"
 
+
+class ShippingMethod(models.Model):
+    """Admin-managed shipping option and tariff draft.
+
+    This configuration is intentionally not consumed by checkout or SEP yet. Rates must be confirmed by
+    the carrier and explicitly wired into an order snapshot before payment can be enabled.
+    """
+    POST = "post"
+    TIPAX = "tipax"
+    OTHER = "other"
+    PROVIDER_CHOICES = [(POST, "Post"), (TIPAX, "Tipax"), (OTHER, "Other")]
+
+    FIXED = "fixed"
+    QUOTE = "quote"
+    PRICING_CHOICES = [(FIXED, "Fixed tariff"), (QUOTE, "Carrier quote required")]
+
+    code = models.SlugField(max_length=40, unique=True)
+    name = models.CharField(max_length=100)
+    provider = models.CharField(max_length=12, choices=PROVIDER_CHOICES, default=OTHER)
+    pricing_mode = models.CharField(max_length=10, choices=PRICING_CHOICES, default=QUOTE)
+    amount_toman = models.PositiveBigIntegerField(null=True, blank=True)
+    service_area = models.CharField(max_length=160, blank=True, default="")
+    min_delivery_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    max_delivery_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    description = models.CharField(max_length=500, blank=True, default="")
+    is_active = models.BooleanField(default=False)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(pricing_mode="quote", amount_toman__isnull=True)
+                    | models.Q(pricing_mode="fixed", amount_toman__isnull=False)
+                ),
+                name="shipping_method_pricing_amount_consistent",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(min_delivery_days__isnull=True)
+                    | models.Q(max_delivery_days__isnull=True)
+                    | models.Q(max_delivery_days__gte=models.F("min_delivery_days"))
+                ),
+                name="shipping_method_delivery_days_ordered",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
