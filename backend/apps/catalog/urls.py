@@ -3,8 +3,10 @@ from django.urls import path
 from . import views
 from .homepage_public import HomepageSectionsPublicView
 from .homepage_banner_public import HomepageBannersPublicView
+from .storefront_theme import StorefrontThemePublicView
 
 urlpatterns = [
+    path("storefront/theme/", StorefrontThemePublicView.as_view(), name="storefront-theme-public"),
     path("homepage-sections/", HomepageSectionsPublicView.as_view(), name="catalog-homepage-sections"),
     path("homepage-banners/", HomepageBannersPublicView.as_view(), name="catalog-homepage-banners"),
     path("filters/", views.FilterOptionsView.as_view(), name="catalog-filter-options"),
