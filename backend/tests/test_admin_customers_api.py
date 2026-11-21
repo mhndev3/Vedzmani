@@ -47,7 +47,10 @@ def test_customer_directory_search_is_account_id_only(make_staff, db):
     customer = User.objects.create_user("09123456789")
     client = client_for(make_staff("accounts.view_user"))
     assert client.get(f"/api/admin/customers/?search={customer.pk}").json()["count"] == 1
-    assert client.get("/api/admin/customers/?search=09123456789").status_code == 400
+    # A phone-shaped numeric string is treated only as an account ID, never as a phone lookup.
+    response = client.get("/api/admin/customers/?search=09123456789")
+    assert response.status_code == 200
+    assert response.json()["count"] == 0
 
 
 def test_customer_directory_filters_active_state(make_staff, db):
