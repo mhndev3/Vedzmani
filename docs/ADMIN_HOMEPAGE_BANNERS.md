@@ -14,7 +14,7 @@ The API requires an active staff account and the corresponding Django model perm
 ## Image and link rules
 
 - Desktop image is required; mobile image is optional.
-- JPEG, PNG, and WebP images are accepted, up to 8 MiB and 40 megapixels each.
+- JPEG, PNG, and WebP images are accepted, up to 8 MiB and 40 megapixels per image; combined files in one request are capped at 7 MiB to stay below the current reverse-proxy request limit.
 - Image files are stored under a server-generated UUID path in the existing media storage.
 - Alt text is required for publishing.
 - CTA destinations must be same-site relative paths; external URLs and protocol-relative URLs are rejected.
