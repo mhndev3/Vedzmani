@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 
 type Size = { id: number; code: string; label: string; position: number };
