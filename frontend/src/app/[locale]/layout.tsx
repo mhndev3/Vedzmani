@@ -129,7 +129,7 @@ export default async function RootLayout({
   } as CSSProperties;
 
   return (
-    <html lang={locale} dir={localeMeta[locale].dir} data-motion={theme.motion} suppressHydrationWarning>
+    <html lang={locale} dir={localeMeta[locale].dir} data-motion={theme.motion} style={themeStyle} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script
@@ -137,7 +137,7 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
         />
       </head>
-      <body style={themeStyle} className="flex min-h-dvh flex-col bg-background text-foreground antialiased">
+      <body className="flex min-h-dvh flex-col bg-background text-foreground antialiased">
         <a
           href="#main"
           className="sr-only rounded-lg bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50"
