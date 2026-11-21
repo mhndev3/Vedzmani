@@ -104,7 +104,7 @@ export default function AdminHomepageBannersPage() {
     }
     const data = new FormData();
     for (const [key, value] of Object.entries(draft)) {
-      if (key === "starts_at" || key === "ends_at") data.set(key, isoDate(value));
+      if (key === "starts_at" || key === "ends_at") data.set(key, isoDate(String(value)));
       else data.set(key, String(value));
     }
     if (desktopFile) data.set("desktop_image", desktopFile);
