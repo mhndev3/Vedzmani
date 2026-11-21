@@ -3,6 +3,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.orders.admin_api import AdminOrderDetailView, AdminOrderListView
+from apps.orders.admin_shipping import ShippingMethodAdminViewSet
 from .homepage_admin import HomepageSectionAdminViewSet
 from .homepage_banner_admin import HomepageBannerAdminViewSet
 from .storefront_theme import StorefrontThemeAdminView
@@ -22,6 +23,7 @@ from .admin_views import (
 )
 
 router = DefaultRouter()
+router.register("shipping/methods", ShippingMethodAdminViewSet, basename="admin-shipping-method")
 router.register("homepage/sections", HomepageSectionAdminViewSet, basename="admin-homepage-section")
 router.register("homepage/banners", HomepageBannerAdminViewSet, basename="admin-homepage-banner")
 router.register("catalog/products", ProductAdminViewSet, basename="admin-catalog-product")
