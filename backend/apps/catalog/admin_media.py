@@ -42,7 +42,8 @@ def _write_uploaded_webp(upload, variant: ColorVariant) -> tuple[str, int, int, 
             width, height = image.size
             if width < 1 or height < 1 or width * height > MAX_IMAGE_PIXELS:
                 raise ValidationError({"file": "ابعاد تصویر معتبر نیست."})
-            converted = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+            has_alpha = "A" in image.getbands() or "transparency" in image.info
+            converted = image.convert("RGBA" if has_alpha else "RGB")
             key = f"products/{variant.product_id}/{variant.pk}/{uuid.uuid4().hex}.webp"
             root = Path(settings.MEDIA_ROOT).resolve()
             destination = root.joinpath(*key.split("/"))
@@ -74,17 +75,21 @@ def upload_variant_image(*, variant_id: int, upload, alt_text: str = "") -> Vari
         variant = ColorVariant.objects.select_for_update().get(pk=variant_id)
         active_images = list(VariantImage.objects.select_for_update().filter(variant=variant, is_active=True))
         key, width, height, file_size = _write_uploaded_webp(upload, variant)
-        image = VariantImage.objects.create(
-            variant=variant,
-            storage_key=key,
-            alt_text=alt_text[:200],
-            position=max((item.position for item in active_images), default=-1) + 1,
-            is_primary=not active_images,
-            width=width,
-            height=height,
-            content_type="image/webp",
-            file_size=file_size,
-        )
+        try:
+            image = VariantImage.objects.create(
+                variant=variant,
+                storage_key=key,
+                alt_text=alt_text[:200],
+                position=max((item.position for item in active_images), default=-1) + 1,
+                is_primary=not any(item.is_primary for item in active_images),
+                width=width,
+                height=height,
+                content_type="image/webp",
+                file_size=file_size,
+            )
+        except Exception:
+            (Path(settings.MEDIA_ROOT) / key).unlink(missing_ok=True)
+            raise
         return image
 
 
@@ -119,10 +124,9 @@ def deactivate_variant_image(*, image_id: int) -> VariantImage:
     image.is_active = False
     image.is_primary = False
     image.save(update_fields=["is_active", "is_primary", "updated_at"])
-    if was_primary:
-        replacement = VariantImage.objects.select_for_update().filter(
-            variant_id=image.variant_id, is_active=True
-        ).order_by("position", "id").first()
+    active_images = VariantImage.objects.select_for_update().filter(variant_id=image.variant_id, is_active=True)
+    if was_primary or not active_images.filter(is_primary=True).exists():
+        replacement = active_images.order_by("position", "id").first()
         if replacement:
             replacement.is_primary = True
             replacement.save(update_fields=["is_primary", "updated_at"])
