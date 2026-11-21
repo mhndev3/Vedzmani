@@ -108,7 +108,7 @@ export default async function RootLayout({
   const t = getDictionary(locale);
   let theme = defaultTheme;
   try {
-    const response = await apiGet<{ settings: StorefrontThemeSettings }>("/api/catalog/storefront/theme/");
+    const response = await apiGet<{ settings: StorefrontThemeSettings }>("/api/catalog/storefront/theme/", { cache: "force-cache", next: { revalidate: 30 } });
     theme = response.settings;
   } catch {
     // Keep the compiled default theme if the configuration API is unavailable.
