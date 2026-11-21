@@ -190,3 +190,6 @@ _torobpay_shipping_amount = env("TOROBPAY_SHIPPING_AMOUNT_TOMAN")
 TOROBPAY_SHIPPING_AMOUNT_TOMAN = (
     int(_torobpay_shipping_amount) if _torobpay_shipping_amount is not None else None
 )
+# Provider docs do not clarify whether cartItems.amount is unit price or line total.
+# Keep token creation disabled until the provider confirms the expected interpretation.
+TOROBPAY_CART_ITEM_AMOUNT_MODE = env("TOROBPAY_CART_ITEM_AMOUNT_MODE", "") or ""
