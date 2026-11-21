@@ -8,7 +8,7 @@ export type HomepageSection = {
   show_view_all: boolean; view_all_url: string;
   categories: HomepageCategory[]; products: ProductCardData[];
 };
-export type HomepageContent = {
+export type HomepageBanner = { id: number; title: string; subtitle: string; alt_text: string; desktop_image: string; mobile_image: string | null; cta_label: string; cta_url: string; };\nexport type HomepageContent = {\n  banners: HomepageBanner[];
   categories: HomepageCategory[];
   newestProducts: ProductCardData[];
   sections: HomepageSection[];
@@ -29,7 +29,7 @@ export async function getHomepageContent(): Promise<HomepageContent> {
       cache: "no-store",
     });
     if (configured.sections.length > 0) {
-      return { categories: [], newestProducts: [], sections: configured.sections };
+      return { banners, categories: [], newestProducts: [], sections: configured.sections };
     }
   } catch {
     // Keep the existing homepage available if the new endpoint is temporarily unavailable.
