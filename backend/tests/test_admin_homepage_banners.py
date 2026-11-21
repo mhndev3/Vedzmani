@@ -66,7 +66,7 @@ def test_homepage_banner_rejects_external_cta_and_invalid_schedule(make_staff):
         "cta_url": "https://example.com",
     })
     assert response.status_code == 400
-    assert "cta_url" in response.json()
+    assert "cta_url" in response.json()["error"]["details"]
 
     start = timezone.now()
     end = start - timedelta(minutes=1)
@@ -78,4 +78,4 @@ def test_homepage_banner_rejects_external_cta_and_invalid_schedule(make_staff):
         "ends_at": end.isoformat(),
     })
     assert response.status_code == 400
-    assert "ends_at" in response.json()
+    assert "ends_at" in response.json()["error"]["details"]
