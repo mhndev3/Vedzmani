@@ -113,7 +113,7 @@ def test_inventory_api_requires_add_permission_and_records_audited_adjustment(ma
         "/api/admin/inventory/adjustments/", payload, content_type="application/json"
     ).status_code == 403
 
-    actor = make_staff("inventory.add_inventoryadjustment", "inventory.view_inventoryadjustment")
+    actor = make_staff("inventory.add_inventoryadjustment", "inventory.view_inventoryadjustment", "catalog.view_variantsize")
     client = client_for(actor)
     response = client.post(
         "/api/admin/inventory/adjustments/", payload, content_type="application/json"
@@ -129,7 +129,7 @@ def test_inventory_api_requires_add_permission_and_records_audited_adjustment(ma
 
 def test_inventory_api_rejects_negative_result_without_changing_stock(make_staff, make_variant_size):
     row = make_variant_size(stock=1)
-    client = client_for(make_staff("inventory.add_inventoryadjustment"))
+    client = client_for(make_staff("inventory.add_inventoryadjustment", "catalog.view_variantsize"))
     response = client.post(
         "/api/admin/inventory/adjustments/",
         {"variant_size": row.pk, "quantity_change": -2, "reason": "اصلاح"},
