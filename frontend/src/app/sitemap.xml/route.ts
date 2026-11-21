@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiGet } from "@/lib/api";
 import type { FilterOptions, Paginated, ProductCardData } from "@/lib/catalog";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_URL || "https://vedzmani.ir").replace(/\/$/, "");
