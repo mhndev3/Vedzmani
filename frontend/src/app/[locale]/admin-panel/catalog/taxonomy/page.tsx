@@ -18,10 +18,10 @@ async function getAll(path: string): Promise<Entry[]> {
   let next: string | null = path;
   let pages = 0;
   while (next && pages < 40) {
-    const page = await apiRequest<Page<Entry>>("GET", next);
-    rows.push(...page.results);
-    next = page.next
-      ? new URL(page.next, window.location.origin).pathname + new URL(page.next, window.location.origin).search
+    const pageData: Page<Entry> = await apiRequest<Page<Entry>>("GET", next);
+    rows.push(...pageData.results);
+    next = pageData.next
+      ? new URL(pageData.next, window.location.origin).pathname + new URL(pageData.next, window.location.origin).search
       : null;
     pages += 1;
   }
