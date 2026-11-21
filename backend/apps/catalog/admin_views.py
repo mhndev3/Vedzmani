@@ -20,6 +20,8 @@ from apps.catalog.models import (
 )
 from apps.inventory.models import InventoryAdjustment
 
+from .pagination import CatalogPagination
+
 from .admin_serializers import (
     CategoryAdminSerializer,
     CollectionAdminSerializer,
@@ -52,6 +54,7 @@ class StaffModelPermissionViewSet(
     """Create/read/update only; deactivation replaces hard deletion in this API."""
 
     permission_classes = [StaffDjangoModelPermissions]
+    pagination_class = CatalogPagination
 
 
 class ProductAdminViewSet(StaffModelPermissionViewSet):
@@ -106,6 +109,7 @@ class VariantImageAdminViewSet(
     queryset = VariantImage.objects.select_related("variant__product").order_by("variant_id", "position", "id")
     serializer_class = VariantImageReadSerializer
     permission_classes = [StaffDjangoModelPermissions]
+    pagination_class = CatalogPagination
 
 
 class InventoryAdjustmentPermissions(StaffDjangoModelPermissions):
@@ -125,3 +129,4 @@ class InventoryAdjustmentAdminView(generics.ListCreateAPIView):
     )
     serializer_class = InventoryAdjustmentAdminSerializer
     permission_classes = [InventoryAdjustmentPermissions]
+    pagination_class = CatalogPagination
