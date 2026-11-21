@@ -61,6 +61,12 @@ class HomepageBannerAdminSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        uploaded_size = sum(
+            getattr(attrs.get(field), "size", 0)
+            for field in ("desktop_image", "mobile_image")
+        )
+        if uploaded_size > 7 * 1024 * 1024:
+            raise serializers.ValidationError("حجم مجموع تصاویر ارسالی در هر درخواست نباید بیشتر از ۷ مگابایت باشد.")
         starts_at = attrs.get("starts_at", getattr(self.instance, "starts_at", None))
         ends_at = attrs.get("ends_at", getattr(self.instance, "ends_at", None))
         if starts_at and ends_at and ends_at <= starts_at:
