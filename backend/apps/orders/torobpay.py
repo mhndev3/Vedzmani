@@ -1,4 +1,4 @@
-""""Server-side TorobPay CPG API client.
+"""Server-side TorobPay CPG API client.
 
 Credentials and JWTs never leave the backend. Provider responses are validated
 against the documented envelope; error bodies and secrets are never logged.
