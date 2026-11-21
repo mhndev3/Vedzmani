@@ -59,12 +59,13 @@ export default function ProductMeasurementManager({
   const [notice, setNotice] = useState("");
 
   const variantSizeIdKey = variantSizes.map((item) => item.id).join(",");
-  const refresh = useCallback(async () => {
-    const [shared, specific, descriptionsData] = await Promise.all([
-      getAll<Measurement>("/api/admin/catalog/product-measurements/"),
-      getAll<VariantMeasurement>("/api/admin/catalog/variant-size-measurements/"),
-      getAll<SizeDescription>("/api/admin/catalog/product-size-descriptions/"),
-    ]);
+  const loadData = useCallback(async () => Promise.all([
+    getAll<Measurement>("/api/admin/catalog/product-measurements/"),
+    getAll<VariantMeasurement>("/api/admin/catalog/variant-size-measurements/"),
+    getAll<SizeDescription>("/api/admin/catalog/product-size-descriptions/"),
+  ]), []);
+
+  const applyData = useCallback(([shared, specific, descriptionsData]: [Measurement[], VariantMeasurement[], SizeDescription[]]) => {
     const allowedVariantSizeIds = new Set(variantSizeIdKey.split(",").filter(Boolean).map(Number));
     setMeasurements(shared.filter((item) => item.product === productId));
     setVariantMeasurements(specific.filter((item) => allowedVariantSizeIds.has(item.variant_size)));
@@ -73,12 +74,21 @@ export default function ProductMeasurementManager({
     setDescriptionDrafts(Object.fromEntries(productDescriptions.map((item) => [item.size, item.description])));
   }, [productId, variantSizeIdKey]);
 
+  const refresh = useCallback(async () => {
+    applyData(await loadData());
+  }, [applyData, loadData]);
+
   useEffect(() => {
     let active = true;
-    void refresh().catch((e: unknown) => { if (active) setError(errorText(e)); })
-      .finally(() => { if (active) setLoading(false); });
+    void loadData().then((data) => {
+      if (active) applyData(data);
+    }).catch((e: unknown) => {
+      if (active) setError(errorText(e));
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
     return () => { active = false; };
-  }, [refresh]);
+  }, [applyData, loadData]);
 
   const activeSizes = sizes;
   const labelForSize = (id: number) => sizes.find((size) => size.id === id)?.label ?? "سایز نامشخص";
