@@ -11,6 +11,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { SearchButton } from "./SearchButton";
 import { MobileSearchPanel } from "./MobileSearchPanel";
 import { CartButton } from "./CartButton";
+import { authApi } from "@/lib/auth/api";
 
 const categories = [
   { name: "دورس", slug: "sweatshirts" },
@@ -41,11 +42,22 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   const [visible, setVisible] = useState(true);
   const [searchOpenedOnPath, setSearchOpenedOnPath] = useState<string | null>(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
   const searchExpanded = searchOpenedOnPath === pathname;
   const closeMobileSearch = useCallback(() => setMobileSearchOpen(false), []);
   const hideTimer = useRef<number | undefined>(undefined);
   const items = navItems(locale, t);
+  useEffect(() => {
+    let active = true;
+    authApi.me().then((user) => {
+      if (active) setIsAdmin(user?.is_staff === true);
+    }).catch(() => {
+      if (active) setIsAdmin(false);
+    });
+    return () => { active = false; };
+  }, [pathname]);
+
   const categoryItems = categories.map((category) => ({
     href: "/" + locale + "/categories/" + encodeURIComponent(category.slug),
     label: category.name,
