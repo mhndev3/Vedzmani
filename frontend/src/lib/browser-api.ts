@@ -120,3 +120,19 @@ export async function apiUploadRequest<T>(path: string, body: FormData): Promise
     throw new BrowserApiError(res.status, "network_error");
   }
 }
+
+/** Multipart create/update helper; the browser sets the multipart boundary. */
+export async function apiMultipartRequest<T>(
+  method: "POST" | "PATCH",
+  path: string,
+  body: FormData,
+): Promise<T> {
+  const headers: Record<string, string> = { "X-CSRFToken": await csrfToken() };
+  const res = await send(path, { method, headers, body });
+  if (!res.ok) throw await parseError(res);
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new BrowserApiError(res.status, "network_error");
+  }
+}
