@@ -128,6 +128,8 @@ CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 CSRF_FAILURE_VIEW = "apps.core.views.csrf_failure"
 
 AUTH_USER_MODEL = "accounts.User"
+MEDIA_CDN_BASE_URL = env("MEDIA_CDN_BASE_URL", "")
+
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
