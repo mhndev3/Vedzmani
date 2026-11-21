@@ -49,10 +49,10 @@ export default function AdminShippingPage() {
       let next: string | null = "/api/admin/shipping/methods/";
       let pages = 0;
       while (next && pages < 30) {
-        const data = await apiRequest<Page<Method>>("GET", next);
+        const data: Page<Method> = await apiRequest<Page<Method>>("GET", next);
         rows.push(...data.results);
         if (!data.next) break;
-        const url = new URL(data.next, window.location.origin);
+        const url: URL = new URL(data.next, window.location.origin);
         next = url.pathname + url.search;
         pages += 1;
       }
