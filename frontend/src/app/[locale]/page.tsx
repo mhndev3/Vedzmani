@@ -14,7 +14,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   return (
     <>
-      <HomepageHeroSlider banners={content.banners} />
+      <HomepageHeroSlider banners={content.banners} locale={locale} />
       {content.sections.length > 0 ? content.sections.map((section) => (
         section.section_type === "categories" ? (
           <HomeCategoryGrid key={section.id} sectionId={`home-categories-${section.id}`} locale={locale} categories={section.categories} title={section.title} eyebrow={section.eyebrow} />
