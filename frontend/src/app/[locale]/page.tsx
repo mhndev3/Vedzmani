@@ -27,7 +27,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             emptyText={t.home.emptySection}
             title={section.title}
             eyebrow={section.eyebrow}
-            viewAllHref={section.show_view_all && section.view_all_url ? section.view_all_url : undefined}
+            viewAllHref={section.show_view_all && section.view_all_url ? `/${locale}${section.view_all_url}` : undefined}\n            showViewAll={section.show_view_all}
           />
         )
       )) : (
