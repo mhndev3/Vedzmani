@@ -281,3 +281,95 @@ def test_torobpay_callback_get_is_non_mutating_readiness_probe():
     assert response.status_code == 200
     assert response.json() == {"status": "ready"}
     assert "no-store" in response["Cache-Control"]
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(ORDERS_ENABLED=True, TOROBPAY_ENABLED=True, TOROBPAY_SHIPPING_AMOUNT_TOMAN=0)
+def test_concurrent_torobpay_payments_cannot_consume_the_same_last_unit(make_variant_size):
+    import threading
+    from django.db import connection
+
+    variant_size = make_variant_size(stock=1)
+    attempts = []
+    transaction_ids = {}
+    for _ in range(2):
+        user = get_user_model().objects.create_user(new_phone())
+        order = Order.objects.create(
+            user=user,
+            customer_phone=user.phone,
+            total=Decimal("1000"),
+            **DELIVERY,
+        )
+        OrderItem.objects.create(
+            order=order,
+            variant_size=variant_size,
+            product_name=variant_size.variant.product.name,
+            color_name=variant_size.variant.name,
+            size_label=variant_size.size.label,
+            sku=variant_size.sku,
+            unit_price=Decimal("1000"),
+            quantity=1,
+            subtotal=Decimal("1000"),
+        )
+        transaction_id = str(uuid.uuid4())
+        token = f"provider-token-{len(attempts)}"
+        transaction_ids[token] = transaction_id
+        attempts.append(TorobPayPaymentAttempt.objects.create(
+            order=order,
+            merchant_transaction_id=uuid.UUID(transaction_id),
+            payment_token=token,
+            amount_toman=1000,
+            amount_rial=10000,
+            status=TorobPayPaymentAttempt.NEW,
+        ))
+
+    class ConcurrentClient:
+        def __init__(self):
+            self.settled = []
+            self.reverted = []
+
+        def status(self, token):
+            return {"status": "PENDING"}
+
+        def verify(self, token):
+            return {"transactionId": transaction_ids[token]}
+
+        def settle(self, token):
+            self.settled.append(token)
+            return {"transactionId": transaction_ids[token]}
+
+        def revert(self, token):
+            self.reverted.append(token)
+            return {"status": "CANCELED"}
+
+        def cancel(self, token):
+            self.reverted.append(token)
+            return {"status": "CANCELED"}
+
+    client = ConcurrentClient()
+    barrier = threading.Barrier(2)
+    results = [None, None]
+
+    def worker(index):
+        try:
+            barrier.wait(timeout=10)
+            results[index] = process_torobpay_callback(
+                transaction_id=str(attempts[index].merchant_transaction_id),
+                state="OK",
+                amount="10000",
+                client=client,
+            )
+        finally:
+            connection.close()
+
+    threads = [threading.Thread(target=worker, args=(index,)) for index in range(2)]
+    [thread.start() for thread in threads]
+    [thread.join(timeout=20) for thread in threads]
+
+    assert sorted(results) == ["out_of_stock", "paid"]
+    variant_size.refresh_from_db()
+    assert variant_size.stock_quantity == 0
+    assert Order.objects.filter(payment_status=Order.PAID).count() == 1
+    assert Order.objects.filter(payment_status=Order.FAILED).count() == 1
+    assert len(client.settled) == 1
+    assert len(client.reverted) == 1
