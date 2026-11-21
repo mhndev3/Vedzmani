@@ -1,6 +1,6 @@
 """Staff-only API for managing homepage sections and their selected catalog items."""
 from django.utils import timezone
-from rest_framework import serializers, viewsets
+from rest_framework import mixins, serializers, viewsets
 from rest_framework.permissions import DjangoModelPermissions
 
 from .models import Category, HomepageSection, Product
@@ -66,7 +66,8 @@ class StaffHomepagePermissions(DjangoModelPermissions):
         return bool(user and user.is_authenticated and user.is_staff and super().has_permission(request, view))
 
 
-class HomepageSectionAdminViewSet(viewsets.ModelViewSet):
+class HomepageSectionAdminViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    """Create/read/update only; destructive deletion is intentionally unavailable."""
     serializer_class = HomepageSectionAdminSerializer
     permission_classes = [StaffHomepagePermissions]
     queryset = HomepageSection.objects.prefetch_related("categories", "products").all()
