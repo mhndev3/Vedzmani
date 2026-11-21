@@ -17,6 +17,7 @@ def clear_torobpay_cache():
 
 
 @override_settings(
+    TOROBPAY_ENABLED=True,
     TOROBPAY_CLIENT_ID="client-id",
     TOROBPAY_CLIENT_SECRET="client-secret",
     TOROBPAY_USERNAME="merchant-user",
@@ -43,6 +44,7 @@ def test_oauth_uses_basic_header_and_caches_jwt():
 
 
 @override_settings(
+    TOROBPAY_ENABLED=True,
     TOROBPAY_CLIENT_ID="client-id",
     TOROBPAY_CLIENT_SECRET="client-secret",
     TOROBPAY_USERNAME="merchant-user",
@@ -78,6 +80,7 @@ def test_eligibility_rejects_amounts_outside_documented_rial_range():
 
 
 @override_settings(
+    TOROBPAY_ENABLED=True,
     TOROBPAY_CLIENT_ID="",
     TOROBPAY_CLIENT_SECRET="",
     TOROBPAY_USERNAME="",
@@ -89,6 +92,7 @@ def test_missing_credentials_fail_closed():
 
 
 @override_settings(
+    TOROBPAY_ENABLED=True,
     TOROBPAY_CLIENT_ID="client-id",
     TOROBPAY_CLIENT_SECRET="client-secret",
     TOROBPAY_USERNAME="merchant-user",
@@ -102,3 +106,18 @@ def test_provider_error_body_is_not_exposed_in_exception():
             TorobPayClient().access_token()
     assert raised.value.code == "provider_http_error"
     assert "password" not in str(raised.value).lower()
+
+
+
+@override_settings(
+    TOROBPAY_ENABLED=False,
+    TOROBPAY_CLIENT_ID="client-id",
+    TOROBPAY_CLIENT_SECRET="client-secret",
+    TOROBPAY_USERNAME="merchant-user",
+    TOROBPAY_PASSWORD="merchant-password",
+)
+def test_disabled_client_does_not_make_provider_request():
+    with patch("apps.orders.torobpay.urlopen") as send:
+        with pytest.raises(TorobPayError, match="disabled"):
+            TorobPayClient().access_token()
+    send.assert_not_called()
