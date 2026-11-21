@@ -384,3 +384,42 @@ class HomepageSection(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+
+def homepage_banner_upload_to(instance, filename):
+    import os
+    import uuid
+
+    extension = os.path.splitext(filename)[1].lower()
+    if extension not in {".jpg", ".jpeg", ".png", ".webp"}:
+        extension = ".img"
+    return f"homepage-banners/{uuid.uuid4().hex}{extension}"
+
+
+class HomepageBanner(models.Model):
+    STATUS_DRAFT = "draft"
+    STATUS_PUBLISHED = "published"
+    STATUS_CHOICES = [(STATUS_DRAFT, "Draft"), (STATUS_PUBLISHED, "Published")]
+
+    title = models.CharField(max_length=120, blank=True)
+    subtitle = models.CharField(max_length=240, blank=True)
+    alt_text = models.CharField(max_length=200)
+    desktop_image = models.ImageField(upload_to=homepage_banner_upload_to)
+    mobile_image = models.ImageField(upload_to=homepage_banner_upload_to, blank=True)
+    cta_label = models.CharField(max_length=60, blank=True)
+    cta_url = models.CharField(max_length=240, blank=True)
+    position = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        indexes = [models.Index(fields=["status", "position"], name="home_banner_status_pos_idx")]
+
+    def __str__(self):
+        return self.title or f"Homepage banner #{self.pk}"
