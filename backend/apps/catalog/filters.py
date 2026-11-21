@@ -206,7 +206,12 @@ def build_variant_queryset(params: dict):
     )
 
     for term in (params.get("search") or "").split()[:MAX_SEARCH_TERMS]:
-        qs = qs.filter(_variant_search_q(term))
+        if term.isdigit():
+            # Prefer an exact numeric card-code hit over incidental matches in slugs or names.
+            exact_code = qs.filter(Q(product_code=term) | Q(product__product_code=term))
+            qs = exact_code if exact_code.exists() else qs.filter(_variant_search_q(term))
+        else:
+            qs = qs.filter(_variant_search_q(term))
 
     if params.get("category"):
         qs = qs.filter(product__category__slug__in=params["category"])
