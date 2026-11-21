@@ -1,12 +1,18 @@
-"""TorobPay payment initiation. All amounts originate from the server-owned order snapshot."""
+"""TorobPay payment initiation and callback orchestration.
+
+All amounts originate from the server-owned order snapshot. Inventory is changed only
+after provider status confirms settlement and while exact variant rows are locked.
+"""
 import uuid
 from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
+from apps.catalog.models import VariantSize
 from .models import Order, TorobPayPaymentAttempt
 from .payment_services import PaymentRejected
 from .torobpay import TorobPayClient, TorobPayError, TorobPayUnavailable
@@ -38,7 +44,7 @@ def _rial_from_toman(value):
     return int(rial)
 
 
-def _payment_payload(order, attempt, shipping_toman):
+def _payment_payload(order, attempt, shipping_toman, return_url):
     items = list(
         order.items.select_related(
             "variant_size__variant__product__category"
@@ -61,7 +67,7 @@ def _payment_payload(order, attempt, shipping_toman):
     return {
         "amount": attempt.amount_rial,
         "paymentMethodTypeDto": "ONLINE_CREDIT",
-        "returnURL": attempt._return_url,
+        "returnURL": return_url,
         "transactionId": str(attempt.merchant_transaction_id),
         "cartList": [{
             "cartId": str(order.pk),
@@ -86,10 +92,7 @@ def check_torobpay_eligibility(order, *, client=None):
         response = (client or TorobPayClient()).check_eligibility(amount_rial)
     except TorobPayError as exc:
         raise PaymentRejected(exc.code) from exc
-    return {
-        "eligible": response["eligible"],
-        "amount_rial": amount_rial,
-    }
+    return {"eligible": response["eligible"], "amount_rial": amount_rial}
 
 
 def initiate_torobpay_payment(order, *, return_url, client=None):
@@ -134,13 +137,12 @@ def initiate_torobpay_payment(order, *, return_url, client=None):
                 amount_rial=amount_rial,
                 status=TorobPayPaymentAttempt.INITIATING,
             )
-            # The URL is passed separately to avoid persisting arbitrary callback input.
-            attempt._return_url = return_url
-            payload = _payment_payload(locked_order, attempt, shipping_toman)
             try:
-                response = client.create_payment_token(payload)
+                response = client.create_payment_token(
+                    _payment_payload(locked_order, attempt, shipping_toman, return_url)
+                )
             except TorobPayUnavailable as exc:
-                # The provider may have created a token before the network timed out.
+                # Provider may have created a token before the network timed out.
                 # Keep INITIATING and block duplicate token creation until reconciliation.
                 attempt.last_error_code = exc.code
                 attempt.save(update_fields=["last_error_code", "updated_at"])
@@ -161,3 +163,217 @@ def initiate_torobpay_payment(order, *, return_url, client=None):
     if failure_code:
         raise PaymentRejected(failure_code)
     return attempt
+
+
+def _provider_state(response):
+    value = response.get("status") if isinstance(response, dict) else None
+    return value if value in {"PENDING", "VERIFY", "SETTLE", "REVERT"} else ""
+
+
+def _finish_reversal(attempt, client, provider_state):
+    """Reverse a not-yet-settled payment or cancel an already-settled one."""
+    try:
+        if provider_state == "VERIFY":
+            client.revert(attempt.payment_token)
+        elif provider_state == "SETTLE":
+            client.cancel(attempt.payment_token)
+        elif provider_state == "REVERT":
+            attempt.status = TorobPayPaymentAttempt.CANCELED
+            attempt.save(update_fields=["status", "updated_at"])
+            return True
+        else:
+            return False
+    except TorobPayError as exc:
+        attempt.status = TorobPayPaymentAttempt.REVERSAL_PENDING
+        attempt.last_error_code = exc.code[:64]
+        attempt.provider_status = provider_state
+        attempt.save(update_fields=["status", "last_error_code", "provider_status", "updated_at"])
+        return False
+
+    attempt.status = TorobPayPaymentAttempt.CANCELED
+    attempt.provider_status = "REVERT"
+    attempt.last_error_code = ""
+    attempt.save(update_fields=["status", "provider_status", "last_error_code", "updated_at"])
+    return True
+
+
+def process_torobpay_callback(*, transaction_id, state, amount, client=None):
+    """Treat callback values only as lookup hints; provider status and server amount decide fulfillment."""
+    if not isinstance(transaction_id, str) or len(transaction_id) > 64:
+        return "unknown"
+    try:
+        transaction_uuid = uuid.UUID(transaction_id)
+        callback_amount = int(str(amount))
+    except (ValueError, TypeError, AttributeError):
+        return "unknown"
+    if callback_amount < 1 or state not in {"OK", "FAILED"}:
+        return "unknown"
+
+    client = client or TorobPayClient()
+    try:
+        with transaction.atomic():
+            attempt = (
+                TorobPayPaymentAttempt.objects.select_for_update()
+                .select_related("order")
+                .filter(merchant_transaction_id=transaction_uuid)
+                .first()
+            )
+            if attempt is None:
+                return "unknown"
+            order = Order.objects.select_for_update().get(pk=attempt.order_id)
+
+            if attempt.status == TorobPayPaymentAttempt.ONGOING:
+                return "paid" if order.payment_status == Order.PAID else "failed"
+
+            if not attempt.payment_token:
+                attempt.return_state = state
+                attempt.callback_received_at = timezone.now()
+                attempt.last_error_code = "missing_payment_token"
+                attempt.save(update_fields=[
+                    "return_state", "callback_received_at", "last_error_code", "updated_at"
+                ])
+                return "pending"
+
+            attempt.return_state = state
+            attempt.callback_received_at = timezone.now()
+            attempt.save(update_fields=["return_state", "callback_received_at", "updated_at"])
+
+            try:
+                status_response = client.status(attempt.payment_token)
+            except TorobPayError:
+                return "pending"
+
+            provider_state = _provider_state(status_response)
+            if not provider_state:
+                return "pending"
+            attempt.provider_status = provider_state
+            attempt.save(update_fields=["provider_status", "updated_at"])
+
+            if provider_state == "PENDING":
+                if state != "OK":
+                    return "pending"
+                try:
+                    verified = client.verify(attempt.payment_token)
+                except TorobPayError as exc:
+                    attempt.last_error_code = exc.code[:64]
+                    attempt.save(update_fields=["last_error_code", "updated_at"])
+                    return "pending"
+                provider_transaction_id = verified.get("transactionId")
+                if not isinstance(provider_transaction_id, str) or provider_transaction_id != str(transaction_uuid):
+                    # Verify may have advanced the provider to VERIFY. Query state before any reversal.
+                    try:
+                        provider_state = _provider_state(client.status(attempt.payment_token))
+                    except TorobPayError:
+                        return "pending"
+                    if provider_state not in {"VERIFY", "SETTLE"}:
+                        return "pending"
+                    attempt.provider_status = provider_state
+                    attempt.status = TorobPayPaymentAttempt.REVERSAL_PENDING
+                    attempt.last_error_code = "transaction_id_mismatch"
+                    attempt.save(update_fields=[
+                        "provider_status", "status", "last_error_code", "updated_at"
+                    ])
+                    return "pending"
+                attempt.provider_transaction_id = provider_transaction_id
+                attempt.verified_at = timezone.now()
+                provider_state = "VERIFY"
+                attempt.provider_status = provider_state
+                attempt.status = TorobPayPaymentAttempt.VERIFY_FOR_W
+                attempt.save(update_fields=[
+                    "provider_transaction_id", "verified_at", "provider_status", "status", "updated_at"
+                ])
+
+            if provider_state == "REVERT":
+                attempt.status = TorobPayPaymentAttempt.CANCELED
+                attempt.save(update_fields=["status", "updated_at"])
+                if order.payment_status == Order.UNPAID:
+                    order.payment_status = Order.FAILED
+                    order.save(update_fields=["payment_status", "updated_at"])
+                return "failed"
+
+            items = list(order.items.order_by("variant_size_id"))
+            locked_variants = {
+                row.pk: row
+                for row in VariantSize.objects.select_for_update()
+                .filter(pk__in=[item.variant_size_id for item in items])
+                .order_by("pk")
+            }
+            has_stock = bool(items) and len(locked_variants) == len(items) and all(
+                item.quantity <= locked_variants[item.variant_size_id].stock_quantity
+                for item in items
+            )
+            can_fulfill = (
+                callback_amount == attempt.amount_rial
+                and order.payment_status == Order.UNPAID
+                and has_stock
+            )
+
+            if not can_fulfill:
+                reason = "out_of_stock" if not has_stock else "payment_not_fulfillable"
+                attempt.status = (
+                    TorobPayPaymentAttempt.OUT_OF_STOCK
+                    if reason == "out_of_stock"
+                    else TorobPayPaymentAttempt.REVERSAL_PENDING
+                )
+                attempt.last_error_code = reason
+                attempt.provider_status = provider_state
+                attempt.save(update_fields=[
+                    "status", "last_error_code", "provider_status", "updated_at"
+                ])
+                if order.payment_status == Order.UNPAID:
+                    order.payment_status = Order.FAILED
+                    order.save(update_fields=["payment_status", "updated_at"])
+                if _finish_reversal(attempt, client, provider_state):
+                    return "out_of_stock" if reason == "out_of_stock" else "failed"
+                return "pending"
+
+            if provider_state == "VERIFY":
+                attempt.status = TorobPayPaymentAttempt.SETTLE_FOR_W
+                attempt.save(update_fields=["status", "updated_at"])
+                try:
+                    client.settle(attempt.payment_token)
+                except TorobPayError as exc:
+                    attempt.last_error_code = exc.code[:64]
+                    attempt.save(update_fields=["last_error_code", "updated_at"])
+                    try:
+                        provider_state = _provider_state(client.status(attempt.payment_token))
+                    except TorobPayError:
+                        return "pending"
+                    if provider_state != "SETTLE":
+                        return "pending"
+                else:
+                    provider_state = "SETTLE"
+
+            if provider_state != "SETTLE":
+                return "pending"
+
+            # The provider confirms ONGOING. Exact variant rows are still locked;
+            # stock changes and the paid order transition commit together.
+            for item in items:
+                changed = VariantSize.objects.filter(
+                    pk=item.variant_size_id,
+                    stock_quantity__gte=item.quantity,
+                ).update(
+                    stock_quantity=F("stock_quantity") - item.quantity,
+                    updated_at=timezone.now(),
+                )
+                if changed != 1:
+                    raise PaymentRejected("stock_changed_during_settlement")
+
+            attempt.status = TorobPayPaymentAttempt.ONGOING
+            attempt.provider_status = "SETTLE"
+            attempt.settled_at = timezone.now()
+            attempt.last_error_code = ""
+            attempt.save(update_fields=[
+                "status", "provider_status", "settled_at", "last_error_code", "updated_at"
+            ])
+            order.payment_status = Order.PAID
+            order.status = Order.CONFIRMED
+            order.save(update_fields=["payment_status", "status", "updated_at"])
+            return "paid"
+    except (TorobPayError, TorobPayUnavailable):
+        return "pending"
+    except Exception:
+        # Any DB-side failure after provider settlement is reconciled on the next callback:
+        # the provider status is checked again and stock is only decremented in a fresh atomic commit.
+        return "pending"
