@@ -209,3 +209,52 @@ def test_non_staff_user_with_model_permission_is_still_denied():
     user.user_permissions.add(permission)
     client = client_for(user)
     assert client.get("/api/admin/catalog/products/").status_code == 403
+
+
+def test_measurement_editor_requires_view_and_change_permissions(make_staff, make_variant_size):
+    row = make_variant_size()
+    measurement = ProductSizeMeasurement.objects.create(
+        product=row.variant.product,
+        size=row.size,
+        name="عرض سینه",
+        value="54",
+        unit="سانتی‌متر",
+        position=0,
+    )
+    description = ProductSizeDescription.objects.create(
+        product=row.variant.product,
+        size=row.size,
+        description="اندازه استاندارد",
+    )
+
+    read_only = client_for(make_staff("catalog.view_productsizemeasurement"))
+    assert read_only.get("/api/admin/catalog/product-measurements/").status_code == 200
+    assert read_only.patch(
+        f"/api/admin/catalog/product-measurements/{measurement.pk}/",
+        {"value": "56"},
+        content_type="application/json",
+    ).status_code == 403
+
+    editor = client_for(make_staff(
+        "catalog.view_productsizemeasurement",
+        "catalog.change_productsizemeasurement",
+        "catalog.view_productsizedescription",
+        "catalog.change_productsizedescription",
+    ))
+    changed = editor.patch(
+        f"/api/admin/catalog/product-measurements/{measurement.pk}/",
+        {"value": "56"},
+        content_type="application/json",
+    )
+    assert changed.status_code == 200, changed.content
+    measurement.refresh_from_db()
+    assert measurement.value == "56"
+
+    changed_description = editor.patch(
+        f"/api/admin/catalog/product-size-descriptions/{description.pk}/",
+        {"description": "یک سایز آزادتر انتخاب کنید"},
+        content_type="application/json",
+    )
+    assert changed_description.status_code == 200, changed_description.content
+    description.refresh_from_db()
+    assert description.description == "یک سایز آزادتر انتخاب کنید"
