@@ -258,3 +258,32 @@ def test_measurement_editor_requires_view_and_change_permissions(make_staff, mak
     assert changed_description.status_code == 200, changed_description.content
     description.refresh_from_db()
     assert description.description == "یک سایز آزادتر انتخاب کنید"
+
+
+def test_inventory_history_can_be_filtered_to_one_variant_size_and_shows_actor(make_staff, make_variant_size):
+    first = make_variant_size(stock=3)
+    second = make_variant_size(stock=8)
+    actor = make_staff("inventory.add_inventoryadjustment", "inventory.view_inventoryadjustment", "catalog.view_variantsize")
+    client = client_for(actor)
+    client.post(
+        "/api/admin/inventory/adjustments/",
+        {"variant_size": first.pk, "quantity_change": 2, "reason": "ورود بار"},
+        content_type="application/json",
+    )
+    client.post(
+        "/api/admin/inventory/adjustments/",
+        {"variant_size": second.pk, "quantity_change": -1, "reason": "اصلاح شمارش"},
+        content_type="application/json",
+    )
+
+    response = client.get(f"/api/admin/inventory/adjustments/?variant_size={first.pk}")
+    assert response.status_code == 200, response.content
+    payload = response.json()
+    results = payload["results"] if isinstance(payload, dict) else payload
+    assert len(results) == 1
+    assert results[0]["variant_size"] == first.pk
+    assert results[0]["quantity_change"] == 2
+    assert results[0]["created_by_label"] == actor.phone
+
+    invalid = client.get("/api/admin/inventory/adjustments/?variant_size=not-a-number")
+    assert invalid.status_code == 400
