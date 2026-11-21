@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
                 ("subtitle", models.CharField(blank=True, max_length=240)),
                 ("alt_text", models.CharField(max_length=200)),
                 ("desktop_image", models.ImageField(upload_to=apps.catalog.models.homepage_banner_upload_to)),
-                ("mobile_image", models.ImageField(blank=True, upload_to="homepage-banners/")),
+                ("mobile_image", models.ImageField(blank=True, upload_to=apps.catalog.models.homepage_banner_upload_to)),
                 ("cta_label", models.CharField(blank=True, max_length=60)),
                 ("cta_url", models.CharField(blank=True, max_length=240)),
                 ("position", models.PositiveIntegerField(default=0)),
