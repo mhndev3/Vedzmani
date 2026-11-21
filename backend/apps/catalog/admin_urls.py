@@ -2,6 +2,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from apps.orders.admin_api import AdminOrderDetailView, AdminOrderListView
 from .homepage_admin import HomepageSectionAdminViewSet
 from .homepage_banner_admin import HomepageBannerAdminViewSet
 from .storefront_theme import StorefrontThemeAdminView
@@ -37,6 +38,8 @@ router.register("catalog/images", VariantImageAdminViewSet, basename="admin-cata
 
 urlpatterns = [
     path("storefront/theme/", StorefrontThemeAdminView.as_view(), name="admin-storefront-theme"),
+    path("orders/", AdminOrderListView.as_view(), name="admin-order-list"),
+    path("orders/<int:order_id>/", AdminOrderDetailView.as_view(), name="admin-order-detail"),
     path("", include(router.urls)),
     path("inventory/adjustments/", InventoryAdjustmentAdminView.as_view(), name="admin-inventory-adjustments"),
 ]

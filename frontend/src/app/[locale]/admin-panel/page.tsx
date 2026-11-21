@@ -27,7 +27,7 @@ const sections = [
     title: "سفارش‌ها و مشتریان",
     description: "دسترسی مطابق مجوزهای فعلی حساب مدیریت",
     links: [
-      { label: "سفارش‌ها", href: "/admin/orders/order/" },
+      { label: "مدیریت اختصاصی سفارش‌ها", href: "/fa/admin-panel/orders" },
       { label: "مشتریان", href: "/admin/accounts/user/" },
       { label: "سبدهای خرید", href: "/admin/cart/cart/" },
     ],
