@@ -11,6 +11,11 @@ from tests.conftest import client_for
 pytestmark = pytest.mark.django_db
 
 
+def clear_fixture_image(row):
+    # make_variant_size creates a placeholder image; these tests exercise an empty gallery.
+    VariantImage.objects.filter(variant=row.variant).delete()
+
+
 def png_upload(name="product.png"):
     buffer = BytesIO()
     Image.new("RGB", (32, 48), "skyblue").save(buffer, format="PNG")
@@ -19,6 +24,7 @@ def png_upload(name="product.png"):
 
 def test_staff_can_upload_webp_and_first_image_becomes_primary(make_staff, make_variant_size, tmp_path):
     row = make_variant_size()
+    clear_fixture_image(row)
     actor = make_staff(
         "catalog.add_variantimage", "catalog.view_variantimage", "catalog.view_colorvariant",
     )
@@ -51,6 +57,7 @@ def test_image_upload_requires_add_and_color_view_permissions(make_staff, make_v
 
 def test_image_reorder_sets_first_as_primary_and_rejects_partial_lists(make_staff, make_variant_size, tmp_path):
     row = make_variant_size()
+    clear_fixture_image(row)
     client = client_for(make_staff(
         "catalog.add_variantimage", "catalog.view_variantimage", "catalog.view_colorvariant",
         "catalog.change_variantimage",
