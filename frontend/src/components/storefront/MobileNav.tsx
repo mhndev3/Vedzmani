@@ -11,7 +11,7 @@ type Props = {
   labels: { open: string; close: string; title: string; categories: string };
 };
 
-export function MobileNav({ items, categories, labels }: Props) {
+export function MobileNav({ items, categories, admin, labels }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const close = () => ref.current?.close();
 
