@@ -53,7 +53,24 @@ services:
       AUTH_TRUSTED_PROXY_COUNT: "1"
       DJANGO_SECURE_SSL_REDIRECT: "true"
       DJANGO_HSTS_SECONDS: ${DJANGO_HSTS_SECONDS:-0}
+      # OTP provider credentials are server-only and supplied through --env-file .env.production.
+      OTP_DELIVERY_BACKEND: ${OTP_DELIVERY_BACKEND:?set OTP_DELIVERY_BACKEND}
+      MELIPAYAMAK_API_KEY: ${MELIPAYAMAK_API_KEY:?set MELIPAYAMAK_API_KEY}
+      MELIPAYAMAK_SENDER: ${MELIPAYAMAK_SENDER:?set MELIPAYAMAK_SENDER}
+      MELIPAYAMAK_TIMEOUT_SECONDS: ${MELIPAYAMAK_TIMEOUT_SECONDS:-10}
+      # Hard fail-safe: payment/order flags are not configurable from the production env file.
       ORDERS_ENABLED: "false"
+      SEP_PAYMENT_ENABLED: "false"
+      TOROBPAY_ENABLED: "false"
+      # Credentials are optional so the OAuth-only check can be run after they are provisioned.
+      TOROBPAY_CLIENT_ID: ${TOROBPAY_CLIENT_ID:-}
+      TOROBPAY_CLIENT_SECRET: ${TOROBPAY_CLIENT_SECRET:-}
+      TOROBPAY_USERNAME: ${TOROBPAY_USERNAME:-}
+      TOROBPAY_PASSWORD: ${TOROBPAY_PASSWORD:-}
+      TOROBPAY_BASE_URL: ${TOROBPAY_BASE_URL:-https://cpg.torobpay.com}
+      TOROBPAY_TIMEOUT_SECONDS: ${TOROBPAY_TIMEOUT_SECONDS:-15}
+      TOROBPAY_SHIPPING_AMOUNT_TOMAN: ${TOROBPAY_SHIPPING_AMOUNT_TOMAN:-}
+      TOROBPAY_CART_ITEM_AMOUNT_MODE: ${TOROBPAY_CART_ITEM_AMOUNT_MODE:-}
     volumes:
       # Persistent product binaries; Nginx mounts the same host directory read-only.
       - ${PRODUCT_MEDIA_DIR:-/home/vzinfra/prod/media}:/app/media
