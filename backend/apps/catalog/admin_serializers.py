@@ -45,25 +45,6 @@ class SizeAdminSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class VariantSizeSummarySerializer(serializers.ModelSerializer):
-    size_code = serializers.CharField(source="size.code", read_only=True)
-    size_label = serializers.CharField(source="size.label", read_only=True)
-
-    class Meta:
-        model = VariantSize
-        fields = ["id", "size", "size_code", "size_label", "sku", "stock_quantity", "is_active"]
-        read_only_fields = fields
-
-
-class ColorVariantSummarySerializer(serializers.ModelSerializer):
-    sizes = VariantSizeSummarySerializer(many=True, read_only=True)
-
-    class Meta:
-        model = ColorVariant
-        fields = ["id", "name", "slug", "product_code", "hex_color", "is_active", "position", "sizes"]
-        read_only_fields = fields
-
-
 class ProductAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
