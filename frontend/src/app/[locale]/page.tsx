@@ -10,13 +10,32 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
-  const { categories, newestProducts } = await getHomepageContent();
+  const content = await getHomepageContent();
 
   return (
     <>
       <HomepageHeroSlider />
-      <HomeCategoryGrid locale={locale} categories={categories} />
-      <NewestProductsCarousel locale={locale} t={t} products={newestProducts} emptyText={t.home.emptySection} title={t.home.sections.newestProducts} />
+      {content.sections.length > 0 ? content.sections.map((section) => (
+        section.section_type === "categories" ? (
+          <HomeCategoryGrid key={section.id} locale={locale} categories={section.categories} title={section.title} />
+        ) : (
+          <NewestProductsCarousel
+            key={section.id}
+            locale={locale}
+            t={t}
+            products={section.products}
+            emptyText={t.home.emptySection}
+            title={section.title}
+            eyebrow={section.eyebrow}
+            viewAllHref={section.show_view_all && section.view_all_url ? section.view_all_url : undefined}
+          />
+        )
+      )) : (
+        <>
+          <HomeCategoryGrid locale={locale} categories={content.categories} />
+          <NewestProductsCarousel locale={locale} t={t} products={content.newestProducts} emptyText={t.home.emptySection} title={t.home.sections.newestProducts} />
+        </>
+      )}
     </>
   );
 }
