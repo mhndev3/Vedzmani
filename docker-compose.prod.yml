@@ -82,6 +82,8 @@ services:
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://backend:8000
+      SITE_ALLOW_INDEXING: "true"
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://vedzmani.ir}
     networks: [internal]
     depends_on:
       backend: { condition: service_healthy }
