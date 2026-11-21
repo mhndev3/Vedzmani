@@ -8,10 +8,12 @@ from .admin_views import (
     ColorVariantAdminViewSet,
     InventoryAdjustmentAdminView,
     ProductAdminViewSet,
+    ProductSizeDescriptionAdminViewSet,
     ProductSizeMeasurementAdminViewSet,
     SizeAdminViewSet,
     VariantImageAdminViewSet,
     VariantSizeAdminViewSet,
+    VariantSizeDescriptionAdminViewSet,
     VariantSizeMeasurementAdminViewSet,
 )
 
@@ -23,7 +25,9 @@ router.register("catalog/sizes", SizeAdminViewSet, basename="admin-catalog-size"
 router.register("catalog/colors", ColorVariantAdminViewSet, basename="admin-catalog-color")
 router.register("catalog/variant-sizes", VariantSizeAdminViewSet, basename="admin-catalog-variant-size")
 router.register("catalog/product-measurements", ProductSizeMeasurementAdminViewSet, basename="admin-catalog-product-measurement")
+router.register("catalog/product-size-descriptions", ProductSizeDescriptionAdminViewSet, basename="admin-catalog-product-size-description")
 router.register("catalog/variant-size-measurements", VariantSizeMeasurementAdminViewSet, basename="admin-catalog-variant-size-measurement")
+router.register("catalog/variant-size-descriptions", VariantSizeDescriptionAdminViewSet, basename="admin-catalog-variant-size-description")
 router.register("catalog/images", VariantImageAdminViewSet, basename="admin-catalog-image")
 
 urlpatterns = [
