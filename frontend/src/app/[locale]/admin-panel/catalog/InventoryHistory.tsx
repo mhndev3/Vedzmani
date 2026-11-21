@@ -53,7 +53,6 @@ export default function InventoryHistory({ variantSizeId }: { variantSizeId: num
   }, []);
 
   useEffect(() => {
-    setRows([]);
     void load(`/api/admin/inventory/adjustments/?variant_size=${variantSizeId}`, false);
   }, [variantSizeId, load]);
 
