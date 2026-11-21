@@ -1,6 +1,4 @@
 # TorobPay payment-attempt persistence; credentials and callback bodies are never stored.
-import uuid
-
 from django.db import migrations, models
 import django.db.models.deletion
 
@@ -16,7 +14,7 @@ class Migration(migrations.Migration):
             name="TorobPayPaymentAttempt",
             fields=[
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("merchant_transaction_id", models.UUIDField(default=uuid.uuid4, unique=True)),
+                ("merchant_transaction_id", models.UUIDField(unique=True)),
                 ("payment_token", models.CharField(blank=True, max_length=255, null=True, unique=True)),
                 ("provider_transaction_id", models.CharField(blank=True, max_length=128, null=True, unique=True)),
                 ("amount_toman", models.PositiveBigIntegerField()),
