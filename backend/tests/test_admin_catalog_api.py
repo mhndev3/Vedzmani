@@ -10,9 +10,11 @@ from apps.catalog.models import (
     Category,
     ColorVariant,
     Product,
+    ProductSizeDescription,
     ProductSizeMeasurement,
     Size,
     VariantSize,
+    VariantSizeDescription,
     VariantSizeMeasurement,
 )
 from apps.inventory.models import InventoryAdjustment
@@ -146,6 +148,8 @@ def test_measurement_endpoints_support_shared_and_color_size_specific_values(mak
     client = client_for(make_staff(
         "catalog.add_productsizemeasurement",
         "catalog.add_variantsizemeasurement",
+        "catalog.add_productsizedescription",
+        "catalog.add_variantsizedescription",
     ))
     shared = client.post(
         "/api/admin/catalog/product-measurements/",
@@ -174,6 +178,21 @@ def test_measurement_endpoints_support_shared_and_color_size_specific_values(mak
     assert specific.status_code == 201, specific.content
     assert ProductSizeMeasurement.objects.count() == 1
     assert VariantSizeMeasurement.objects.count() == 1
+
+    shared_description = client.post(
+        "/api/admin/catalog/product-size-descriptions/",
+        {"product": row.variant.product_id, "size": row.size_id, "description": "اندازه استاندارد"},
+        content_type="application/json",
+    )
+    assert shared_description.status_code == 201, shared_description.content
+    specific_description = client.post(
+        "/api/admin/catalog/variant-size-descriptions/",
+        {"variant_size": row.pk, "description": "برای این رنگ کمی آزادتر است"},
+        content_type="application/json",
+    )
+    assert specific_description.status_code == 201, specific_description.content
+    assert ProductSizeDescription.objects.count() == 1
+    assert VariantSizeDescription.objects.count() == 1
 
 
 def test_admin_api_does_not_offer_hard_delete(make_staff, make_variant_size):
