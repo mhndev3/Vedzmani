@@ -255,8 +255,9 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
                 TorobPayPaymentAttempt.REVERSAL_PENDING,
                 TorobPayPaymentAttempt.OUT_OF_STOCK,
             }:
+                was_out_of_stock = attempt.status == TorobPayPaymentAttempt.OUT_OF_STOCK
                 if _finish_reversal(attempt, client, provider_state):
-                    return "out_of_stock" if attempt.last_error_code == "out_of_stock" else "failed"
+                    return "out_of_stock" if was_out_of_stock else "failed"
                 return "pending"
 
             if provider_state == "PENDING":
@@ -292,6 +293,23 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
                 attempt.save(update_fields=[
                     "provider_transaction_id", "verified_at", "provider_status", "status", "updated_at"
                 ])
+
+            if provider_state == "VERIFY" and not attempt.provider_transaction_id:
+                # Recover a callback retry after the provider advanced but the first
+                # request could not persist its verified transaction identifier.
+                try:
+                    verified = client.verify(attempt.payment_token)
+                except TorobPayError:
+                    return "pending"
+                provider_transaction_id = verified.get("transactionId")
+                if not isinstance(provider_transaction_id, str) or provider_transaction_id != str(transaction_uuid):
+                    attempt.status = TorobPayPaymentAttempt.REVERSAL_PENDING
+                    attempt.last_error_code = "transaction_id_mismatch"
+                    attempt.save(update_fields=["status", "last_error_code", "updated_at"])
+                    return "pending"
+                attempt.provider_transaction_id = provider_transaction_id
+                attempt.verified_at = timezone.now()
+                attempt.save(update_fields=["provider_transaction_id", "verified_at", "updated_at"])
 
             if provider_state == "REVERT":
                 attempt.status = TorobPayPaymentAttempt.CANCELED
