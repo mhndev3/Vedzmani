@@ -74,7 +74,7 @@ class StorefrontThemeAdminView(APIView):
     def post(self, request):
         if request.data.get("action") != "publish":
             return Response({"detail": "عملیات معتبر نیست."}, status=status.HTTP_400_BAD_REQUEST)
-        theme = self.get_object()
+        theme = self.get_object(create=True)
         theme.published_settings = theme.draft_settings
         theme.published_at = timezone.now()
         theme.updated_by = request.user
