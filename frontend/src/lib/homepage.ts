@@ -8,7 +8,12 @@ export type HomepageSection = {
   show_view_all: boolean; view_all_url: string;
   categories: HomepageCategory[]; products: ProductCardData[];
 };
-export type HomepageBanner = { id: number; title: string; subtitle: string; alt_text: string; desktop_image: string; mobile_image: string | null; cta_label: string; cta_url: string; };\nexport type HomepageContent = {\n  banners: HomepageBanner[];
+export type HomepageBanner = {
+  id: number; title: string; subtitle: string; alt_text: string;
+  desktop_image: string; mobile_image: string | null; cta_label: string; cta_url: string;
+};
+export type HomepageContent = {
+  banners: HomepageBanner[];
   categories: HomepageCategory[];
   newestProducts: ProductCardData[];
   sections: HomepageSection[];
@@ -24,6 +29,16 @@ const HOME_CATEGORIES = [
 
 /** Prefer published admin configuration; retain the original storefront when no section is published. */
 export async function getHomepageContent(): Promise<HomepageContent> {
+  let banners: HomepageBanner[] = [];
+  try {
+    const bannerResponse = await apiGet<{ banners: HomepageBanner[] }>("/api/catalog/homepage-banners/", {
+      cache: "no-store",
+    });
+    banners = bannerResponse.banners;
+  } catch {
+    // Keep the static brand hero if banner configuration is unavailable.
+  }
+
   try {
     const configured = await apiGet<{ sections: HomepageSection[] }>("/api/catalog/homepage-sections/", {
       cache: "no-store",
@@ -39,6 +54,7 @@ export async function getHomepageContent(): Promise<HomepageContent> {
     const page = await getProducts(emptyState, { cache: "force-cache", next: { revalidate: 30 } });
     const products = page.results;
     return {
+      banners,
       sections: [],
       categories: HOME_CATEGORIES.map((category) => ({
         ...category,
@@ -48,6 +64,7 @@ export async function getHomepageContent(): Promise<HomepageContent> {
     };
   } catch {
     return {
+      banners,
       sections: [],
       categories: HOME_CATEGORIES.map((category) => ({ ...category, image: null })),
       newestProducts: [],
