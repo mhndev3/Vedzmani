@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
+import Link from "next/link";\nimport Image from "next/image";
 import { useParams } from "next/navigation";
 import { apiMultipartRequest, apiRequest, BrowserApiError } from "@/lib/browser-api";
 
@@ -172,7 +172,7 @@ export default function AdminHomepageBannersPage() {
         {loading ? <p className="py-10 text-center text-sm text-muted-foreground">در حال دریافت…</p> : banners.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">هنوز بنری ثبت نشده است.</p> : <div className="space-y-4">{banners.map((banner, index) => <article key={banner.id} className="rounded-xl border border-border p-4">
           <div className="relative mb-3 aspect-[2048/746] overflow-hidden rounded-lg bg-muted">
             {/* Admin preview uses the same-origin media URL returned by the API. */}
-            <img src={banner.desktop_image_url} alt={banner.alt_text} className="h-full w-full object-cover" />
+            <Image src={banner.desktop_image_url} alt={banner.alt_text} fill sizes="(max-width: 768px) 100vw, 720px" unoptimized className="object-cover" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h3 className="font-semibold">{banner.title || `بنر شماره ${banner.id}`}</h3><p className="mt-1 text-xs text-muted-foreground">{banner.status === "published" ? "منتشرشده" : "پیش‌نویس"} · ترتیب {banner.position + 1}{banner.mobile_image_url ? " · تصویر موبایل دارد" : ""}</p></div>
