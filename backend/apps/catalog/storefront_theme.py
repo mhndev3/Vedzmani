@@ -46,23 +46,26 @@ class StaffThemePermission(BasePermission):
 class StorefrontThemeAdminView(APIView):
     permission_classes = [StaffThemePermission]
 
-    def get_object(self):
-        theme, _ = StorefrontTheme.objects.get_or_create(pk=1)
+    def get_object(self, create=False):
+        theme = StorefrontTheme.objects.filter(pk=1).first()
+        if theme is None and create:
+            theme = StorefrontTheme.objects.create(pk=1)
         return theme
 
     def get(self, request):
         theme = self.get_object()
+        defaults = default_storefront_theme_settings()
         return Response({
-            "draft_settings": theme.draft_settings,
-            "published_settings": theme.published_settings,
-            "updated_at": theme.updated_at,
-            "published_at": theme.published_at,
+            "draft_settings": theme.draft_settings if theme else defaults,
+            "published_settings": theme.published_settings if theme else defaults,
+            "updated_at": theme.updated_at if theme else None,
+            "published_at": theme.published_at if theme else None,
         })
 
     def patch(self, request):
         serializer = StorefrontThemeSettingsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        theme = self.get_object()
+        theme = self.get_object(create=True)
         theme.draft_settings = serializer.validated_data["settings"]
         theme.updated_by = request.user
         theme.save(update_fields=["draft_settings", "updated_by", "updated_at"])
