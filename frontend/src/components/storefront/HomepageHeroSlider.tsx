@@ -12,7 +12,7 @@ export type HomepageBanner = {
   cta_url: string;
 };
 
-export function HomepageHeroSlider({ banners = [] }: { banners?: HomepageBanner[] }) {
+export function HomepageHeroSlider({ banners = [], locale = "fa" }: { banners?: HomepageBanner[]; locale?: string }) {
   if (banners.length === 0) {
     return (
       <section aria-label="بنر ویژه ودزمانی" className="mx-auto w-full max-w-[1440px] px-3 pt-4 sm:px-6 sm:pt-6">
@@ -39,7 +39,7 @@ export function HomepageHeroSlider({ banners = [] }: { banners?: HomepageBanner[
             {(banner.title || banner.subtitle || (banner.cta_label && banner.cta_url)) && (
               <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 bg-gradient-to-t from-black/75 via-black/25 to-transparent p-4 pt-16 text-white sm:p-7 sm:pt-24">
                 <div>{banner.title && <h2 className="text-lg font-bold sm:text-2xl">{banner.title}</h2>}{banner.subtitle && <p className="mt-1 max-w-2xl text-sm leading-6">{banner.subtitle}</p>}</div>
-                {banner.cta_label && banner.cta_url && <Link href={banner.cta_url} className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black">{banner.cta_label}</Link>}
+                {banner.cta_label && banner.cta_url && <Link href={banner.cta_url.startsWith(`/${locale}/`) ? banner.cta_url : `/${locale}${banner.cta_url}`} className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black">{banner.cta_label}</Link>}
               </div>
             )}
           </article>
