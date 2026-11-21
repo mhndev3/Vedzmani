@@ -1,10 +1,10 @@
 """Permission-checked endpoints for the Persian admin workspace.
 
-The public catalog endpoints remain unchanged. Every endpoint here uses Django model permissions, so being
-authenticated or having is_staff alone does not grant catalog access. Deactivation is used instead of hard
-deletion; stock changes are routed through the audited inventory service.
+The public catalog endpoints remain unchanged. Every endpoint requires both an active staff account and the
+relevant Django model permission. Deactivation is used instead of hard deletion; stock changes are routed through
+the audited inventory service.
 """
-from rest_framework import mixins, generics, viewsets
+from rest_framework import generics, mixins, viewsets
 from rest_framework.permissions import DjangoModelPermissions
 
 from apps.catalog.models import (
@@ -34,6 +34,14 @@ from .admin_serializers import (
 )
 
 
+class StaffDjangoModelPermissions(DjangoModelPermissions):
+    """Model permissions are necessary, but a permission-bearing customer is never an admin."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and user.is_staff and super().has_permission(request, view))
+
+
 class StaffModelPermissionViewSet(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,
@@ -41,9 +49,9 @@ class StaffModelPermissionViewSet(
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """CRUD without hard-delete; DjangoModelPermissions maps each HTTP method to model permissions."""
+    """Create/read/update only; deactivation replaces hard deletion in this API."""
 
-    permission_classes = [DjangoModelPermissions]
+    permission_classes = [StaffDjangoModelPermissions]
 
 
 class ProductAdminViewSet(StaffModelPermissionViewSet):
@@ -93,11 +101,11 @@ class VariantImageAdminViewSet(
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Image metadata is readable; binary upload and storage-key mutation are intentionally not exposed yet."""
+    """Image metadata is readable; binary upload and storage-key mutation are not exposed yet."""
 
     queryset = VariantImage.objects.select_related("variant__product").order_by("variant_id", "position", "id")
     serializer_class = VariantImageReadSerializer
-    permission_classes = [DjangoModelPermissions]
+    permission_classes = [StaffDjangoModelPermissions]
 
 
 class InventoryAdjustmentAdminView(generics.ListCreateAPIView):
@@ -107,4 +115,4 @@ class InventoryAdjustmentAdminView(generics.ListCreateAPIView):
         "variant_size__variant__product", "variant_size__size", "created_by"
     )
     serializer_class = InventoryAdjustmentAdminSerializer
-    permission_classes = [DjangoModelPermissions]
+    permission_classes = [StaffDjangoModelPermissions]
