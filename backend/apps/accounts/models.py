@@ -166,3 +166,31 @@ class SupportTicketMessage(models.Model):
         ordering = ["created_at", "id"]
         indexes = [models.Index(fields=["ticket", "created_at"], name="support_msg_ticket_created_idx")]
 
+
+
+
+class AdminAuditEvent(models.Model):
+    """Append-only metadata for staff write attempts; deliberately stores no payload."""
+    ACTION_CHOICES = [
+        ("post", "POST"), ("put", "PUT"),
+        ("patch", "PATCH"), ("delete", "DELETE"),
+    ]
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="admin_audit_events",
+    )
+    action = models.CharField(max_length=8, choices=ACTION_CHOICES)
+    method = models.CharField(max_length=8)
+    path = models.CharField(max_length=255)
+    entity_type = models.CharField(max_length=80)
+    entity_id = models.PositiveBigIntegerField(null=True, blank=True)
+    response_status = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["actor", "-created_at"], name="admin_audit_actor_time_idx"),
+            models.Index(fields=["entity_type", "-created_at"], name="admin_audit_entity_time_idx"),
+            models.Index(fields=["action", "-created_at"], name="admin_audit_action_time_idx"),
+        ]
