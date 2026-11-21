@@ -112,11 +112,18 @@ class VariantImageReadSerializer(serializers.ModelSerializer):
 
 
 class InventoryAdjustmentAdminSerializer(serializers.ModelSerializer):
+    created_by_label = serializers.SerializerMethodField()
+
+    def get_created_by_label(self, obj):
+        if obj.created_by is None:
+            return "سیستم"
+        return obj.created_by.phone or obj.created_by.get_username()
+
     class Meta:
         model = InventoryAdjustment
         fields = [
             "id", "variant_size", "quantity_change", "stock_after",
-            "reason", "created_by", "created_at",
+            "reason", "created_by", "created_by_label", "created_at",
         ]
         read_only_fields = ["id", "stock_after", "created_by", "created_at"]
 

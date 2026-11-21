@@ -216,5 +216,14 @@ class InventoryAdjustmentAdminView(generics.ListCreateAPIView):
         "variant_size__variant__product", "variant_size__size", "created_by"
     )
     serializer_class = InventoryAdjustmentAdminSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        variant_size = self.request.query_params.get("variant_size")
+        if variant_size is not None:
+            if not variant_size.isdigit():
+                raise ValidationError({"variant_size": "شناسه سایز معتبر نیست."})
+            queryset = queryset.filter(variant_size_id=int(variant_size))
+        return queryset
     permission_classes = [InventoryAdjustmentPermissions]
     pagination_class = CatalogPagination
