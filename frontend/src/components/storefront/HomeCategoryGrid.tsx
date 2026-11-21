@@ -18,9 +18,9 @@ export function HomeCategoryGrid({ locale, categories, title = "دسته‌بن�
       <h2 dir="ltr" className="mx-auto mb-5 flex w-fit items-center justify-center gap-3 text-right text-2xl font-bold tracking-tight sm:text-3xl">
         <CategoryHeadingDots /><span dir="rtl">{title}</span><CategoryHeadingDots reverse />
       </h2>
-      <ul className="grid grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8">
+      <ul className={categories.length === 5 ? "grid grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8" : "grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5"}>
         {categories.map((category, index) => {
-          const placement = index < 3 ? "col-span-2" : index === 3 ? "col-span-2 col-start-2" : "col-span-2 col-start-4";
+          const placement = categories.length === 5 ? (index < 3 ? "col-span-2" : index === 3 ? "col-span-2 col-start-2" : "col-span-2 col-start-4") : "";
           return <li key={category.slug} className={`${placement} flex justify-center`}>
             <Link href={"/" + locale + "/categories/" + encodeURIComponent(category.slug)} prefetch={false} className="group block w-full text-center focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:max-w-[190px]">
               <span className="relative block aspect-square overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 group-hover:-translate-y-1 group-hover:border-primary/30 group-hover:shadow-lg sm:rounded-3xl">
