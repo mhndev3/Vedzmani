@@ -8,6 +8,7 @@ type MenuLink = { href: string; label: string };
 type Props = {
   items: MenuLink[];
   categories: MenuLink[];
+  admin?: MenuLink;
   labels: { open: string; close: string; title: string; categories: string };
 };
 
@@ -86,6 +87,14 @@ export function MobileNav({ items, categories, admin, labels }: Props) {
               </li>
             ))}
           </ul>
+          {admin ? (
+            <>
+              <div className="my-3 border-t border-border" />
+              <Link href={admin.href} prefetch={false} onClick={close} className="block rounded-xl px-3 py-3 font-semibold text-primary transition hover:bg-muted">
+                {admin.label}
+              </Link>
+            </>
+          ) : null}
         </nav>
       </dialog>
     </>
