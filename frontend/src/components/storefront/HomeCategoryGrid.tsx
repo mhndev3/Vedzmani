@@ -8,14 +8,14 @@ function CategoryHeadingDots({ reverse = false }: { reverse?: boolean }) {
   return <span aria-hidden="true" className="flex shrink-0 items-center gap-1">{sizes.map((size, index) => <span key={index} className={`rounded-full bg-foreground ${size}`} />)}</span>;
 }
 
-export function HomeCategoryGrid({ locale, categories, title = "دسته‌بندی‌ها" }: {
+export function HomeCategoryGrid({ locale, categories, title = "دسته‌بندی‌ها", eyebrow }: {
   locale: Locale;
   categories: HomepageCategory[];
   title?: string;
 }) {
   return (
     <section aria-label={title} className="mx-auto max-w-5xl px-4 py-8">
-      <h2 dir="ltr" className="mx-auto mb-5 flex w-fit items-center justify-center gap-3 text-right text-2xl font-bold tracking-tight sm:text-3xl">
+      {eyebrow && <p className="mb-2 text-center text-xs font-medium text-muted-foreground">{eyebrow}</p>}\n      <h2 dir="ltr" className="mx-auto mb-5 flex w-fit items-center justify-center gap-3 text-right text-2xl font-bold tracking-tight sm:text-3xl">
         <CategoryHeadingDots /><span dir="rtl">{title}</span><CategoryHeadingDots reverse />
       </h2>
       <ul className={categories.length === 5 ? "grid grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8" : "grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5"}>
