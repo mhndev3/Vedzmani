@@ -30,7 +30,7 @@ export function HomeCategoryGrid({
         className="mx-auto mb-5 flex w-fit items-center justify-center gap-3 text-right text-2xl font-bold tracking-tight sm:text-3xl"
       >
         <CategoryHeadingDots />
-        <span dir="rtl">دسته‌بندی‌ها</span>
+        <span dir="rtl">{title}</span>
         <CategoryHeadingDots reverse />
       </h2>
       <ul className="grid grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8">
