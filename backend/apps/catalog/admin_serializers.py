@@ -65,15 +65,13 @@ class ColorVariantSummarySerializer(serializers.ModelSerializer):
 
 
 class ProductAdminSerializer(serializers.ModelSerializer):
-    colors = ColorVariantSummarySerializer(source="color_variants", many=True, read_only=True)
-
     class Meta:
         model = Product
         fields = [
             "id", "product_code", "name", "slug", "description", "price", "sale_price",
-            "category", "collections", "is_active", "colors", "created_at", "updated_at",
+            "category", "collections", "is_active", "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "colors"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class ColorVariantAdminSerializer(serializers.ModelSerializer):
