@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { apiRequest, apiUploadRequest, BrowserApiError } from "@/lib/browser-api";
 
 type ImageItem = {
@@ -111,7 +112,7 @@ export default function VariantImageManager({ variantId }: { variantId: number }
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h4 className="font-semibold">تصاویر این رنگ</h4>
-          <p className="mt-1 text-xs text-muted-foreground">تصویر اول، تصویر اصلی کارت محصول است. فرمت‌های JPEG، PNG و WebP تا ۱۲ مگابایت پذیرفته می‌شوند.</p>
+          <p className="mt-1 text-xs text-muted-foreground">تصویر اول، تصویر اصلی کارت محصول است. فرمت‌های JPEG، PNG و WebP تا ۸ مگابایت پذیرفته می‌شوند.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs">متن جایگزین تصویر
@@ -141,7 +142,7 @@ export default function VariantImageManager({ variantId }: { variantId: number }
             {images.map((image, index) => (
               <article key={image.id} className="overflow-hidden rounded-xl border border-border">
                 <div className="relative aspect-[4/5] bg-muted">
-                  <img src={image.url} alt={image.alt_text || "تصویر محصول"} className="h-full w-full object-cover" loading="lazy" />
+                  <Image src={image.url} alt={image.alt_text || "تصویر محصول"} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover" unoptimized />
                   {image.is_primary && <span className="absolute right-2 top-2 rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold">تصویر اصلی</span>}
                 </div>
                 <div className="space-y-2 p-2">
