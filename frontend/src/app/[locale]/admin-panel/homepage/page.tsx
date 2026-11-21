@@ -115,8 +115,9 @@ export default function AdminHomepagePage() {
     try {
       if (editingId === null) await apiRequest<Section>("POST", "/api/admin/homepage/sections/", payload);
       else await apiRequest<Section>("PATCH", `/api/admin/homepage/sections/${editingId}/`, payload);
+      newSection();
       setNotice("تغییرات ذخیره شد. برای نمایش در فروشگاه، وضعیت انتشار را فعال کنید.");
-      newSection(); await refresh();
+      await refresh();
     } catch(e) { setError(errorText(e)); }
     finally { setSaving(false); }
   }
