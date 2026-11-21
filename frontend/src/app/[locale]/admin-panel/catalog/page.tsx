@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 import VariantImageManager from "./VariantImageManager";
+import ProductMeasurementManager from "./ProductMeasurementManager";
 
 type Page<T> = { results: T[]; next: string | null; count: number };
 type Category = { id: number; name: string; slug: string; is_active: boolean; position: number };
@@ -268,6 +269,13 @@ export default function AdminCatalogPage() {
                   <div className="flex flex-wrap gap-2"><button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button><button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleProduct(selected)}>{selected.is_active ? "خروج از انتشار" : "انتشار محصول"}</button></div>
                 </div>
               </section>
+
+              <ProductMeasurementManager
+                productId={selected.id}
+                sizes={sizes}
+                colors={selectedColors}
+                variantSizes={variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant))}
+              />
 
               <section className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="font-bold">رنگ‌های محصول</h3>
