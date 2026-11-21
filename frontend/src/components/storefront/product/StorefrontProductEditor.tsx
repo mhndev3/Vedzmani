@@ -29,7 +29,6 @@ export function StorefrontProductEditor(props: Props) {
   const [salePrice, setSalePrice] = useState(props.salePrice ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -42,18 +41,6 @@ export function StorefrontProductEditor(props: Props) {
     });
     return () => { active = false; };
   }, []);
-
-  useEffect(() => {
-    if (!open) {
-      setName(props.name);
-      setDescription(props.description);
-      setPrice(props.price);
-      setSalePrice(props.salePrice ?? "");
-      setPreview(false);
-      setError("");
-      setSaved(false);
-    }
-  }, [open, props.name, props.description, props.price, props.salePrice]);
 
   if (checking || !canSeeEditor) return null;
 
@@ -84,7 +71,6 @@ export function StorefrontProductEditor(props: Props) {
         price: price.trim(),
         sale_price: salePrice.trim() ? salePrice.trim() : null,
       });
-      setSaved(true);
       setOpen(false);
       router.refresh();
     } catch (cause) {
@@ -102,7 +88,15 @@ export function StorefrontProductEditor(props: Props) {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setName(props.name);
+          setDescription(props.description);
+          setPrice(props.price);
+          setSalePrice(props.salePrice ?? "");
+          setPreview(false);
+          setError("");
+          setOpen(true);
+        }}
         className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-primary/40 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/5"
         aria-label="ویرایش این محصول"
       >
@@ -160,7 +154,6 @@ export function StorefrontProductEditor(props: Props) {
               )}
 
               {error && <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-              {saved && <p role="status" className="text-sm text-primary">تغییرات ذخیره شد.</p>}
               <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
                 <button type="button" onClick={() => setOpen(false)} disabled={saving} className="min-h-10 rounded-xl border border-border px-4 text-sm font-medium hover:bg-muted">انصراف</button>
                 <button type="button" onClick={() => {
