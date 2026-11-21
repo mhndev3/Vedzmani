@@ -73,9 +73,7 @@ class StaffModelPermissionViewSet(
 
 
 class ProductAdminViewSet(StaffModelPermissionViewSet):
-    queryset = Product.objects.select_related("category").prefetch_related(
-        "collections", "color_variants__sizes__size"
-    )
+    queryset = Product.objects.select_related("category").prefetch_related("collections")
     serializer_class = ProductAdminSerializer
 
 
