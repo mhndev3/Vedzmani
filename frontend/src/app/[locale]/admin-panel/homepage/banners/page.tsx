@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";\nimport Image from "next/image";
+import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { apiMultipartRequest, apiRequest, BrowserApiError } from "@/lib/browser-api";
 
