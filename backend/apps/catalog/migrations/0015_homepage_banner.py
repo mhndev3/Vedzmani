@@ -1,5 +1,7 @@
 # Generated for the homepage banner management workflow.
-from django.db import migrations, models\n\nimport apps.catalog.models
+from django.db import migrations, models
+
+import apps.catalog.models
 
 
 class Migration(migrations.Migration):
