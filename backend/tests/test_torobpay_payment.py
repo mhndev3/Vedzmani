@@ -89,6 +89,7 @@ class FakeTorobPayClient:
     ORDERS_ENABLED=True,
     TOROBPAY_ENABLED=True,
     TOROBPAY_SHIPPING_AMOUNT_TOMAN=200,
+    TOROBPAY_CART_ITEM_AMOUNT_MODE="unit",
 )
 def test_torobpay_eligibility_and_token_use_server_owned_rial_amount(make_variant_size):
     order, variant_size = make_order(make_variant_size)
@@ -110,6 +111,9 @@ def test_torobpay_eligibility_and_token_use_server_owned_rial_amount(make_varian
     assert client.payload["amount"] == 12000
     assert client.payload["cartList"][0]["totalAmount"] == 12000
     assert client.payload["cartList"][0]["shippingAmount"] == 2000
+    assert client.payload["cartList"][0]["taxAmount"] == 0
+    assert client.payload["cartList"][0]["isTaxIncluded"] is False
+    assert client.payload["cartList"][0]["isShipmentIncluded"] is True
     assert client.payload["cartList"][0]["cartItems"][0]["amount"] == 10000
     assert client.payload["transactionId"] == str(attempt.merchant_transaction_id)
     assert client.payload["number_phone_registration"] == order.customer_phone
@@ -373,3 +377,23 @@ def test_concurrent_torobpay_payments_cannot_consume_the_same_last_unit(make_var
     assert Order.objects.filter(payment_status=Order.FAILED).count() == 1
     assert len(client.settled) == 1
     assert len(client.reverted) == 1
+
+
+@override_settings(
+    ORDERS_ENABLED=True,
+    TOROBPAY_ENABLED=True,
+    TOROBPAY_SHIPPING_AMOUNT_TOMAN=200,
+    TOROBPAY_CART_ITEM_AMOUNT_MODE="",
+)
+def test_torobpay_token_creation_fails_closed_until_item_amount_semantics_are_confirmed(make_variant_size):
+    order, _ = make_order(make_variant_size)
+    client = FakeTorobPayClient()
+
+    with pytest.raises(PaymentRejected, match="cart_item_amount_mode_not_configured"):
+        initiate_torobpay_payment(
+            order,
+            return_url="https://vedzmani.ir/api/orders/payment/torobpay/callback/",
+            client=client,
+        )
+
+    assert client.calls == []
