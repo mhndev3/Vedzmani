@@ -70,6 +70,7 @@ export default function AdminCatalogPage() {
   const [colorName, setColorName] = useState("");
   const [colorSlug, setColorSlug] = useState("");
   const [hexColor, setHexColor] = useState("#000000");
+  const [editingColorId, setEditingColorId] = useState<number | null>(null);
   const [variantId, setVariantId] = useState<number | null>(null);
   const [sizeId, setSizeId] = useState("");
   const [sku, setSku] = useState("");
@@ -177,9 +178,29 @@ export default function AdminCatalogPage() {
     if (!selected) return;
     setSaving(true); setError(""); setNotice("");
     try {
-      await apiRequest<Color>("POST", "/api/admin/catalog/colors/", { product: selected.id, name: colorName, slug: colorSlug, hex_color: hexColor, is_active: true, position: selectedColors.length });
-      setColorName(""); setColorSlug(""); setHexColor("#000000");
-      setNotice("رنگ جدید اضافه شد؛ کد کارت به‌صورت خودکار ساخته می‌شود.");
+      await apiRequest<Color>(editingColorId ? "PATCH" : "POST", editingColorId ? `/api/admin/catalog/colors/${editingColorId}/` : "/api/admin/catalog/colors/", { product: selected.id, name: colorName, slug: colorSlug, hex_color: hexColor, is_active: true, position: selectedColors.length });
+      setColorName(""); setColorSlug(""); setHexColor("#000000"); setEditingColorId(null);
+      setNotice(editingColorId ? "مشخصات رنگ ویرایش شد." : "رنگ جدید اضافه شد؛ کد کارت به‌صورت خودکار ساخته می‌شود.");
+      await refresh();
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setSaving(false); }
+  }
+
+  async function toggleColor(color: Color) {
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest<Color>("PATCH", `/api/admin/catalog/colors/${color.id}/`, { is_active: !color.is_active });
+      setNotice(color.is_active ? "رنگ غیرفعال شد؛ اطلاعات و سابقه آن حفظ شد." : "رنگ دوباره فعال شد.");
+      await refresh();
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setSaving(false); }
+  }
+
+  async function toggleVariantSize(item: VariantSize) {
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest<VariantSize>("PATCH", `/api/admin/catalog/variant-sizes/${item.id}/`, { is_active: !item.is_active });
+      setNotice(item.is_active ? "ترکیب رنگ و سایز غیرفعال شد؛ موجودی و سوابق حفظ شدند." : "ترکیب رنگ و سایز دوباره فعال شد.");
       await refresh();
     } catch (e) { setError(errorMessage(e)); }
     finally { setSaving(false); }
@@ -288,13 +309,17 @@ export default function AdminCatalogPage() {
                   <label className="text-sm">نام رنگ<input required value={colorName} onChange={(e) => setColorName(e.target.value)} className={inputClass} placeholder="مثلاً آبی آسمانی" /></label>
                   <label className="text-sm">شناسه انگلیسی رنگ<input required value={colorSlug} onChange={(e) => setColorSlug(e.target.value)} className={inputClass} dir="ltr" placeholder="sky-blue" /></label>
                   <label className="text-sm">کد رنگ<input type="color" value={hexColor} onChange={(e) => setHexColor(e.target.value)} className={inputClass + " h-11 p-1"} dir="ltr" /></label>
-                  <div className="flex items-end"><button disabled={saving} className={buttonClass}>افزودن رنگ</button></div>
+                  <div className="flex items-end gap-2"><button disabled={saving} className={buttonClass}>{editingColorId ? "ذخیره رنگ" : "افزودن رنگ"}</button>{editingColorId && <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(null); setColorName(""); setColorSlug(""); setHexColor("#000000"); }}>لغو</button>}</div>
                 </form>
                 <div className="mt-4 space-y-2">
                   {selectedColors.map((color) => <div key={color.id} className="rounded-xl border border-border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <button type="button" onClick={() => setVariantId(color.id)} className="flex items-center gap-3 text-right"><span className="size-8 rounded-full border border-border" style={{ backgroundColor: color.hex_color || "#ddd" }} /><span><strong className="block text-sm">{color.name}</strong><span className="text-xs text-muted-foreground">کد کارت: {color.product_code}</span></span></button>
-                      <button type="button" className={variantId === color.id ? buttonClass : secondaryClass} onClick={() => setVariantId(color.id)}>مدیریت سایزها</button>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(color.id); setColorName(color.name); setColorSlug(color.slug); setHexColor(color.hex_color || "#000000"); }}>ویرایش رنگ</button>
+                        <button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleColor(color)}>{color.is_active ? "غیرفعال‌سازی" : "فعال‌سازی"}</button>
+                        <button type="button" className={variantId === color.id ? buttonClass : secondaryClass} onClick={() => setVariantId(color.id)}>مدیریت سایزها</button>
+                      </div>
                     </div>
                     {variantId === color.id && <div className="mt-4 border-t border-border pt-4">
                       <form onSubmit={addVariantSize} className="grid gap-3 sm:grid-cols-3">
@@ -306,7 +331,7 @@ export default function AdminCatalogPage() {
                         {variantSizes.filter((vs) => vs.variant === color.id).map((item) => {
                           const size = sizes.find((s) => s.id === item.size);
                           return <div key={item.id} className="rounded-xl bg-muted/50 p-3">
-                            <div className="flex items-center justify-between gap-2 text-sm"><strong>{size?.label || "سایز نامشخص"}</strong><span>موجودی: <b>{item.stock_quantity.toLocaleString("fa-IR")}</b></span></div>
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><strong>{size?.label || "سایز نامشخص"}{!item.is_active && <span className="mr-2 text-xs text-destructive">غیرفعال</span>}</strong><span className="flex items-center gap-3">موجودی: <b>{item.stock_quantity.toLocaleString("fa-IR")}</b><button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleVariantSize(item)}>{item.is_active ? "غیرفعال‌سازی" : "فعال‌سازی"}</button></span></div>
                             <form onSubmit={(e) => void adjustStock(e, item)} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_auto]">
                               <label className="text-xs">تغییر تعداد<input required type="number" step="1" value={stockChanges[item.id] ?? ""} onChange={(e) => setStockChanges((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} dir="ltr" placeholder="+10 / -2" /></label>
                               <label className="text-xs">دلیل تغییر<input required value={stockReasons[item.id] ?? ""} onChange={(e) => setStockReasons((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} placeholder="مثلاً ورود بار جدید" /></label>
