@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
@@ -49,7 +50,7 @@ function isActive(pathname: string, href: string, exact?: boolean) {
   return exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
 }
 
-export default function AdminPanelLayout({ children }: { children: React.ReactNode }) {
+export default function AdminPanelLayout({ children }: { children: ReactNode }) {
   const params = useParams<{ locale: string }>();
   const locale = params.locale || "fa";
   const pathname = usePathname();
