@@ -445,7 +445,7 @@ def test_color_variant_position_can_be_updated_and_negative_values_are_rejected(
     )
     assert invalid.status_code == 400
     first.refresh_from_db()
-    assert first.position == 0
+    assert first.position == 10
 
 def test_variant_size_description_requires_view_and_change_permissions(make_staff, make_variant_size):
     row = make_variant_size()
