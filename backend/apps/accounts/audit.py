@@ -27,7 +27,7 @@ class AdminAuditMiddleware:
             and getattr(user, "is_authenticated", False)
             and getattr(user, "is_active", False)
             and getattr(user, "is_staff", False)
-            and not path.startswith("/api/admin/audit-log/")
+            and not path.startswith(("/api/admin/audit-log/", "/api/admin/staff/"))
         ):
             try:
                 from .models import AdminAuditEvent
