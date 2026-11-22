@@ -142,7 +142,7 @@ export default function AdminWorkspacePage() {
       </Link>
 
 
-      <Link href={"/" + locale + "/admin-panel/audit-log"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
+      <Link href={"/" + locale + "/admin-panel/staff"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">\n        <div><h2 className="font-bold">مدیریت مدیران و نقش‌ها</h2><p className="mt-1 text-sm text-muted-foreground">تعریف نقش‌ها، تعیین مجوزها و تخصیص دسترسی به مدیران</p></div>\n        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت دسترسی‌ها ←</span>\n      </Link>\n\n      <Link href={"/" + locale + "/admin-panel/audit-log"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
         <div><h2 className="font-bold">تاریخچه فعالیت مدیران</h2><p className="mt-1 text-sm text-muted-foreground">مشاهده عملیات مدیریتی، زمان اجرا و نتیجه درخواست‌ها</p></div>
         <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مشاهده تاریخچه ←</span>
       </Link>

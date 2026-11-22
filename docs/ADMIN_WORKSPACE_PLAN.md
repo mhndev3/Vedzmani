@@ -1,6 +1,6 @@
 # Vedzmani Admin Workspace: Scope and Delivery Plan
 
-Status: implementation started on `feat/admin-workspace-foundation`.
+Status: implementation is delivered incrementally on `main`; the current delivery package combines staff access control with its audit trail. Keep related work together in fewer, cohesive PRs, with focused security and regression tests.
 
 ## Product principles
 
@@ -107,17 +107,16 @@ These are reference patterns, not a mandate to copy every feature or introduce u
 - Workflow run history, actor, outcome, retry policy, and failure notifications.
 - No autonomous order/payment/inventory automation until its business rules and safeguards are separately approved.
 
-## Delivery phases
+## Consolidated delivery phases
 
-1. **Foundation (current branch):** staff-aware storefront menu entry, Persian admin workspace shell, permission-aware landing page, and documented scope. Keep the existing admin security gate intact.
-2. **Admin API and authorization:** explicit admin permission layer and tests; avoid using `is_staff` alone for every future capability.
-3. **Catalog workflow:** full product create/edit/archive flow, variants, sizes, measurements, media upload/reorder, atomic product codes, and audited stock adjustments.
-4. **Categories and collections:** canonical dynamic taxonomy and homepage collection primitives, wired into search/filter/navigation.
-5. **Storefront editor:** contextual pencil controls, drafts, preview, publish, rollback, and revision history.
-6. **Homepage/content/theme studio:** banners, text, sections, theme presets, animation settings, media library.
-7. **Operations modules:** inventory, customers, support, orders (after explicit approval), delivery, promotions, analytics, staff roles, audit logs.
-8. **Hardening:** focused unit/API/component tests, accessibility, mobile usability, permission matrix, backup/restore compatibility, performance, and deployment smoke checks.
+1. **Admin foundation, identity, and access:** Persian workspace shell, staff directory, role/group management, curated permissions, permission-aware navigation, and privacy-safe audit history. Existing password/OTP separation and backend authorization remain mandatory.
+2. **Catalog and inventory operations:** product create/edit/archive, categories and collections, variants, sizes, measurements, media upload/reordering, atomic product codes, and audited stock adjustments. Preserve the existing inventory locking and append-only history rules.
+3. **Storefront content and media:** contextual editor, drafts, preview, publish, rollback, homepage banners/sections, theme presets, media library, and revision history.
+4. **Store operations and customer care:** customers, support, global admin search, notifications, read-only order visibility, delivery configuration, returns/exchanges, and promotions. Order mutations, carrier pricing, returns/refunds, and campaign pricing stay dormant until their business rules are explicitly approved.
+5. **Settings, reporting, and hardening:** store settings, system/backup/deploy status, validated CSV import/export, permission matrix, accessibility, mobile usability, performance, focused tests, backup/restore compatibility, and deployment smoke checks. Sales analytics must use real verified order/payment data and remains deferred while orders/payments are disabled.
 
+Related capabilities should be delivered together in one PR when they share the same data model, authorization boundary, and test surface. Do not combine unrelated modules merely to reduce the PR count; keep migrations additive, test focused paths, and deploy only after explicit approval.
+ 
 ## Release gates
 
 - No production deployment from this branch until review and CI are green.

@@ -57,6 +57,6 @@ class AdminAuditEventListView(APIView):
                 "actor_label": f"مدیر #{e.actor_id}" if e.actor_id else "کاربر حذف‌شده",
                 "action": e.action, "method": e.method, "path": e.path,
                 "entity_type": e.entity_type, "entity_id": e.entity_id,
-                "response_status": e.response_status, "created_at": e.created_at,
+                "response_status": e.response_status, "created_at": e.created_at, "details": e.details,
             } for e in rows],
         })
