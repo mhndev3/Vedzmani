@@ -387,6 +387,35 @@ class HomepageSection(models.Model):
 
 
 
+class HomepageSectionRevision(models.Model):
+    """Immutable snapshot of a homepage section configuration."""
+
+    ACTION_CREATED = "created"
+    ACTION_UPDATED = "updated"
+    ACTION_ROLLBACK = "rollback"
+    ACTION_CHOICES = [
+        (ACTION_CREATED, "Created"),
+        (ACTION_UPDATED, "Updated"),
+        (ACTION_ROLLBACK, "Rollback"),
+    ]
+
+    section = models.ForeignKey(HomepageSection, on_delete=models.CASCADE, related_name="revisions")
+    snapshot = models.JSONField()
+    action = models.CharField(max_length=12, choices=ACTION_CHOICES)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="homepage_section_revisions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["section", "-created_at"], name="home_section_rev_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.section_id}:{self.action}:{self.pk}"
+
+
 def homepage_banner_upload_to(instance, filename):
     import os
     import uuid
