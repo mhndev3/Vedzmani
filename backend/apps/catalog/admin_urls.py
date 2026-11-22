@@ -13,6 +13,7 @@ from apps.accounts.support_api import AdminSupportTicketDetailView, AdminSupport
 from apps.orders.admin_shipping import ShippingMethodAdminViewSet
 from .homepage_admin import HomepageSectionAdminViewSet
 from .homepage_banner_admin import HomepageBannerAdminViewSet
+from .admin_media_library import AdminMediaLibraryView
 from .storefront_theme import StorefrontThemeAdminView, StorefrontThemeRevisionView
 from .admin_views import (
     CategoryAdminViewSet,
@@ -46,6 +47,7 @@ router.register("catalog/variant-size-descriptions", VariantSizeDescriptionAdmin
 router.register("catalog/images", VariantImageAdminViewSet, basename="admin-catalog-image")
 
 urlpatterns = [
+    path("media/", AdminMediaLibraryView.as_view(), name="admin-media-library"),
     path("storefront/theme/", StorefrontThemeAdminView.as_view(), name="admin-storefront-theme"),
     path("storefront/theme/revisions/", StorefrontThemeRevisionView.as_view(), name="admin-storefront-theme-revisions"),
     path("audit-log/", AdminAuditEventListView.as_view(), name="admin-audit-log"),
