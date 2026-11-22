@@ -1,4 +1,5 @@
 """Staff-only homepage banner management API."""
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
@@ -9,7 +10,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import BasePermission, DjangoModelPermissions
 from rest_framework.response import Response
 
-from .models import HomepageBanner, HomepageBannerRevision
+from .models import HomepageBanner, HomepageBannerRevision, VariantImage
 
 
 def banner_snapshot(banner):
@@ -67,15 +68,44 @@ class HomepageBannerRevisionPermissions(BasePermission):
         return request.method in {"GET", "POST"} and user.has_perm(permission)
 
 
+def resolve_media_library_reference(reference, user):
+    """Resolve a public library item ID to an existing storage key without exposing keys to clients."""
+    parts = str(reference or "").split("-")
+    if len(parts) == 2 and parts[0] == "product" and parts[1].isdigit():
+        if not user.has_perm("catalog.view_variantimage"):
+            raise serializers.ValidationError("مجوز استفاده از تصاویر محصولات را ندارید.")
+        image = VariantImage.objects.filter(pk=int(parts[1]), is_active=True).first()
+        if image is None:
+            raise serializers.ValidationError("تصویر محصول در کتابخانه موجود یا فعال نیست.")
+        key = image.display_storage_key or image.storage_key
+    elif len(parts) == 3 and parts[0] == "banner" and parts[1].isdigit() and parts[2] in {"desktop_image", "mobile_image"}:
+        if not user.has_perm("catalog.view_homepagebanner"):
+            raise serializers.ValidationError("مجوز استفاده از تصاویر بنرها را ندارید.")
+        banner = HomepageBanner.objects.filter(pk=int(parts[1])).first()
+        if banner is None:
+            raise serializers.ValidationError("بنر انتخاب‌شده پیدا نشد.")
+        image = getattr(banner, parts[2])
+        key = image.name if image else ""
+        if not key:
+            raise serializers.ValidationError("تصویر انتخاب‌شده دیگر در دسترس نیست.")
+    else:
+        raise serializers.ValidationError("شناسه رسانه معتبر نیست.")
+    if not default_storage.exists(key):
+        raise serializers.ValidationError("فایل تصویر انتخاب‌شده در فضای ذخیره‌سازی موجود نیست.")
+    return key
+
+
 class HomepageBannerAdminSerializer(serializers.ModelSerializer):
     desktop_image_url = serializers.SerializerMethodField()
     mobile_image_url = serializers.SerializerMethodField()
+    desktop_image_media_ref = serializers.CharField(write_only=True, required=False, allow_blank=False)
+    mobile_image_media_ref = serializers.CharField(write_only=True, required=False, allow_blank=False)
 
     class Meta:
         model = HomepageBanner
         fields = [
             "id", "title", "subtitle", "alt_text", "desktop_image", "mobile_image",
-            "desktop_image_url", "mobile_image_url", "cta_label", "cta_url",
+            "desktop_image_url", "mobile_image_url", "desktop_image_media_ref", "mobile_image_media_ref", "cta_label", "cta_url",
             "position", "status", "starts_at", "ends_at", "created_at",
             "updated_at", "published_at",
         ]
@@ -120,6 +150,14 @@ class HomepageBannerAdminSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        for field in ("desktop_image", "mobile_image"):
+            reference_field = f"{field}_media_ref"
+            if attrs.get(field) and attrs.get(reference_field):
+                raise serializers.ValidationError({reference_field: "هم‌زمان فایل جدید و تصویر کتابخانه را انتخاب نکنید."})
+            if attrs.get(reference_field):
+                attrs[f"_{field}_storage_key"] = resolve_media_library_reference(
+                    attrs[reference_field], self.context["request"].user
+                )
         uploaded_size = sum(
             getattr(attrs.get(field), "size", 0)
             for field in ("desktop_image", "mobile_image")
@@ -132,20 +170,44 @@ class HomepageBannerAdminSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"ends_at": "زمان پایان باید بعد از زمان شروع باشد."})
         if attrs.get("status", getattr(self.instance, "status", HomepageBanner.STATUS_DRAFT)) == HomepageBanner.STATUS_PUBLISHED:
             alt_text = attrs.get("alt_text", getattr(self.instance, "alt_text", ""))
-            desktop_image = attrs.get("desktop_image", getattr(self.instance, "desktop_image", None))
+            desktop_image = attrs.get("desktop_image") or attrs.get("_desktop_image_storage_key") or getattr(self.instance, "desktop_image", None)
             if not alt_text.strip() or not desktop_image:
                 raise serializers.ValidationError("برای انتشار، تصویر دسکتاپ و متن جایگزین الزامی است.")
         return attrs
 
+    def _apply_library_images(self, banner, storage_keys):
+        changed = []
+        for field, key in storage_keys.items():
+            if key:
+                getattr(banner, field).name = key
+                changed.append(field)
+        if changed:
+            banner.save(update_fields=changed + ["updated_at"])
+        return banner
+
     def create(self, validated_data):
+        storage_keys = {
+            field: validated_data.pop(f"_{field}_storage_key", "")
+            for field in ("desktop_image", "mobile_image")
+        }
+        validated_data.pop("desktop_image_media_ref", None)
+        validated_data.pop("mobile_image_media_ref", None)
         if validated_data.get("status") == HomepageBanner.STATUS_PUBLISHED:
             validated_data["published_at"] = timezone.now()
-        return super().create(validated_data)
+        banner = super().create(validated_data)
+        return self._apply_library_images(banner, storage_keys)
 
     def update(self, instance, validated_data):
+        storage_keys = {
+            field: validated_data.pop(f"_{field}_storage_key", "")
+            for field in ("desktop_image", "mobile_image")
+        }
+        validated_data.pop("desktop_image_media_ref", None)
+        validated_data.pop("mobile_image_media_ref", None)
         if validated_data.get("status", instance.status) == HomepageBanner.STATUS_PUBLISHED and instance.status != HomepageBanner.STATUS_PUBLISHED:
             validated_data["published_at"] = timezone.now()
-        return super().update(instance, validated_data)
+        banner = super().update(instance, validated_data)
+        return self._apply_library_images(banner, storage_keys)
 
 
 class StaffHomepageBannerPermissions(DjangoModelPermissions):
