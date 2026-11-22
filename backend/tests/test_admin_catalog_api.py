@@ -8,6 +8,7 @@ from apps.accounts.models import User
 
 from apps.catalog.models import (
     Category,
+    Collection,
     ColorVariant,
     Product,
     ProductSizeDescription,
@@ -287,3 +288,92 @@ def test_inventory_history_can_be_filtered_to_one_variant_size_and_shows_actor(m
 
     invalid = client.get("/api/admin/inventory/adjustments/?variant_size=not-a-number")
     assert invalid.status_code == 400
+
+
+
+def test_catalog_taxonomy_create_update_and_safe_deactivation(make_staff):
+    client = client_for(make_staff(
+        "catalog.add_category", "catalog.view_category", "catalog.change_category",
+        "catalog.add_collection", "catalog.view_collection", "catalog.change_collection",
+        "catalog.add_size", "catalog.view_size", "catalog.change_size",
+    ))
+
+    category_response = client.post(
+        "/api/admin/catalog/categories/",
+        {"name": "لباس", "slug": "clothing", "position": 2},
+        content_type="application/json",
+    )
+    assert category_response.status_code == 201, category_response.content
+    category = Category.objects.get(pk=category_response.json()["id"])
+    assert category.position == 2
+
+    collection_response = client.post(
+        "/api/admin/catalog/collections/",
+        {"name": "پاییزه", "slug": "autumn", "position": 1},
+        content_type="application/json",
+    )
+    assert collection_response.status_code == 201, collection_response.content
+    collection = Collection.objects.get(pk=collection_response.json()["id"])
+
+    category_update = client.patch(
+        f"/api/admin/catalog/categories/{category.pk}/",
+        {"is_active": False},
+        content_type="application/json",
+    )
+    collection_update = client.patch(
+        f"/api/admin/catalog/collections/{collection.pk}/",
+        {"name": "مجموعه پاییز", "is_active": False},
+        content_type="application/json",
+    )
+    assert category_update.status_code == 200, category_update.content
+    assert collection_update.status_code == 200, collection_update.content
+    category.refresh_from_db()
+    collection.refresh_from_db()
+    assert not category.is_active
+    assert not collection.is_active
+
+    size_response = client.post(
+        "/api/admin/catalog/sizes/",
+        {"code": "xxl", "label": "دو ایکس لارج", "position": 4},
+        content_type="application/json",
+    )
+    assert size_response.status_code == 201, size_response.content
+    size = Size.objects.get(pk=size_response.json()["id"])
+    size_update = client.patch(
+        f"/api/admin/catalog/sizes/{size.pk}/",
+        {"label": "XXL"},
+        content_type="application/json",
+    )
+    assert size_update.status_code == 200, size_update.content
+    size.refresh_from_db()
+    assert size.label == "XXL"
+    assert client.delete(f"/api/admin/catalog/sizes/{size.pk}/").status_code == 405
+    assert Size.objects.filter(pk=size.pk).exists()
+
+
+def test_color_and_variant_size_can_be_updated_or_deactivated_without_stock_write(make_staff, make_variant_size):
+    row = make_variant_size(stock=7)
+    client = client_for(make_staff(
+        "catalog.view_colorvariant", "catalog.change_colorvariant",
+        "catalog.view_variantsize", "catalog.change_variantsize",
+    ))
+
+    color_response = client.patch(
+        f"/api/admin/catalog/colors/{row.variant_id}/",
+        {"name": "آبی جدید", "is_active": False},
+        content_type="application/json",
+    )
+    assert color_response.status_code == 200, color_response.content
+    row.variant.refresh_from_db()
+    assert row.variant.name == "آبی جدید"
+    assert not row.variant.is_active
+
+    size_response = client.patch(
+        f"/api/admin/catalog/variant-sizes/{row.pk}/",
+        {"is_active": False, "stock_quantity": 999},
+        content_type="application/json",
+    )
+    assert size_response.status_code == 200, size_response.content
+    row.refresh_from_db()
+    assert not row.is_active
+    assert row.stock_quantity == 7
