@@ -1,4 +1,4 @@
-"Read-only customer directory for the custom staff workspace.
+"""Read-only customer directory for the custom staff workspace.
 
 This endpoint deliberately exposes no direct customer PII. Contact details, addresses, national
 identifiers and profile fields remain outside this workspace; the existing order PII permission
