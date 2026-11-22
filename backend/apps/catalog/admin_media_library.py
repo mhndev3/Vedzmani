@@ -3,8 +3,6 @@
 Uploads and destructive operations stay in their owning workflows. This endpoint
 only provides a permission-filtered view across the media already in the catalog.
 """
-from datetime import datetime
-
 from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
