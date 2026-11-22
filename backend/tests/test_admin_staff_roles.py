@@ -139,3 +139,29 @@ def test_audit_feed_returns_safe_before_after_details(make_staff, superuser):
     response = client_for(make_staff("accounts.view_adminauditevent")).get("/api/admin/audit-log/")
     assert response.status_code == 200
     assert response.json()["results"][0]["details"]["before"][0]["name"] == "پشتیبانی"
+
+
+
+def test_assignment_preserves_groups_outside_workspace_allowlist(make_staff, superuser):
+    staff = make_staff()
+    external = Group.objects.create(name="External security group")
+    external.permissions.add(Permission.objects.get(content_type__app_label="auth", codename="change_group"))
+    workspace_role = Group.objects.create(name="Catalog viewer")
+    workspace_role.permissions.add(Permission.objects.get(content_type__app_label="catalog", codename="view_product"))
+
+    response = client_for(superuser).patch(
+        f"/api/admin/staff/{staff.pk}/roles/",
+        {"role_ids": [workspace_role.pk]},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    assert set(staff.groups.values_list("pk", flat=True)) == {external.pk, workspace_role.pk}
+    assert response.json()["unmanaged_role_count"] == 1
+
+
+def test_unmanaged_role_cannot_be_deleted_through_workspace(superuser):
+    unsafe = Group.objects.create(name="External security group")
+    unsafe.permissions.add(Permission.objects.get(content_type__app_label="auth", codename="change_group"))
+    response = client_for(superuser).delete(f"/api/admin/staff/roles/{unsafe.pk}/")
+    assert response.status_code == 409
+    assert Group.objects.filter(pk=unsafe.pk).exists()
