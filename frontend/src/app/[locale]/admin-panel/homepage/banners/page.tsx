@@ -13,6 +13,8 @@ type Banner = {
   starts_at: string | null; ends_at: string | null;
 };
 type Revision = { id: number; action: "baseline" | "created" | "updated" | "rollback"; snapshot: Partial<Banner>; created_by_label: string; created_at: string };
+type MediaItem = { id: string; source: "product" | "banner"; source_label: string; title: string; alt_text: string; url: string; thumbnail_url: string; width: number | null; height: number | null; owner_label: string };
+type MediaPage = { count: number; next: string | null; previous: string | null; results: MediaItem[] };
 type Draft = {
   title: string; subtitle: string; alt_text: string; cta_label: string; cta_url: string;
   position: number; status: "draft" | "published"; starts_at: string; ends_at: string;
@@ -47,6 +49,16 @@ export default function AdminHomepageBannersPage() {
   const [draft, setDraft] = useState<Draft>(blank());
   const [desktopFile, setDesktopFile] = useState<File | null>(null);
   const [mobileFile, setMobileFile] = useState<File | null>(null);
+  const [desktopMediaRef, setDesktopMediaRef] = useState("");
+  const [mobileMediaRef, setMobileMediaRef] = useState("");
+  const [pickerTarget, setPickerTarget] = useState<"desktop" | "mobile" | null>(null);
+  const [pickerItems, setPickerItems] = useState<MediaItem[]>([]);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const [pickerAppliedQuery, setPickerAppliedQuery] = useState("");
+  const [pickerPage, setPickerPage] = useState(1);
+  const [pickerCount, setPickerCount] = useState(0);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerError, setPickerError] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,7 +95,7 @@ export default function AdminHomepageBannersPage() {
 
   function reset() {
     setEditingId(null); setDraft({ ...blank(), position: banners.length });
-    setDesktopFile(null); setMobileFile(null); setNotice(""); setError("");
+    setDesktopFile(null); setMobileFile(null); setDesktopMediaRef(""); setMobileMediaRef(""); setNotice(""); setError("");
   }
   function edit(banner: Banner) {
     setEditingId(banner.id);
@@ -92,10 +104,53 @@ export default function AdminHomepageBannersPage() {
       cta_label: banner.cta_label, cta_url: banner.cta_url, position: banner.position,
       status: banner.status, starts_at: localDate(banner.starts_at), ends_at: localDate(banner.ends_at),
     });
-    setDesktopFile(null); setMobileFile(null); setNotice(""); setError("");
+    setDesktopFile(null); setMobileFile(null); setDesktopMediaRef(""); setMobileMediaRef(""); setNotice(""); setError("");
   }
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft(old => ({ ...old, [key]: value }));
+  }
+
+  function openMediaPicker(target: "desktop" | "mobile") {
+    setPickerTarget(target);
+    setPickerQuery("");
+    setPickerAppliedQuery("");
+    setPickerPage(1);
+    setPickerItems([]);
+    setPickerError("");
+    setPickerLoading(true);
+  }
+
+  useEffect(() => {
+    if (!pickerTarget) return;
+    let active = true;
+    const params = new URLSearchParams({ page: String(pickerPage), source: "all" });
+    if (pickerAppliedQuery) params.set("q", pickerAppliedQuery);
+    void apiRequest<MediaPage>("GET", `/api/admin/media/?${params.toString()}`)
+      .then(result => {
+        if (!active) return;
+        setPickerItems(result.results);
+        setPickerCount(result.count);
+        setPickerError("");
+      })
+      .catch(() => {
+        if (!active) return;
+        setPickerItems([]);
+        setPickerCount(0);
+        setPickerError("دریافت تصاویر کتابخانه انجام نشد یا مجوز مشاهده آن‌ها را ندارید.");
+      })
+      .finally(() => { if (active) setPickerLoading(false); });
+    return () => { active = false; };
+  }, [pickerTarget, pickerPage, pickerAppliedQuery]);
+
+  function chooseLibraryImage(item: MediaItem) {
+    if (pickerTarget === "desktop") {
+      setDesktopMediaRef(item.id);
+      setDesktopFile(null);
+    } else if (pickerTarget === "mobile") {
+      setMobileMediaRef(item.id);
+      setMobileFile(null);
+    }
+    setPickerTarget(null);
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -103,7 +158,7 @@ export default function AdminHomepageBannersPage() {
     if (draft.cta_url && (!draft.cta_url.startsWith("/") || draft.cta_url.startsWith("//") || draft.cta_url.includes("\\"))) {
       setError("لینک دکمه باید مسیر داخلی سایت باشد."); setSaving(false); return;
     }
-    if (draft.status === "published" && editingId === null && !desktopFile) {
+    if (draft.status === "published" && editingId === null && !desktopFile && !desktopMediaRef) {
       setError("برای انتشار بنر، تصویر دسکتاپ الزامی است."); setSaving(false); return;
     }
     const data = new FormData();
@@ -112,8 +167,10 @@ export default function AdminHomepageBannersPage() {
       else data.set(key, String(value));
     }
     if (desktopFile) data.set("desktop_image", desktopFile);
+    else if (desktopMediaRef) data.set("desktop_image_media_ref", desktopMediaRef);
     if (mobileFile) data.set("mobile_image", mobileFile);
-    if (editingId === null && !desktopFile) {
+    else if (mobileMediaRef) data.set("mobile_image_media_ref", mobileMediaRef);
+    if (editingId === null && !desktopFile && !desktopMediaRef) {
       setError("تصویر دسکتاپ را انتخاب کنید."); setSaving(false); return;
     }
     try {
@@ -189,10 +246,22 @@ export default function AdminHomepageBannersPage() {
           <label className="block text-sm">عنوان داخلی بنر<input maxLength={120} value={draft.title} onChange={e => set("title", e.target.value)} className={field} /></label>
           <label className="block text-sm">متن توضیحی<input maxLength={240} value={draft.subtitle} onChange={e => set("subtitle", e.target.value)} className={field} /></label>
           <label className="block text-sm">متن جایگزین تصویر<input required maxLength={200} value={draft.alt_text} onChange={e => set("alt_text", e.target.value)} className={field} /></label>
-          <label className="block text-sm">تصویر دسکتاپ (JPEG / PNG / WebP، حداکثر ۸ مگابایت)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setDesktopFile(e.target.files?.[0] ?? null)} className={field} /></label>
-          {current?.desktop_image_url && !desktopFile && <p className="text-xs text-muted-foreground">تصویر فعلی دسکتاپ حفظ می‌شود.</p>}
-          <label className="block text-sm">تصویر موبایل (اختیاری)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setMobileFile(e.target.files?.[0] ?? null)} className={field} /></label>
-          {current?.mobile_image_url && !mobileFile && <p className="text-xs text-muted-foreground">تصویر فعلی موبایل حفظ می‌شود.</p>}
+          <div className="space-y-2">
+            <label className="block text-sm">تصویر دسکتاپ (JPEG / PNG / WebP، حداکثر ۸ مگابایت)
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { setDesktopFile(e.target.files?.[0] ?? null); setDesktopMediaRef(""); }} className={field} />
+            </label>
+            <button type="button" className={secondary} onClick={() => openMediaPicker("desktop")}>انتخاب از کتابخانه رسانه</button>
+            {desktopMediaRef && <p className="text-xs text-muted-foreground">تصویر انتخاب‌شده از کتابخانه برای دسکتاپ استفاده می‌شود.</p>}
+            {current?.desktop_image_url && !desktopFile && !desktopMediaRef && <p className="text-xs text-muted-foreground">تصویر فعلی دسکتاپ حفظ می‌شود.</p>}
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm">تصویر موبایل (اختیاری)
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { setMobileFile(e.target.files?.[0] ?? null); setMobileMediaRef(""); }} className={field} />
+            </label>
+            <button type="button" className={secondary} onClick={() => openMediaPicker("mobile")}>انتخاب از کتابخانه رسانه</button>
+            {mobileMediaRef && <p className="text-xs text-muted-foreground">تصویر انتخاب‌شده از کتابخانه برای موبایل استفاده می‌شود.</p>}
+            {current?.mobile_image_url && !mobileFile && !mobileMediaRef && <p className="text-xs text-muted-foreground">تصویر فعلی موبایل حفظ می‌شود.</p>}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">متن دکمه (اختیاری)<input maxLength={60} value={draft.cta_label} onChange={e => set("cta_label", e.target.value)} className={field} /></label>
             <label className="block text-sm">مسیر داخلی دکمه<input dir="ltr" maxLength={240} placeholder="/products" value={draft.cta_url} onChange={e => set("cta_url", e.target.value)} className={field} /></label>
@@ -233,5 +302,33 @@ export default function AdminHomepageBannersPage() {
         <p className="mt-5 text-xs leading-6 text-muted-foreground">حذف فیزیکی بنرها در این مرحله وجود ندارد. برای توقف نمایش، وضعیت را به پیش‌نویس تغییر دهید. زمان‌بندی بر اساس ساعت سرور فروشگاه اعمال می‌شود.</p>
       </section>
     </div>
+    {pickerTarget && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="انتخاب تصویر از کتابخانه">
+      <section className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+        <header className="flex items-center justify-between gap-3 border-b border-border p-4 sm:p-5">
+          <div><h2 className="font-bold">انتخاب تصویر {pickerTarget === "desktop" ? "دسکتاپ" : "موبایل"}</h2><p className="mt-1 text-xs text-muted-foreground">تصویر انتخابی بدون کپی‌کردن فایل اصلی به بنر متصل می‌شود.</p></div>
+          <button type="button" className={secondary} onClick={() => setPickerTarget(null)}>بستن</button>
+        </header>
+        <form className="flex gap-2 border-b border-border p-4" onSubmit={event => { event.preventDefault(); if (pickerQuery.trim().length === 1) { setPickerError("برای جستجو حداقل دو نویسه وارد کنید."); return; } setPickerLoading(true); setPickerPage(1); setPickerAppliedQuery(pickerQuery.trim()); }}>
+          <input value={pickerQuery} onChange={event => setPickerQuery(event.target.value)} placeholder="جستجوی نام محصول، رنگ، بنر یا متن جایگزین" className={field + " mt-0 min-w-0 flex-1"} />
+          <button type="submit" className={primary}>جستجو</button>
+        </form>
+        {pickerError && <p role="alert" className="mx-4 mt-3 rounded-lg border border-destructive/40 p-3 text-sm">{pickerError}</p>}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          {pickerLoading ? <p className="py-12 text-center text-sm text-muted-foreground">در حال دریافت تصاویر…</p> :
+            pickerItems.length === 0 ? <p className="py-12 text-center text-sm text-muted-foreground">تصویری برای انتخاب پیدا نشد.</p> :
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {pickerItems.map(item => <button key={item.id} type="button" onClick={() => chooseLibraryImage(item)} className="overflow-hidden rounded-xl border border-border text-right transition hover:border-primary hover:bg-muted">
+                <div className="relative aspect-[4/3] bg-muted"><Image src={item.thumbnail_url || item.url} alt={item.alt_text || item.title} fill sizes="(max-width: 640px) 50vw, 25vw" unoptimized className="object-cover" /></div>
+                <div className="p-3"><p className="line-clamp-1 text-sm font-semibold">{item.title}</p><p className="mt-1 text-xs text-muted-foreground">{item.source_label}</p><p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">{item.owner_label}</p></div>
+              </button>)}
+            </div>}
+        </div>
+        <footer className="flex items-center justify-between border-t border-border p-3">
+          <button type="button" disabled={pickerPage <= 1 || pickerLoading} onClick={() => { setPickerLoading(true); setPickerPage(value => value - 1); }} className={secondary}>صفحه قبل</button>
+          <span className="text-xs text-muted-foreground">{pickerCount.toLocaleString("fa-IR")} تصویر · صفحه {pickerPage.toLocaleString("fa-IR")}</span>
+          <button type="button" disabled={pickerPage * 24 >= pickerCount || pickerLoading} onClick={() => { setPickerLoading(true); setPickerPage(value => value + 1); }} className={secondary}>صفحه بعد</button>
+        </footer>
+      </section>
+    </div>}
   </main>;
 }
