@@ -22,6 +22,7 @@
 | `/api/admin/catalog/variant-sizes/` | VariantSize | فهرست، ایجاد، مشاهده و ویرایش |
 | `/api/admin/catalog/product-measurements/` | ProductSizeMeasurement | اندازه‌های مشترک محصول و سایز |
 | `/api/admin/catalog/variant-size-measurements/` | VariantSizeMeasurement | اندازه اختصاصی رنگ و سایز |
+| `/api/admin/catalog/variant-size-descriptions/` | VariantSizeDescription | توضیحات اختصاصی یک ترکیب رنگ و سایز |
 | `GET /api/admin/catalog/images/` | VariantImage | مشاهده فراداده تصاویر |
 | `GET/POST /api/admin/inventory/adjustments/` | InventoryAdjustment | مشاهده تاریخچه و ثبت گردش موجودی؛ فیلتر تاریخچه با `?variant_size={id}` |
 
