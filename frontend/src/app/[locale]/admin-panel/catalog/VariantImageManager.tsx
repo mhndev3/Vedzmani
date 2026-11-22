@@ -17,7 +17,25 @@ type ImageItem = {
   file_size: number | null;
   is_active: boolean;
 };
-type ImagePage = { results: ImageItem[] };
+type ImagePage = { results: ImageItem[]; next: string | null };
+
+async function getAllImages(variantId: number): Promise<ImageItem[]> {
+  const images: ImageItem[] = [];
+  let next: string | null = `/api/admin/catalog/images/?variant=${variantId}`;
+  const visited = new Set<string>();
+  while (next) {
+    if (visited.has(next) || visited.size >= 10000) {
+      throw new Error("Image pagination did not terminate.");
+    }
+    visited.add(next);
+    const page: ImagePage = await apiRequest<ImagePage>("GET", next);
+    images.push(...page.results);
+    next = page.next
+      ? new URL(page.next, window.location.origin).pathname + new URL(page.next, window.location.origin).search
+      : null;
+  }
+  return images;
+}
 
 const buttonClass = "rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-50";
 
@@ -42,8 +60,8 @@ export default function VariantImageManager({ variantId }: { variantId: number }
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const page = await apiRequest<ImagePage>("GET", `/api/admin/catalog/images/?variant=${variantId}`);
-      setImages(page.results);
+      const rows = await getAllImages(variantId);
+      setImages(rows);
       setError("");
     } catch (e) {
       setError(message(e));
@@ -56,9 +74,9 @@ export default function VariantImageManager({ variantId }: { variantId: number }
     let cancelled = false;
     async function load() {
       try {
-        const page = await apiRequest<ImagePage>("GET", `/api/admin/catalog/images/?variant=${variantId}`);
+        const rows = await getAllImages(variantId);
         if (!cancelled) {
-          setImages(page.results);
+          setImages(rows);
           setError("");
         }
       } catch (e) {
