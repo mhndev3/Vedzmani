@@ -285,11 +285,18 @@ class AdminStaffRoleAssignmentView(APIView):
         if len(groups) != len(role_ids) or any(_group_permissions(group, allowed) is None for group in groups):
             return Response({"error": {"code": "invalid_role_ids"}}, status=400)
         current_groups = list(user.groups.all())
-        unmanaged_groups = [group for group in current_groups if _group_permissions(group, allowed) is None]
+        managed_current_groups = [
+            group for group in current_groups
+            if _group_permissions(group, allowed) is not None
+        ]
         before = _staff_payload(user, allowed)["roles"]
         with transaction.atomic():
-            # Preserve groups managed outside this workspace instead of silently stripping them.
-            user.groups.set([*unmanaged_groups, *groups])
+            # Touch only groups managed by this workspace. External groups are
+            # deliberately left attached and are never passed through set()/clear().
+            if managed_current_groups:
+                user.groups.remove(*managed_current_groups)
+            if groups:
+                user.groups.add(*groups)
             user.refresh_from_db()
             after = _staff_payload(user, allowed)["roles"]
             _record_access_change(
