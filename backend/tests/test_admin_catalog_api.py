@@ -295,7 +295,7 @@ def test_catalog_taxonomy_create_update_and_safe_deactivation(make_staff):
     client = client_for(make_staff(
         "catalog.add_category", "catalog.view_category", "catalog.change_category",
         "catalog.add_collection", "catalog.view_collection", "catalog.change_collection",
-        "catalog.add_size", "catalog.view_size", "catalog.change_size",
+        "catalog.add_size", "catalog.view_size", "catalog.change_size", "catalog.delete_size",
     ))
 
     category_response = client.post(
