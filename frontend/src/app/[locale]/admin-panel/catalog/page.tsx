@@ -26,12 +26,15 @@ const secondaryClass = "rounded-xl border border-border px-4 py-2.5 text-sm hove
 async function getAll<T>(path: string): Promise<T[]> {
   const rows: T[] = [];
   let next: string | null = path;
-  let pages = 0;
-  while (next && pages < 40) {
+  const visited = new Set<string>();
+  while (next) {
+    if (visited.has(next) || visited.size >= 10000) {
+      throw new Error("Catalog pagination did not terminate.");
+    }
+    visited.add(next);
     const page: Page<T> = await apiRequest<Page<T>>("GET", next);
     rows.push(...page.results);
     next = page.next ? new URL(page.next, window.location.origin).pathname + new URL(page.next, window.location.origin).search : null;
-    pages += 1;
   }
   return rows;
 }
