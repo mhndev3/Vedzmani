@@ -416,6 +416,8 @@ def test_variant_size_sku_can_be_updated_but_must_remain_unique(make_staff, make
 def test_color_variant_position_can_be_updated_and_negative_values_are_rejected(make_staff, make_variant_size):
     first_size = make_variant_size()
     first = first_size.variant
+    first.position = 10
+    first.save(update_fields=["position"])
     second = ColorVariant.objects.create(
         product=first.product,
         name="رنگ دوم",
