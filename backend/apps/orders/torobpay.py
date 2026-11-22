@@ -116,8 +116,8 @@ class TorobPayClient:
         self.access_token(force_refresh=True, allow_when_disabled=True)
         return True
 
-    def _api(self, method, path, *, payload=None, query=None):
-        token = self.access_token()
+    def _api(self, method, path, *, payload=None, query=None, allow_when_disabled=False):
+        token = self.access_token(allow_when_disabled=allow_when_disabled)
         data, http_status = self._send(
             method, path, payload=payload, query=query, bearer=token
         )
@@ -131,13 +131,16 @@ class TorobPayClient:
             raise TorobPayError("invalid_provider_response", http_status=http_status)
         return response
 
-    def check_eligibility(self, amount_rial):
+    def check_eligibility(self, amount_rial, *, allow_when_disabled=False):
+        """Read-only eligibility lookup; the explicit override is for its management command only."""
         if isinstance(amount_rial, bool) or not isinstance(amount_rial, int):
             raise TorobPayError("invalid_amount")
         if amount_rial < 200_000 or amount_rial > 1_000_000_000:
             raise TorobPayError("amount_out_of_range")
         response = self._api(
-            "GET", "/api/online/offer/v1/eligible", query={"amount": amount_rial}
+            "GET", "/api/online/offer/v1/eligible",
+            query={"amount": amount_rial},
+            allow_when_disabled=allow_when_disabled,
         )
         eligible = response.get("eligible")
         if not isinstance(eligible, bool):
