@@ -1,7 +1,10 @@
 """Privacy and access boundaries for the read-only customer directory."""
+from decimal import Decimal
+
 import pytest
 
 from apps.accounts.models import User
+from apps.orders.models import Order
 from tests.conftest import client_for
 
 pytestmark = pytest.mark.django_db
@@ -65,3 +68,24 @@ def test_customer_directory_has_no_mutation_methods(make_staff):
     client = client_for(make_staff("accounts.view_user"))
     assert client.post("/api/admin/customers/", {}, content_type="application/json").status_code == 405
     assert client.delete("/api/admin/customers/1/").status_code == 405
+
+
+def test_customer_total_spent_includes_only_paid_orders(make_staff, db):
+    customer = User.objects.create_user("09123456789")
+    for status, amount in (
+        (Order.PAID, "150000"),
+        (Order.UNPAID, "300000"),
+        (Order.FAILED, "500000"),
+    ):
+        Order.objects.create(
+            user=customer,
+            customer_phone=customer.phone,
+            total=Decimal(amount),
+            payment_status=status,
+        )
+
+    client = client_for(make_staff("accounts.view_user"))
+    response = client.get(f"/api/admin/customers/{customer.pk}/")
+    assert response.status_code == 200, response.content
+    assert response.json()["order_count"] == 3
+    assert response.json()["total_spent"] == "150000"
