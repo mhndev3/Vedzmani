@@ -113,6 +113,10 @@ class HomepageBannerAdminSerializer(serializers.ModelSerializer):
             "id", "desktop_image_url", "mobile_image_url", "created_at",
             "updated_at", "published_at",
         ]
+        extra_kwargs = {
+            "desktop_image": {"required": False},
+            "mobile_image": {"required": False},
+        }
 
     def get_desktop_image_url(self, obj):
         return obj.desktop_image.url if obj.desktop_image else None
@@ -164,6 +168,8 @@ class HomepageBannerAdminSerializer(serializers.ModelSerializer):
         )
         if uploaded_size > 7 * 1024 * 1024:
             raise serializers.ValidationError("حجم مجموع تصاویر ارسالی در هر درخواست نباید بیشتر از ۷ مگابایت باشد.")
+        if self.instance is None and not attrs.get("desktop_image") and not attrs.get("_desktop_image_storage_key"):
+            raise serializers.ValidationError({"desktop_image": "برای بنر جدید، تصویر دسکتاپ الزامی است."})
         starts_at = attrs.get("starts_at", getattr(self.instance, "starts_at", None))
         ends_at = attrs.get("ends_at", getattr(self.instance, "ends_at", None))
         if starts_at and ends_at and ends_at <= starts_at:
