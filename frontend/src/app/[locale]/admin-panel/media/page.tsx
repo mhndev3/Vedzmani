@@ -84,12 +84,13 @@ export default function AdminMediaLibraryPage() {
       setError("برای جستجو حداقل دو نویسه وارد کنید.");
       return;
     }
-    setLoading(true);
+    if (value !== appliedQuery || page !== 1) setLoading(true);
     setPage(1);
     setAppliedQuery(value);
   }
 
   function changeSource(value: "all" | "product" | "banner") {
+    if (value === source) return;
     setLoading(true);
     setSource(value);
     setPage(1);
@@ -113,7 +114,7 @@ export default function AdminMediaLibraryPage() {
           placeholder="جستجو بر اساس نام محصول، رنگ، عنوان بنر یا متن جایگزین…"
           className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary" />
         <button type="submit" className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">جستجو</button>
-        <button type="button" className={secondary} onClick={() => { setLoading(true); setQuery(""); setAppliedQuery(""); setPage(1); }}>پاک‌کردن جستجو</button>
+        <button type="button" className={secondary} onClick={() => { if (query || appliedQuery || page !== 1) setLoading(true); setQuery(""); setAppliedQuery(""); setPage(1); }}>پاک‌کردن جستجو</button>
       </form>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <span className="ml-1 text-xs text-muted-foreground">نوع رسانه:</span>
