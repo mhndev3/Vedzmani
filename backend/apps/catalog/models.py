@@ -488,3 +488,59 @@ class StorefrontTheme(models.Model):
 
     def __str__(self):
         return "Storefront theme"
+
+
+class HomepageBannerRevision(models.Model):
+    """Immutable content and media-reference snapshot for a homepage banner."""
+
+    ACTION_BASELINE = "baseline"
+    ACTION_CREATED = "created"
+    ACTION_UPDATED = "updated"
+    ACTION_ROLLBACK = "rollback"
+    ACTION_CHOICES = [
+        (ACTION_BASELINE, "Baseline"),
+        (ACTION_CREATED, "Created"),
+        (ACTION_UPDATED, "Updated"),
+        (ACTION_ROLLBACK, "Rollback"),
+    ]
+
+    banner = models.ForeignKey(HomepageBanner, on_delete=models.CASCADE, related_name="revisions")
+    snapshot = models.JSONField()
+    action = models.CharField(max_length=12, choices=ACTION_CHOICES)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="homepage_banner_revisions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["banner", "-created_at"], name="home_banner_rev_idx")]
+
+
+class StorefrontThemeRevision(models.Model):
+    """Immutable snapshot of storefront draft and published design tokens."""
+
+    ACTION_BASELINE = "baseline"
+    ACTION_DRAFT = "draft_saved"
+    ACTION_PUBLISHED = "published"
+    ACTION_ROLLBACK = "rollback"
+    ACTION_CHOICES = [
+        (ACTION_BASELINE, "Baseline"),
+        (ACTION_DRAFT, "Draft saved"),
+        (ACTION_PUBLISHED, "Published"),
+        (ACTION_ROLLBACK, "Rollback"),
+    ]
+
+    theme = models.ForeignKey(StorefrontTheme, on_delete=models.CASCADE, related_name="revisions")
+    snapshot = models.JSONField()
+    action = models.CharField(max_length=16, choices=ACTION_CHOICES)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="storefront_theme_revisions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["theme", "-created_at"], name="store_theme_rev_idx")]
