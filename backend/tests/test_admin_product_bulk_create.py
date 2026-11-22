@@ -56,7 +56,7 @@ def test_staff_can_create_product_with_multiple_colors_and_sizes_atomically(make
     )
 
     assert response.status_code == 201, response.content
-    product = Product.objects.get(slug="multi-color-knit")
+    product = Product.objects.get(slug="admin-bulk-multi-color-knit")
     assert product.is_active is False
     assert list(product.collections.values_list("pk", flat=True)) == [collection.pk]
 
@@ -99,7 +99,7 @@ def test_bulk_product_creation_requires_all_model_add_permissions(make_staff):
     )
 
     assert response.status_code == 403
-    assert not Product.objects.filter(slug="product-without-size-permission").exists()
+    assert not Product.objects.filter(slug="admin-bulk-no-size-permission").exists()
 
 
 def test_bulk_product_creation_rejects_duplicate_skus_without_partial_records(make_staff):
@@ -133,6 +133,6 @@ def test_bulk_product_creation_rejects_duplicate_skus_without_partial_records(ma
     )
 
     assert response.status_code == 400
-    assert not Product.objects.filter(slug="duplicate-sku-product").exists()
-    assert not ColorVariant.objects.filter(product__slug="duplicate-sku-product").exists()
-    assert not VariantSize.objects.filter(variant__product__slug="duplicate-sku-product").exists()
+    assert not Product.objects.filter(slug="admin-bulk-duplicate-sku").exists()
+    assert not ColorVariant.objects.filter(product__slug="admin-bulk-duplicate-sku").exists()
+    assert not VariantSize.objects.filter(variant__product__slug="admin-bulk-duplicate-sku").exists()
