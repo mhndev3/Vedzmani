@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -53,25 +53,29 @@ export default function AdminMediaLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    const search = new URLSearchParams({ page: String(page), source });
-    if (appliedQuery) search.set("q", appliedQuery);
-    try {
-      const result = await apiRequest<MediaPage>("GET", `/api/admin/media/?${search.toString()}`);
-      setItems(result.results);
-      setCount(result.count);
-    } catch (e) {
-      setError(errorMessage(e));
-      setItems([]);
-      setCount(0);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      setError("");
+      const search = new URLSearchParams({ page: String(page), source });
+      if (appliedQuery) search.set("q", appliedQuery);
+      try {
+        const result = await apiRequest<MediaPage>("GET", `/api/admin/media/?${search.toString()}`);
+        if (!active) return;
+        setItems(result.results);
+        setCount(result.count);
+      } catch (e) {
+        if (!active) return;
+        setError(errorMessage(e));
+        setItems([]);
+        setCount(0);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    return () => { active = false; };
   }, [page, source, appliedQuery]);
-
-  useEffect(() => { void refresh(); }, [refresh]);
 
   function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,11 +84,13 @@ export default function AdminMediaLibraryPage() {
       setError("برای جستجو حداقل دو نویسه وارد کنید.");
       return;
     }
+    setLoading(true);
     setPage(1);
     setAppliedQuery(value);
   }
 
   function changeSource(value: "all" | "product" | "banner") {
+    setLoading(true);
     setSource(value);
     setPage(1);
   }
@@ -107,7 +113,7 @@ export default function AdminMediaLibraryPage() {
           placeholder="جستجو بر اساس نام محصول، رنگ، عنوان بنر یا متن جایگزین…"
           className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary" />
         <button type="submit" className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">جستجو</button>
-        <button type="button" className={secondary} onClick={() => { setQuery(""); setAppliedQuery(""); setPage(1); }}>پاک‌کردن جستجو</button>
+        <button type="button" className={secondary} onClick={() => { setLoading(true); setQuery(""); setAppliedQuery(""); setPage(1); }}>پاک‌کردن جستجو</button>
       </form>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <span className="ml-1 text-xs text-muted-foreground">نوع رسانه:</span>
@@ -144,9 +150,9 @@ export default function AdminMediaLibraryPage() {
         </div>}
 
     {!loading && count > 0 && <div className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-border p-3">
-      <button type="button" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))} className={secondary}>صفحه قبل</button>
+      <button type="button" disabled={page <= 1} onClick={() => { setLoading(true); setPage(value => Math.max(1, value - 1)); }} className={secondary}>صفحه قبل</button>
       <span className="text-xs text-muted-foreground">صفحه {page.toLocaleString("fa-IR")} از {pageCount.toLocaleString("fa-IR")}</span>
-      <button type="button" disabled={page >= pageCount} onClick={() => setPage(value => Math.min(pageCount, value + 1))} className={secondary}>صفحه بعد</button>
+      <button type="button" disabled={page >= pageCount} onClick={() => { setLoading(true); setPage(value => Math.min(pageCount, value + 1)); }} className={secondary}>صفحه بعد</button>
     </div>}
   </main>;
 }
