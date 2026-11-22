@@ -77,6 +77,8 @@ export default function AdminCatalogPage() {
   const [sizeId, setSizeId] = useState("");
   const [sku, setSku] = useState("");
   const [stockChanges, setStockChanges] = useState<Record<number, string>>({});
+  const [skuDrafts, setSkuDrafts] = useState<Record<number, string>>({});
+  const [colorPositions, setColorPositions] = useState<Record<number, string>>({});
   const [stockReasons, setStockReasons] = useState<Record<number, string>>({});
 
   const loadCatalog = useCallback(async () => {
@@ -195,6 +197,34 @@ export default function AdminCatalogPage() {
     try {
       await apiRequest<Color>("PATCH", `/api/admin/catalog/colors/${color.id}/`, { is_active: !color.is_active });
       setNotice(color.is_active ? "رنگ غیرفعال شد؛ اطلاعات و سابقه آن حفظ شد." : "رنگ دوباره فعال شد.");
+      await refresh();
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setSaving(false); }
+  }
+
+  async function saveVariantSku(item: VariantSize) {
+    const nextSku = (skuDrafts[item.id] ?? item.sku).trim();
+    if (!nextSku || nextSku === item.sku) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest<VariantSize>("PATCH", `/api/admin/catalog/variant-sizes/${item.id}/`, { sku: nextSku });
+      setSkuDrafts((old) => { const next = { ...old }; delete next[item.id]; return next; });
+      setNotice("SKU ترکیب رنگ و سایز به‌روزرسانی شد.");
+      await refresh();
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setSaving(false); }
+  }
+
+  async function saveColorPosition(color: Color) {
+    const raw = colorPositions[color.id] ?? String(color.position);
+    const position = Number(raw);
+    if (!Number.isInteger(position) || position < 0) { setError("ترتیب رنگ باید عدد صحیح و صفر یا بیشتر باشد."); return; }
+    if (position === color.position) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest<Color>("PATCH", `/api/admin/catalog/colors/${color.id}/`, { position });
+      setColorPositions((old) => { const next = { ...old }; delete next[color.id]; return next; });
+      setNotice("ترتیب نمایش رنگ ذخیره شد.");
       await refresh();
     } catch (e) { setError(errorMessage(e)); }
     finally { setSaving(false); }
@@ -332,7 +362,9 @@ export default function AdminCatalogPage() {
                   {selectedColors.map((color) => <div key={color.id} className="rounded-xl border border-border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <button type="button" onClick={() => setVariantId(color.id)} className="flex items-center gap-3 text-right"><span className="size-8 rounded-full border border-border" style={{ backgroundColor: color.hex_color || "#ddd" }} /><span><strong className="block text-sm">{color.name}</strong><span className="text-xs text-muted-foreground">کد کارت: {color.product_code}</span></span></button>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">ترتیب<input aria-label={`ترتیب رنگ ${color.name}`} type="number" min="0" step="1" value={colorPositions[color.id] ?? String(color.position)} onChange={(e) => setColorPositions((old) => ({ ...old, [color.id]: e.target.value }))} className={inputClass + " w-20"} dir="ltr" /></label>
+                        <button type="button" disabled={saving || Number(colorPositions[color.id] ?? color.position) === color.position} className={secondaryClass} onClick={() => void saveColorPosition(color)}>ذخیره ترتیب</button>
                         <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(color.id); setColorName(color.name); setColorSlug(color.slug); setHexColor(color.hex_color || "#000000"); }}>ویرایش رنگ</button>
                         <button type="button" className={imageVariantId === color.id ? buttonClass : secondaryClass} onClick={() => setImageVariantId(imageVariantId === color.id ? null : color.id)}>{imageVariantId === color.id ? "بستن تصاویر" : "مدیریت تصاویر"}</button>
                         <button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleColor(color)}>{color.is_active ? "غیرفعال‌سازی" : "فعال‌سازی"}</button>
@@ -350,6 +382,10 @@ export default function AdminCatalogPage() {
                           const size = sizes.find((s) => s.id === item.size);
                           return <div key={item.id} className="rounded-xl bg-muted/50 p-3">
                             <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><strong>{size?.label || "سایز نامشخص"}{!item.is_active && <span className="mr-2 text-xs text-destructive">غیرفعال</span>}</strong><span className="flex items-center gap-3">موجودی: <b>{item.stock_quantity.toLocaleString("fa-IR")}</b><button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleVariantSize(item)}>{item.is_active ? "غیرفعال‌سازی" : "فعال‌سازی"}</button></span></div>
+                            <div className="mt-3 flex flex-wrap items-end gap-2">
+                              <label className="min-w-0 flex-1 text-xs">SKU<input required maxLength={64} value={skuDrafts[item.id] ?? item.sku} onChange={(e) => setSkuDrafts((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} dir="ltr" /></label>
+                              <button type="button" disabled={saving || !(skuDrafts[item.id] ?? item.sku).trim() || (skuDrafts[item.id] ?? item.sku).trim() === item.sku} className={secondaryClass} onClick={() => void saveVariantSku(item)}>ذخیره SKU</button>
+                            </div>
                             <form onSubmit={(e) => void adjustStock(e, item)} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_auto]">
                               <label className="text-xs">تغییر تعداد<input required type="number" step="1" value={stockChanges[item.id] ?? ""} onChange={(e) => setStockChanges((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} dir="ltr" placeholder="+10 / -2" /></label>
                               <label className="text-xs">دلیل تغییر<input required value={stockReasons[item.id] ?? ""} onChange={(e) => setStockReasons((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} placeholder="مثلاً ورود بار جدید" /></label>
