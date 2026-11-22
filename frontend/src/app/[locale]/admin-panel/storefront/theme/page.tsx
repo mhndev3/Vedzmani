@@ -14,6 +14,7 @@ type ThemeSettings = {
   radius: "compact" | "medium" | "rounded";
   motion: "none" | "subtle" | "standard";
 };
+type ThemeRevision = { id: number; action: "baseline" | "draft_saved" | "published" | "rollback"; snapshot: { draft_settings: ThemeSettings; published_settings: ThemeSettings }; created_by_label: string; created_at: string };
 type ThemeResponse = {
   draft_settings: ThemeSettings;
   published_settings: ThemeSettings;
@@ -52,6 +53,9 @@ export default function StorefrontThemePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [revisions, setRevisions] = useState<ThemeRevision[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -96,6 +100,32 @@ export default function StorefrontThemePage() {
       await apiRequest("POST", "/api/admin/storefront/theme/", { action: "publish" });
       setPublished(draft);
       setNotice("قالب جدید منتشر شد و در ویترین فروشگاه اعمال می‌شود.");
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setSaving(false); }
+  }
+
+  async function toggleHistory() {
+    if (historyOpen) { setHistoryOpen(false); return; }
+    setHistoryOpen(true); setHistoryLoading(true); setError("");
+    try {
+      const rows = await apiRequest<ThemeRevision[]>("GET", "/api/admin/storefront/theme/revisions/");
+      setRevisions(rows);
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setHistoryLoading(false); }
+  }
+
+  async function rollback(revision: ThemeRevision) {
+    if (!window.confirm("تنظیمات پیش‌نویس با این نسخه جایگزین شود؟ قالب منتشرشده فعلی بدون تغییر می‌ماند.")) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const result = await apiRequest<{ draft_settings: ThemeSettings; published_settings: ThemeSettings }>(
+        "POST", "/api/admin/storefront/theme/revisions/", { revision_id: revision.id },
+      );
+      setDraft(result.draft_settings);
+      setPublished(result.published_settings);
+      setNotice("نسخه به پیش‌نویس بازگردانی شد. برای اعمال روی فروشگاه باید جداگانه منتشرش کنید.");
+      const rows = await apiRequest<ThemeRevision[]>("GET", "/api/admin/storefront/theme/revisions/");
+      setRevisions(rows);
     } catch (e) { setError(errorMessage(e)); }
     finally { setSaving(false); }
   }
@@ -148,6 +178,15 @@ export default function StorefrontThemePage() {
           </div>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5"><h2 className="font-bold">قالب منتشرشده فعلی</h2><div className="mt-3 flex flex-wrap gap-2">{[published.primary,published.primary_foreground,published.accent,published.accent_foreground].map((color,index)=><span key={index} title={color} className="size-9 rounded-lg border border-border" style={{backgroundColor:color}} />)}</div><p className="mt-2 text-xs text-muted-foreground">رنگ اصلی منتشرشده: <span dir="ltr">{published.primary}</span></p></div>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">تاریخچه نسخه‌های قالب</h2><p className="mt-1 text-xs text-muted-foreground">بازگردانی فقط پیش‌نویس را تغییر می‌دهد؛ انتشار نیازمند تأیید جداگانه است.</p></div><button type="button" disabled={saving} onClick={() => void toggleHistory()} className={button}>{historyOpen ? "بستن تاریخچه" : "نمایش تاریخچه"}</button></div>
+          {historyOpen && <div className="mt-4 space-y-2">
+            {historyLoading ? <p className="text-xs text-muted-foreground">در حال دریافت تاریخچه…</p> : revisions.length === 0 ? <p className="text-xs text-muted-foreground">نسخه‌ای ثبت نشده است.</p> : revisions.map((revision, index) => <div key={revision.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
+              <div><p className="text-sm font-medium">{revision.action === "baseline" ? "نسخه پایه" : revision.action === "draft_saved" ? "ذخیره پیش‌نویس" : revision.action === "published" ? "انتشار قالب" : "بازگردانی"}</p><p className="mt-1 text-xs text-muted-foreground">{revision.snapshot.draft_settings.primary} · {new Date(revision.created_at).toLocaleString("fa-IR")} · {revision.created_by_label}</p></div>
+              {index > 0 && <button type="button" disabled={saving} onClick={() => void rollback(revision)} className={button}>بازگردانی به پیش‌نویس</button>}
+            </div>)}
+          </div>}
+        </div>
       </section>
     </div>}
   </main>;
