@@ -111,7 +111,9 @@ class StorefrontThemeAdminView(APIView):
     def get_object(self, create=False):
         theme = StorefrontTheme.objects.filter(pk=1).first()
         if theme is None and create:
-            theme = StorefrontTheme.objects.create(pk=1)
+            theme, was_created = StorefrontTheme.objects.get_or_create(pk=1)
+            if was_created:
+                record_theme_revision(theme, None, StorefrontThemeRevision.ACTION_BASELINE)
         return theme
 
     def get(self, request):
@@ -135,6 +137,7 @@ class StorefrontThemeAdminView(APIView):
         record_theme_revision(theme, request.user, StorefrontThemeRevision.ACTION_DRAFT)
         return Response({"draft_settings": theme.draft_settings, "updated_at": theme.updated_at})
 
+    @transaction.atomic
     def post(self, request):
         if request.data.get("action") != "publish":
             return Response({"detail": "عملیات معتبر نیست."}, status=status.HTTP_400_BAD_REQUEST)
