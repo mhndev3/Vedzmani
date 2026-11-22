@@ -28,7 +28,7 @@ async function getAllImages(variantId: number): Promise<ImageItem[]> {
       throw new Error("Image pagination did not terminate.");
     }
     visited.add(next);
-    const page = await apiRequest<ImagePage>("GET", next);
+    const page: ImagePage = await apiRequest<ImagePage>("GET", next);
     images.push(...page.results);
     next = page.next
       ? new URL(page.next, window.location.origin).pathname + new URL(page.next, window.location.origin).search
