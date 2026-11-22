@@ -1,4 +1,5 @@
 """Staff-only API for managing homepage sections and their revision history."""
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -134,14 +135,17 @@ class HomepageSectionAdminViewSet(mixins.ListModelMixin, mixins.CreateModelMixin
             return [HomepageSectionRevisionPermissions()]
         return super().get_permissions()
 
+    @transaction.atomic
     def perform_create(self, serializer):
         section = serializer.save()
         record_section_revision(section, self.request.user, HomepageSectionRevision.ACTION_CREATED)
 
+    @transaction.atomic
     def perform_update(self, serializer):
         section = serializer.save()
         record_section_revision(section, self.request.user, HomepageSectionRevision.ACTION_UPDATED)
 
+    @transaction.atomic
     @action(detail=True, methods=["get", "post"], url_path="revisions")
     def revisions(self, request, pk=None):
         section = self.get_object()
