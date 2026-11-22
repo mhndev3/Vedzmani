@@ -6,41 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { authApi } from "@/lib/auth/api";
 import type { AuthUser } from "@/lib/auth/api";
 
-const sections = [
-  {
-    title: "محصولات و کاتالوگ",
-    description: "محصولات، رنگ‌ها، سایزها، تصاویر و مجموعه‌ها",
-    links: [
-      { label: "مدیریت محصولات", href: "/admin/catalog/product/" },
-      { label: "رنگ‌بندی‌ها", href: "/admin/catalog/colorvariant/" },
-      { label: "سایزها", href: "/admin/catalog/size/" },
-    ],
-  },
-  {
-    title: "انبار و موجودی",
-    description: "بررسی موجودی و گردش‌های ثبت‌شده انبار",
-    links: [
-      { label: "مدیریت موجودی در پنل فعلی", href: "/admin/" },
-    ],
-  },
-  {
-    title: "سفارش‌ها و مشتریان",
-    description: "دسترسی مطابق مجوزهای فعلی حساب مدیریت",
-    links: [
-      { label: "مدیریت اختصاصی سفارش‌ها", href: "/fa/admin-panel/orders" },
-      { label: "مدیریت اختصاصی مشتریان", href: "/fa/admin-panel/customers" },
-      { label: "سبدهای خرید", href: "/admin/cart/cart/" },
-    ],
-  },
-  {
-    title: "تنظیمات و محتوا",
-    description: "بخش‌های مدیریتی که در مراحل بعدی به پنل اختصاصی منتقل می‌شوند",
-    links: [
-      { label: "پنل مدیریت فعلی", href: "/admin/" },
-    ],
-  },
-];
-
 export default function AdminWorkspacePage() {
   const params = useParams<{ locale: string }>();
   const locale = params.locale || "fa";
@@ -152,28 +117,11 @@ export default function AdminWorkspacePage() {
         <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مشاهده تاریخچه ←</span>
       </Link>
 
-      <div className="mt-8 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-bold">بخش‌های فروشگاه</h2>
-        <span className="text-xs text-muted-foreground">نسخه اولیه فضای مدیریت</span>
-      </div>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {sections.map((section) => (
-          <section key={section.title} className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="text-lg font-semibold">{section.title}</h3>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">{section.description}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {section.links.map((item) => (
-                <Link key={item.href + item.label} href={item.href} className="rounded-xl border border-border px-3 py-2 text-sm transition hover:bg-muted">{item.label}</Link>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-
-      <section className="mt-8 rounded-2xl border border-dashed border-border p-5 sm:p-6">
-        <h2 className="font-semibold">در حال توسعه</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">این صفحه نقطه شروع پنل اختصاصی است. در این مرحله، عملیات موجود از طریق پنل فعلی مدیریت باز می‌شوند. فرم یکپارچه ساخت محصول، ویرایش زنده صفحات، مدیریت محتوای صفحه اصلی، شخصی‌سازی ظاهر و گردش‌کارهای مدیریتی در مراحل بعدی همین فضای مدیریت پیاده‌سازی خواهند شد.</p>
+      <section className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <h2 className="font-semibold">دسترسی یکپارچه مدیریت</h2>
+        <p className="mt-2 text-sm leading-7 text-muted-foreground">همه بخش‌های مدیریتی از منوی کناری در دسترس هستند. برای بازگشت به فروشگاه نیز از گزینه بالای پنل استفاده کنید.</p>
       </section>
+
     </main>
   );
 }
