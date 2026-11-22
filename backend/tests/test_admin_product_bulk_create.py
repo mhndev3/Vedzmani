@@ -25,7 +25,7 @@ def test_staff_can_create_product_with_multiple_colors_and_sizes_atomically(make
         "/api/admin/catalog/products/create-with-variants/",
         {
             "name": "بافت چندرنگ",
-            "slug": "multi-color-knit",
+            "slug": "admin-bulk-multi-color-knit",
             "description": "توضیحات محصول",
             "price": "850000",
             "sale_price": "790000",
@@ -83,7 +83,7 @@ def test_bulk_product_creation_requires_all_model_add_permissions(make_staff):
         "/api/admin/catalog/products/create-with-variants/",
         {
             "name": "محصول",
-            "slug": "product-without-size-permission",
+            "slug": "admin-bulk-no-size-permission",
             "price": "100000",
             "category": category.pk,
             "colors": [
@@ -104,14 +104,14 @@ def test_bulk_product_creation_requires_all_model_add_permissions(make_staff):
 
 def test_bulk_product_creation_rejects_duplicate_skus_without_partial_records(make_staff):
     category = Category.objects.create(name="لباس", slug="bulk-create-clothing-invalid")
-    size = Size.objects.create(code="m", label="Medium")
+    size = Size.objects.create(code="bulk-dup-m", label="Medium")
     client = client_for(make_staff(*create_permissions()))
 
     response = client.post(
         "/api/admin/catalog/products/create-with-variants/",
         {
             "name": "محصول نامعتبر",
-            "slug": "duplicate-sku-product",
+            "slug": "admin-bulk-duplicate-sku",
             "price": "100000",
             "category": category.pk,
             "colors": [
