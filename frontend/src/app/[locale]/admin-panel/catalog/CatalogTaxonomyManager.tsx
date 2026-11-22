@@ -52,7 +52,7 @@ export default function CatalogTaxonomyManager() {
 
   useEffect(() => {
     let active = true;
-    void refresh().catch((e: unknown) => { if (active) setError(errorText(e)); })
+    void Promise.resolve().then(refresh).catch((e: unknown) => { if (active) setError(errorText(e)); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [refresh]);
