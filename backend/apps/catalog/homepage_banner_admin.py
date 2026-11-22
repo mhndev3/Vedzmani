@@ -38,6 +38,7 @@ def record_banner_revision(banner, actor, action):
 
 
 class HomepageBannerRevisionSerializer(serializers.ModelSerializer):
+    snapshot = serializers.SerializerMethodField()
     created_by_label = serializers.SerializerMethodField()
 
     class Meta:
