@@ -70,17 +70,18 @@ export default function ProductMeasurementManager({
       getAll<SizeDescription>("/api/admin/catalog/product-size-descriptions/"),
     ]);
     let variantDescriptionsData: VariantSizeDescription[] = [];
+    let canViewSpecificDescriptions = true;
     try {
       variantDescriptionsData = await getAll<VariantSizeDescription>("/api/admin/catalog/variant-size-descriptions/");
-      setCanViewVariantDescriptions(true);
     } catch (error) {
       if (!(error instanceof BrowserApiError) || (error.status !== 401 && error.status !== 403)) throw error;
-      setCanViewVariantDescriptions(false);
+      canViewSpecificDescriptions = false;
     }
-    return [shared, specific, descriptionsData, variantDescriptionsData] as [Measurement[], VariantMeasurement[], SizeDescription[], VariantSizeDescription[]];
+    return { shared, specific, descriptionsData, variantDescriptionsData, canViewSpecificDescriptions };
   }, []);
 
-  const applyData = useCallback(([shared, specific, descriptionsData, variantDescriptionsData]: [Measurement[], VariantMeasurement[], SizeDescription[], VariantSizeDescription[]]) => {
+  const applyData = useCallback(({ shared, specific, descriptionsData, variantDescriptionsData, canViewSpecificDescriptions }: Awaited<ReturnType<typeof loadData>>) => {
+    setCanViewVariantDescriptions(canViewSpecificDescriptions);
     const allowedVariantSizeIds = new Set(variantSizeIdKey.split(",").filter(Boolean).map(Number));
     setMeasurements(shared.filter((item) => item.product === productId));
     setVariantMeasurements(specific.filter((item) => allowedVariantSizeIds.has(item.variant_size)));
