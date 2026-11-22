@@ -13,7 +13,7 @@ type Section = {
   position: number; item_limit: number; show_view_all: boolean; view_all_url: string;
   categories: number[]; products: number[];
 };
-type Revision = { id: number; action: "created" | "updated" | "rollback"; snapshot: Partial<Section>; created_by_label: string; created_at: string };
+type Revision = { id: number; action: "baseline" | "created" | "updated" | "rollback"; snapshot: Partial<Section>; created_by_label: string; created_at: string };
 type Page<T> = { results: T[]; next: string | null };
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
 const primaryClass = "rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50";
@@ -127,7 +127,7 @@ export default function AdminHomepagePage() {
   }
   async function openHistory(section: Section) {
     if (historyFor === section.id) { setHistoryFor(null); setRevisions([]); return; }
-    setHistoryFor(section.id); setHistoryLoading(true); setError("");
+    setHistoryFor(section.id); setHistoryLoading(true); setRevisions([]); setError("");
     try {
       const rows = await apiRequest<Revision[]>("GET", `/api/admin/homepage/sections/${section.id}/revisions/`);
       setRevisions(rows);
@@ -210,7 +210,7 @@ export default function AdminHomepagePage() {
             {historyLoading ? <p className="mt-3 text-xs text-muted-foreground">در حال دریافت تاریخچه…</p> : revisions.length === 0 ? <p className="mt-3 text-xs text-muted-foreground">نسخه‌ای ثبت نشده است.</p> : <div className="mt-3 space-y-2">
               {revisions.map((revision, revisionIndex) => <div key={revision.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
                 <div>
-                  <p className="text-sm font-medium">{revision.action === "created" ? "ایجاد اولیه" : revision.action === "rollback" ? "بازگردانی نسخه" : "ویرایش"}</p>
+                  <p className="text-sm font-medium">{revision.action === "baseline" ? "نسخه پایه پیش از فعال‌شدن تاریخچه" : revision.action === "created" ? "ایجاد اولیه" : revision.action === "rollback" ? "بازگردانی نسخه" : "ویرایش"}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{revision.snapshot.title || "بدون عنوان"} · {new Date(revision.created_at).toLocaleString("fa-IR")} · {revision.created_by_label}</p>
                 </div>
                 {revisionIndex > 0 && <button type="button" disabled={saving} onClick={() => void rollback(s, revision)} className={secondaryClass}>بازگردانی این نسخه</button>}
