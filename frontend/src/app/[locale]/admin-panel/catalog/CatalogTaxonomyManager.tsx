@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 
 type Row = { id: number; name: string; slug: string; is_active: boolean; position: number };
@@ -62,7 +62,7 @@ export default function CatalogTaxonomyManager() {
     const draft = drafts[key] ?? { name: "", slug: "", position: String((kind === "categories" ? categories : collections).length) };
     setSaving(true); setError(""); setNotice("");
     try {
-      await apiRequest("".length ? "GET" : row ? "PATCH" : "POST",
+      await apiRequest(row ? "PATCH" : "POST",
         row ? `/api/admin/catalog/${kind}/${row.id}/` : `/api/admin/catalog/${kind}/`,
         { name: draft.name.trim(), slug: draft.slug.trim(), position: Number(draft.position), ...(row ? {} : { is_active: true }) });
       setDrafts((old) => { const next = { ...old }; delete next[key]; return next; });
@@ -82,7 +82,7 @@ export default function CatalogTaxonomyManager() {
     finally { setSaving(false); }
   }
 
-  async function saveSize(event: React.FormEvent<HTMLFormElement>) {
+  async function saveSize(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true); setError(""); setNotice("");
     try {
