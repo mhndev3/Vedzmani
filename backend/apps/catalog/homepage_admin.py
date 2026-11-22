@@ -1,9 +1,13 @@
-"""Staff-only API for managing homepage sections and their selected catalog items."""
+"""Staff-only API for managing homepage sections and their revision history."""
+from django.db import transaction
 from django.utils import timezone
-from rest_framework import mixins, serializers, viewsets
-from rest_framework.permissions import DjangoModelPermissions
+from rest_framework import mixins, serializers, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import BasePermission, DjangoModelPermissions
+from rest_framework.response import Response
 
-from .models import Category, HomepageSection, Product
+from .models import Category, HomepageSection, HomepageSectionRevision, Product
 
 
 class HomepageSectionAdminSerializer(serializers.ModelSerializer):
@@ -55,6 +59,44 @@ class HomepageSectionAdminSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class HomepageSectionRevisionSerializer(serializers.ModelSerializer):
+    created_by_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HomepageSectionRevision
+        fields = ["id", "action", "snapshot", "created_by_label", "created_at"]
+        read_only_fields = fields
+
+    def get_created_by_label(self, obj):
+        if obj.created_by is None:
+            return "سیستم"
+        return obj.created_by.phone or obj.created_by.get_username()
+
+
+def section_snapshot(section):
+    return {
+        "title": section.title,
+        "eyebrow": section.eyebrow,
+        "section_type": section.section_type,
+        "status": section.status,
+        "position": section.position,
+        "item_limit": section.item_limit,
+        "show_view_all": section.show_view_all,
+        "view_all_url": section.view_all_url,
+        "categories": list(section.categories.order_by("id").values_list("id", flat=True)),
+        "products": list(section.products.order_by("id").values_list("id", flat=True)),
+    }
+
+
+def record_section_revision(section, actor, action):
+    return HomepageSectionRevision.objects.create(
+        section=section,
+        snapshot=section_snapshot(section),
+        action=action,
+        created_by=actor if getattr(actor, "is_authenticated", False) else None,
+    )
+
+
 class StaffHomepagePermissions(DjangoModelPermissions):
     perms_map = {
         "GET": ["%(app_label)s.view_%(model_name)s"],
@@ -71,9 +113,55 @@ class StaffHomepagePermissions(DjangoModelPermissions):
         return bool(user and user.is_authenticated and user.is_staff and super().has_permission(request, view))
 
 
+class HomepageSectionRevisionPermissions(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated or not user.is_staff:
+            return False
+        permission = "catalog.view_homepagesection" if request.method == "GET" else "catalog.change_homepagesection"
+        return request.method in {"GET", "POST"} and user.has_perm(permission)
+
+
 class HomepageSectionAdminViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
-    """Create/read/update only; destructive deletion is intentionally unavailable."""
+    """Create/read/update sections; destructive deletion is intentionally unavailable."""
+
     serializer_class = HomepageSectionAdminSerializer
     permission_classes = [StaffHomepagePermissions]
     queryset = HomepageSection.objects.prefetch_related("categories", "products").all()
     pagination_class = None
+
+    def get_permissions(self):
+        if getattr(self, "action", None) == "revisions":
+            return [HomepageSectionRevisionPermissions()]
+        return super().get_permissions()
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        section = serializer.save()
+        record_section_revision(section, self.request.user, HomepageSectionRevision.ACTION_CREATED)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        section = serializer.save()
+        record_section_revision(section, self.request.user, HomepageSectionRevision.ACTION_UPDATED)
+
+    @transaction.atomic
+    @action(detail=True, methods=["get", "post"], url_path="revisions")
+    def revisions(self, request, pk=None):
+        section = self.get_object()
+        if request.method == "GET":
+            revisions = section.revisions.select_related("created_by").all()
+            return Response(HomepageSectionRevisionSerializer(revisions, many=True).data)
+
+        revision_id = request.data.get("revision_id")
+        if not str(revision_id or "").isdigit():
+            raise ValidationError({"revision_id": "شناسه نسخه معتبر نیست."})
+        revision = section.revisions.filter(pk=int(revision_id)).first()
+        if revision is None:
+            raise ValidationError({"revision_id": "این نسخه متعلق به بخش انتخاب‌شده نیست."})
+
+        serializer = self.get_serializer(section, data=revision.snapshot)
+        serializer.is_valid(raise_exception=True)
+        restored = serializer.save()
+        record_section_revision(restored, request.user, HomepageSectionRevision.ACTION_ROLLBACK)
+        return Response(self.get_serializer(restored).data, status=status.HTTP_200_OK)
