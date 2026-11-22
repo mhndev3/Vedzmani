@@ -195,7 +195,10 @@ def _finish_reversal(attempt, client, provider_state):
         else:
             return False
     except TorobPayError as exc:
-        attempt.status = TorobPayPaymentAttempt.REVERSAL_PENDING
+        # Preserve OUT_OF_STOCK across retryable reversal failures so a later
+        # callback retains the original fulfillment outcome.
+        if attempt.status != TorobPayPaymentAttempt.OUT_OF_STOCK:
+            attempt.status = TorobPayPaymentAttempt.REVERSAL_PENDING
         attempt.last_error_code = exc.code[:64]
         attempt.provider_status = provider_state
         attempt.save(update_fields=["status", "last_error_code", "provider_status", "updated_at"])
