@@ -379,6 +379,74 @@ def test_color_and_variant_size_can_be_updated_or_deactivated_without_stock_writ
     assert row.stock_quantity == 7
 
 
+
+def test_variant_size_sku_can_be_updated_but_must_remain_unique(make_staff, make_variant_size):
+    first = make_variant_size()
+    second = make_variant_size()
+    editor = client_for(make_staff("catalog.view_variantsize", "catalog.change_variantsize"))
+
+    changed = editor.patch(
+        f"/api/admin/catalog/variant-sizes/{first.pk}/",
+        {"sku": "UPDATED-SKU-001"},
+        content_type="application/json",
+    )
+    assert changed.status_code == 200, changed.content
+    first.refresh_from_db()
+    assert first.sku == "UPDATED-SKU-001"
+    assert changed.json()["sku"] == "UPDATED-SKU-001"
+
+    duplicate = editor.patch(
+        f"/api/admin/catalog/variant-sizes/{second.pk}/",
+        {"sku": first.sku},
+        content_type="application/json",
+    )
+    assert duplicate.status_code == 400
+    second.refresh_from_db()
+    assert second.sku != first.sku
+
+    viewer = client_for(make_staff("catalog.view_variantsize"))
+    denied = viewer.patch(
+        f"/api/admin/catalog/variant-sizes/{second.pk}/",
+        {"sku": "NO-WRITE"},
+        content_type="application/json",
+    )
+    assert denied.status_code == 403
+
+
+def test_color_variant_position_can_be_updated_and_negative_values_are_rejected(make_staff, make_variant_size):
+    first_size = make_variant_size()
+    first = first_size.variant
+    first.position = 10
+    first.save(update_fields=["position"])
+    second = ColorVariant.objects.create(
+        product=first.product,
+        name="رنگ دوم",
+        slug="second-color",
+        hex_color="#123456",
+        position=5,
+    )
+    editor = client_for(make_staff("catalog.view_colorvariant", "catalog.change_colorvariant"))
+
+    changed = editor.patch(
+        f"/api/admin/catalog/colors/{second.pk}/",
+        {"position": 0},
+        content_type="application/json",
+    )
+    assert changed.status_code == 200, changed.content
+    second.refresh_from_db()
+    assert second.position == 0
+    assert changed.json()["position"] == 0
+    assert list(first.product.color_variants.values_list("id", flat=True)) == [second.pk, first.pk]
+
+    invalid = editor.patch(
+        f"/api/admin/catalog/colors/{first.pk}/",
+        {"position": -1},
+        content_type="application/json",
+    )
+    assert invalid.status_code == 400
+    first.refresh_from_db()
+    assert first.position == 10
+
 def test_variant_size_description_requires_view_and_change_permissions(make_staff, make_variant_size):
     row = make_variant_size()
     description = VariantSizeDescription.objects.create(
