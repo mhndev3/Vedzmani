@@ -178,7 +178,7 @@ export default function AdminCatalogPage() {
     if (!selected) return;
     setSaving(true); setError(""); setNotice("");
     try {
-      await apiRequest<Color>(editingColorId ? "PATCH" : "POST", editingColorId ? `/api/admin/catalog/colors/${editingColorId}/` : "/api/admin/catalog/colors/", { product: selected.id, name: colorName, slug: colorSlug, hex_color: hexColor, is_active: true, position: selectedColors.length });
+      await apiRequest<Color>(editingColorId ? "PATCH" : "POST", editingColorId ? `/api/admin/catalog/colors/${editingColorId}/` : "/api/admin/catalog/colors/", { product: selected.id, name: colorName, slug: colorSlug, hex_color: hexColor, position: editingColorId ? (selectedColors.find((item) => item.id === editingColorId)?.position ?? selectedColors.length) : selectedColors.length, ...(editingColorId ? {} : { is_active: true }) });
       setColorName(""); setColorSlug(""); setHexColor("#000000"); setEditingColorId(null);
       setNotice(editingColorId ? "مشخصات رنگ ویرایش شد." : "رنگ جدید اضافه شد؛ کد کارت به‌صورت خودکار ساخته می‌شود.");
       await refresh();
