@@ -77,8 +77,8 @@ def _permission_map():
     return {_permission_key(item): item for item in _managed_permissions()}
 
 
-def _group_permissions(group):
-    allowed = _permission_map()
+def _group_permissions(group, allowed=None):
+    allowed = allowed if allowed is not None else _permission_map()
     current = list(group.permissions.select_related("content_type").all())
     # Do not expose or allow assignment of a group carrying permissions outside
     # the curated workspace allowlist (for example auth or account-admin powers).
@@ -87,28 +87,32 @@ def _group_permissions(group):
     return sorted(_permission_key(item) for item in current)
 
 
-def _group_payload(group):
-    permissions = _group_permissions(group)
+def _group_payload(group, allowed=None):
+    permissions = _group_permissions(group, allowed)
     return {
         "id": group.pk,
         "name": group.name,
         "permissions": permissions or [],
-        "member_count": group.user_set.filter(is_staff=True, is_superuser=False).count(),
+        "member_count": group.user_set.count(),
         "manageable": permissions is not None,
     }
 
 
-def _staff_payload(user):
+def _staff_payload(user, allowed=None):
     safe_groups = []
+    unmanaged_count = 0
     for group in user.groups.all():
-        permissions = _group_permissions(group)
+        permissions = _group_permissions(group, allowed)
         if permissions is not None:
             safe_groups.append({"id": group.pk, "name": group.name})
+        else:
+            unmanaged_count += 1
     return {
         "id": user.pk,
         "label": f"مدیر #{user.pk}",
         "is_active": user.is_active,
         "roles": safe_groups,
+        "unmanaged_role_count": unmanaged_count,
     }
 
 
@@ -163,15 +167,16 @@ class AdminStaffRoleListView(APIView):
     permission_classes = [SuperuserStaffPermission]
 
     def get(self, request):
+        allowed = _permission_map()
         groups = Group.objects.prefetch_related("permissions__content_type", "user_set").order_by("name", "id")
         return Response({
-            "results": [_group_payload(group) for group in groups if _group_permissions(group) is not None],
+            "results": [_group_payload(group, allowed) for group in groups if _group_permissions(group, allowed) is not None],
             "permissions": [{
-                "key": _permission_key(item),
+                "key": key,
                 "app": item.content_type.app_label,
                 "model": item.content_type.model,
                 "name": item.name,
-            } for item in _managed_permissions()],
+            } for key, item in sorted(allowed.items())],
         })
 
     def post(self, request):
@@ -231,16 +236,19 @@ class AdminStaffRoleDetailView(APIView):
 
     def delete(self, request, role_id):
         group = get_object_or_404(Group.objects.prefetch_related("permissions__content_type"), pk=role_id)
+        if _group_permissions(group) is None:
+            return Response({"error": {"code": "role_has_unmanaged_permissions"}}, status=409)
         if group.user_set.exists():
             return Response({"error": {"code": "role_in_use"}}, status=409)
         before = _role_snapshot(group)
         group_id = group.pk
-        group.delete()
-        _record_access_change(
-            request, action="delete", path=f"/api/admin/staff/roles/{group_id}/",
-            entity_type="staff_role", entity_id=group_id,
-            before=before, after={},
-        )
+        with transaction.atomic():
+            group.delete()
+            _record_access_change(
+                request, action="delete", path=f"/api/admin/staff/roles/{group_id}/",
+                entity_type="staff_role", entity_id=group_id,
+                before=before, after={},
+            )
         return Response(status=204)
 
 
@@ -249,10 +257,11 @@ class AdminStaffListView(APIView):
     permission_classes = [SuperuserStaffPermission]
 
     def get(self, request):
+        allowed = _permission_map()
         staff = User.objects.filter(is_staff=True, is_superuser=False).prefetch_related(
             "groups__permissions__content_type"
         ).order_by("id")
-        return Response({"results": [_staff_payload(user) for user in staff]})
+        return Response({"results": [_staff_payload(user, allowed) for user in staff]})
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -271,17 +280,21 @@ class AdminStaffRoleAssignmentView(APIView):
             User.objects.prefetch_related("groups__permissions__content_type"),
             pk=staff_id, is_staff=True, is_superuser=False,
         )
+        allowed = _permission_map()
         groups = list(Group.objects.filter(pk__in=role_ids).prefetch_related("permissions__content_type"))
-        if len(groups) != len(role_ids) or any(_group_permissions(group) is None for group in groups):
+        if len(groups) != len(role_ids) or any(_group_permissions(group, allowed) is None for group in groups):
             return Response({"error": {"code": "invalid_role_ids"}}, status=400)
-        before = [item for item in _staff_payload(user)["roles"]]
+        current_groups = list(user.groups.all())
+        unmanaged_groups = [group for group in current_groups if _group_permissions(group, allowed) is None]
+        before = _staff_payload(user, allowed)["roles"]
         with transaction.atomic():
-            user.groups.set(groups)
+            # Preserve groups managed outside this workspace instead of silently stripping them.
+            user.groups.set([*unmanaged_groups, *groups])
             user.refresh_from_db()
-            after = [item for item in _staff_payload(user)["roles"]]
+            after = _staff_payload(user, allowed)["roles"]
             _record_access_change(
                 request, action="patch", path=f"/api/admin/staff/{user.pk}/roles/",
                 entity_type="staff_user_roles", entity_id=user.pk,
                 before=before, after=after,
             )
-        return Response(_staff_payload(user))
+        return Response(_staff_payload(user, allowed))
