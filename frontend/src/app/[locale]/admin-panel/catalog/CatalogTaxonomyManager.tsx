@@ -14,7 +14,7 @@ async function all<T>(path: string): Promise<T[]> {
   const rows: T[] = [];
   let next: string | null = path;
   for (let page = 0; next && page < 40; page += 1) {
-    const result = await apiRequest<Page<T>>("GET", next);
+    const result: Page<T> = await apiRequest<Page<T>>("GET", next);
     rows.push(...result.results);
     next = result.next ? new URL(result.next, window.location.origin).pathname + new URL(result.next, window.location.origin).search : null;
   }
