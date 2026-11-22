@@ -1,11 +1,70 @@
 """Staff-only homepage banner management API."""
+from django.db import transaction
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
-from rest_framework import mixins, serializers, viewsets
+from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import BasePermission, DjangoModelPermissions
+from rest_framework.response import Response
 
-from .models import HomepageBanner
+from .models import HomepageBanner, HomepageBannerRevision
+
+
+def banner_snapshot(banner):
+    return {
+        "title": banner.title,
+        "subtitle": banner.subtitle,
+        "alt_text": banner.alt_text,
+        "desktop_image": banner.desktop_image.name,
+        "mobile_image": banner.mobile_image.name if banner.mobile_image else "",
+        "cta_label": banner.cta_label,
+        "cta_url": banner.cta_url,
+        "position": banner.position,
+        "status": banner.status,
+        "starts_at": banner.starts_at.isoformat() if banner.starts_at else None,
+        "ends_at": banner.ends_at.isoformat() if banner.ends_at else None,
+    }
+
+
+def record_banner_revision(banner, actor, action):
+    return HomepageBannerRevision.objects.create(
+        banner=banner,
+        snapshot=banner_snapshot(banner),
+        action=action,
+        created_by=actor if getattr(actor, "is_authenticated", False) else None,
+    )
+
+
+class HomepageBannerRevisionSerializer(serializers.ModelSerializer):
+    snapshot = serializers.SerializerMethodField()
+    created_by_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HomepageBannerRevision
+        fields = ["id", "action", "snapshot", "created_by_label", "created_at"]
+        read_only_fields = fields
+
+    def get_created_by_label(self, obj):
+        if obj.created_by is None:
+            return "سیستم"
+        return obj.created_by.phone or obj.created_by.get_username()
+
+    def get_snapshot(self, obj):
+        snapshot = dict(obj.snapshot)
+        snapshot["desktop_image"] = bool(snapshot.get("desktop_image"))
+        snapshot["mobile_image"] = bool(snapshot.get("mobile_image"))
+        return snapshot
+
+
+class HomepageBannerRevisionPermissions(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated or not user.is_staff:
+            return False
+        permission = "catalog.view_homepagebanner" if request.method == "GET" else "catalog.change_homepagebanner"
+        return request.method in {"GET", "POST"} and user.has_perm(permission)
 
 
 class HomepageBannerAdminSerializer(serializers.ModelSerializer):
@@ -118,3 +177,50 @@ class HomepageBannerAdminViewSet(
     permission_classes = [StaffHomepageBannerPermissions]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     pagination_class = None
+
+    def get_permissions(self):
+        if getattr(self, "action", None) == "revisions":
+            return [HomepageBannerRevisionPermissions()]
+        return super().get_permissions()
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        banner = serializer.save()
+        record_banner_revision(banner, self.request.user, HomepageBannerRevision.ACTION_CREATED)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        banner = serializer.save()
+        record_banner_revision(banner, self.request.user, HomepageBannerRevision.ACTION_UPDATED)
+
+    @transaction.atomic
+    @action(detail=True, methods=["get", "post"], url_path="revisions")
+    def revisions(self, request, pk=None):
+        banner = self.get_object()
+        if request.method == "GET":
+            rows = banner.revisions.select_related("created_by").all()
+            return Response(HomepageBannerRevisionSerializer(rows, many=True).data)
+
+        revision_id = request.data.get("revision_id")
+        if not str(revision_id or "").isdigit():
+            raise ValidationError({"revision_id": "شناسه نسخه معتبر نیست."})
+        revision = banner.revisions.filter(pk=int(revision_id)).first()
+        if revision is None:
+            raise ValidationError({"revision_id": "این نسخه متعلق به بنر انتخاب‌شده نیست."})
+        snapshot = revision.snapshot
+        desktop_key = snapshot.get("desktop_image") or ""
+        mobile_key = snapshot.get("mobile_image") or ""
+        if not desktop_key or not HomepageBanner._meta.get_field("desktop_image").storage.exists(desktop_key):
+            raise ValidationError({"revision_id": "تصویر دسکتاپ این نسخه دیگر در فضای ذخیره‌سازی موجود نیست."})
+        if mobile_key and not HomepageBanner._meta.get_field("mobile_image").storage.exists(mobile_key):
+            raise ValidationError({"revision_id": "تصویر موبایل این نسخه دیگر در فضای ذخیره‌سازی موجود نیست."})
+
+        values = {key: value for key, value in snapshot.items() if key not in {"desktop_image", "mobile_image"}}
+        serializer = self.get_serializer(banner, data=values, partial=True)
+        serializer.is_valid(raise_exception=True)
+        restored = serializer.save()
+        restored.desktop_image.name = desktop_key
+        restored.mobile_image.name = mobile_key
+        restored.save(update_fields=["desktop_image", "mobile_image", "updated_at"])
+        record_banner_revision(restored, request.user, HomepageBannerRevision.ACTION_ROLLBACK)
+        return Response(self.get_serializer(restored).data, status=status.HTTP_200_OK)
