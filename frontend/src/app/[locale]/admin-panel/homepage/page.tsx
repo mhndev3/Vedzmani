@@ -13,6 +13,7 @@ type Section = {
   position: number; item_limit: number; show_view_all: boolean; view_all_url: string;
   categories: number[]; products: number[];
 };
+type Revision = { id: number; action: "created" | "updated" | "rollback"; snapshot: Partial<Section>; created_by_label: string; created_at: string };
 type Page<T> = { results: T[]; next: string | null };
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
 const primaryClass = "rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50";
@@ -57,6 +58,9 @@ export default function AdminHomepagePage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [preview, setPreview] = useState(false);
+  const [historyFor, setHistoryFor] = useState<number | null>(null);
+  const [revisions, setRevisions] = useState<Revision[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true); setError("");
@@ -121,6 +125,29 @@ export default function AdminHomepagePage() {
     } catch(e) { setError(errorText(e)); }
     finally { setSaving(false); }
   }
+  async function openHistory(section: Section) {
+    if (historyFor === section.id) { setHistoryFor(null); setRevisions([]); return; }
+    setHistoryFor(section.id); setHistoryLoading(true); setError("");
+    try {
+      const rows = await apiRequest<Revision[]>("GET", `/api/admin/homepage/sections/${section.id}/revisions/`);
+      setRevisions(rows);
+    } catch (e) { setError(errorText(e)); setRevisions([]); }
+    finally { setHistoryLoading(false); }
+  }
+
+  async function rollback(section: Section, revision: Revision) {
+    if (!window.confirm("این نسخه جایگزین تنظیمات فعلی این بخش شود؟ نسخه فعلی نیز در تاریخچه باقی می‌ماند.")) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest<Section>("POST", `/api/admin/homepage/sections/${section.id}/revisions/`, { revision_id: revision.id });
+      setNotice("نسخه انتخاب‌شده بازگردانی شد؛ رویداد بازگردانی نیز در تاریخچه ثبت شد.");
+      await refresh();
+      const rows = await apiRequest<Revision[]>("GET", `/api/admin/homepage/sections/${section.id}/revisions/`);
+      setRevisions(rows);
+    } catch (e) { setError(errorText(e)); }
+    finally { setSaving(false); }
+  }
+
   async function publish(section: Section) {
     setSaving(true); setError(""); setNotice("");
     try {
@@ -176,8 +203,20 @@ export default function AdminHomepagePage() {
         <div className="mb-4 flex items-center justify-between gap-3"><h2 className="font-bold">بخش‌های تعریف‌شده</h2><span className="text-xs text-muted-foreground">{sections.length.toLocaleString("fa-IR")} بخش</span></div>
         {loading ? <p className="py-10 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : sections.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">هنوز بخشی ساخته نشده است.</p> : <div className="space-y-3">{sections.map((s,index) => <article key={s.id} className="rounded-xl border border-border p-4">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{s.title}</h3><span className={s.status === "published" ? "rounded-full bg-primary/10 px-2 py-1 text-xs" : "rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"}>{s.status === "published" ? "منتشرشده" : "پیش‌نویس"}</span></div><p className="mt-2 text-xs text-muted-foreground">{s.section_type === "categories" ? "دسته‌بندی‌ها" : s.section_type === "products" ? "محصولات منتخب" : "جدیدترین محصولات"} · {s.item_limit} مورد · ترتیب {s.position + 1}</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(s,-1)} className={secondaryClass}>↑</button><button type="button" disabled={saving || index===sections.length-1} onClick={() => void move(s,1)} className={secondaryClass}>↓</button><button type="button" disabled={saving} onClick={() => editSection(s)} className={secondaryClass}>ویرایش</button><button type="button" disabled={saving} onClick={() => void publish(s)} className={primaryClass}>{s.status === "published" ? "تبدیل به پیش‌نویس" : "انتشار"}</button></div>
+            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(s,-1)} className={secondaryClass}>↑</button><button type="button" disabled={saving || index===sections.length-1} onClick={() => void move(s,1)} className={secondaryClass}>↓</button><button type="button" disabled={saving} onClick={() => editSection(s)} className={secondaryClass}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(s)} className={secondaryClass}>{historyFor === s.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void publish(s)} className={primaryClass}>{s.status === "published" ? "تبدیل به پیش‌نویس" : "انتشار"}</button></div>
           </div>
+          {historyFor === s.id && <div className="mt-4 border-t border-border pt-4">
+            <h4 className="text-sm font-semibold">تاریخچه نسخه‌های «{s.title}»</h4>
+            {historyLoading ? <p className="mt-3 text-xs text-muted-foreground">در حال دریافت تاریخچه…</p> : revisions.length === 0 ? <p className="mt-3 text-xs text-muted-foreground">نسخه‌ای ثبت نشده است.</p> : <div className="mt-3 space-y-2">
+              {revisions.map((revision, revisionIndex) => <div key={revision.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
+                <div>
+                  <p className="text-sm font-medium">{revision.action === "created" ? "ایجاد اولیه" : revision.action === "rollback" ? "بازگردانی نسخه" : "ویرایش"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{revision.snapshot.title || "بدون عنوان"} · {new Date(revision.created_at).toLocaleString("fa-IR")} · {revision.created_by_label}</p>
+                </div>
+                {revisionIndex > 0 && <button type="button" disabled={saving} onClick={() => void rollback(s, revision)} className={secondaryClass}>بازگردانی این نسخه</button>}
+              </div>)}
+            </div>}
+          </div>}
         </article>)}</div>}
         <p className="mt-5 text-xs leading-6 text-muted-foreground">حذف فیزیکی بخش‌ها در این پنل وجود ندارد. برای پنهان‌کردن موقت، وضعیت را به پیش‌نویس تغییر دهید. بخش‌های منتشرشده به ترتیب بالا در صفحه اصلی نمایش داده می‌شوند.</p>
       </section>
