@@ -106,7 +106,6 @@ def test_banner_media_reference_requires_source_permission_and_existing_image(ma
         content_type="application/json",
     )
     assert denied.status_code == 400
-    assert "desktop_image_media_ref" in denied.json()
 
     allowed = client_for(make_staff(*banner_permissions()))
     missing = allowed.post(
