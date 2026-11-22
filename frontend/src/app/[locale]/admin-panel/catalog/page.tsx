@@ -8,6 +8,7 @@ import VariantImageManager from "./VariantImageManager";
 import ProductMeasurementManager from "./ProductMeasurementManager";
 import InventoryHistory from "./InventoryHistory";
 import CatalogTaxonomyManager from "./CatalogTaxonomyManager";
+import CreateProductWithVariantsForm from "./CreateProductWithVariantsForm";
 
 type Page<T> = { results: T[]; next: string | null; count: number };
 type Category = { id: number; name: string; slug: string; is_active: boolean; position: number };
@@ -241,7 +242,7 @@ export default function AdminCatalogPage() {
           <h1 className="mt-3 text-2xl font-bold sm:text-3xl">مدیریت محصولات</h1>
           <p className="mt-2 text-sm text-muted-foreground">محصول، رنگ، سایز و موجودی هر ترکیب را از یک صفحه مدیریت کنید.</p>
         </div>
-        <button type="button" className={buttonClass} onClick={() => { setSelected(null); resetProductForm(); }}>＋ محصول جدید</button>
+        <button type="button" className={buttonClass} onClick={() => { setSelected(null); setShowForm(true); setError(""); setNotice(""); }}>＋ محصول جدید</button>
       </div>
 
       <CatalogTaxonomyManager />
@@ -249,7 +250,19 @@ export default function AdminCatalogPage() {
       {notice && <div role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</div>}
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</div>}
 
-      {showForm && (
+      {showForm && !selected && <CreateProductWithVariantsForm
+        categories={categories}
+        collections={collections}
+        sizes={sizes}
+        onCancel={() => setShowForm(false)}
+        onCreated={async (product) => {
+          setShowForm(false);
+          setNotice("محصول و همه رنگ‌ها و سایزهای انتخاب‌شده به‌صورت یکپارچه ساخته شدند.");
+          await refresh();
+          setSelected(product);
+        }}
+      />}
+      {showForm && selected && (
         <form onSubmit={saveProduct} className="mb-7 rounded-2xl border border-border bg-card p-5 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold">{selected ? "ویرایش محصول" : "ثبت محصول جدید"}</h2>
