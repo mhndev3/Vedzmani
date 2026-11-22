@@ -50,6 +50,7 @@ export default function ProductMeasurementManager({
   const [variantMeasurements, setVariantMeasurements] = useState<VariantMeasurement[]>([]);
   const [descriptions, setDescriptions] = useState<SizeDescription[]>([]);
   const [variantSizeDescriptions, setVariantSizeDescriptions] = useState<VariantSizeDescription[]>([]);
+  const [canViewVariantDescriptions, setCanViewVariantDescriptions] = useState(false);
   const [sharedDrafts, setSharedDrafts] = useState<Record<number, { name: string; value: string; unit: string }>>({});
   const [newVariantName, setNewVariantName] = useState<Record<number, string>>({});
   const [newVariantValue, setNewVariantValue] = useState<Record<number, string>>({});
@@ -62,12 +63,22 @@ export default function ProductMeasurementManager({
   const [notice, setNotice] = useState("");
 
   const variantSizeIdKey = variantSizes.map((item) => item.id).join(",");
-  const loadData = useCallback(async () => Promise.all([
-    getAll<Measurement>("/api/admin/catalog/product-measurements/"),
-    getAll<VariantMeasurement>("/api/admin/catalog/variant-size-measurements/"),
-    getAll<SizeDescription>("/api/admin/catalog/product-size-descriptions/"),
-    getAll<VariantSizeDescription>("/api/admin/catalog/variant-size-descriptions/"),
-  ]), []);
+  const loadData = useCallback(async () => {
+    const [shared, specific, descriptionsData] = await Promise.all([
+      getAll<Measurement>("/api/admin/catalog/product-measurements/"),
+      getAll<VariantMeasurement>("/api/admin/catalog/variant-size-measurements/"),
+      getAll<SizeDescription>("/api/admin/catalog/product-size-descriptions/"),
+    ]);
+    let variantDescriptionsData: VariantSizeDescription[] = [];
+    try {
+      variantDescriptionsData = await getAll<VariantSizeDescription>("/api/admin/catalog/variant-size-descriptions/");
+      setCanViewVariantDescriptions(true);
+    } catch (error) {
+      if (!(error instanceof BrowserApiError) || (error.status !== 401 && error.status !== 403)) throw error;
+      setCanViewVariantDescriptions(false);
+    }
+    return [shared, specific, descriptionsData, variantDescriptionsData] as [Measurement[], VariantMeasurement[], SizeDescription[], VariantSizeDescription[]];
+  }, []);
 
   const applyData = useCallback(([shared, specific, descriptionsData, variantDescriptionsData]: [Measurement[], VariantMeasurement[], SizeDescription[], VariantSizeDescription[]]) => {
     const allowedVariantSizeIds = new Set(variantSizeIdKey.split(",").filter(Boolean).map(Number));
@@ -237,10 +248,12 @@ export default function ProductMeasurementManager({
                   <button disabled={saving} className={buttonClass}>افزودن</button>
                 </form>
               </div>
-              <label className="mt-3 block text-xs">توضیحات اختصاصی این ترکیب رنگ و سایز
-                <textarea rows={2} className={inputClass} value={variantDescriptionDrafts[variantSize.id] ?? ""} onChange={(e) => setVariantDescriptionDrafts((old) => ({ ...old, [variantSize.id]: e.target.value }))} placeholder="مثلاً تفاوت فیت یا اندازه در این رنگ و سایز…" />
-              </label>
-              <button type="button" disabled={saving || !(variantDescriptionDrafts[variantSize.id] ?? "").trim()} className={secondaryClass + " mt-2"} onClick={() => void saveVariantDescription(variantSize)}>ذخیره توضیحات ترکیب</button>
+              {canViewVariantDescriptions ? <>
+                <label className="mt-3 block text-xs">توضیحات اختصاصی این ترکیب رنگ و سایز
+                  <textarea rows={2} className={inputClass} value={variantDescriptionDrafts[variantSize.id] ?? ""} onChange={(e) => setVariantDescriptionDrafts((old) => ({ ...old, [variantSize.id]: e.target.value }))} placeholder="مثلاً تفاوت فیت یا اندازه در این رنگ و سایز…" />
+                </label>
+                <button type="button" disabled={saving || !(variantDescriptionDrafts[variantSize.id] ?? "").trim()} className={secondaryClass + " mt-2"} onClick={() => void saveVariantDescription(variantSize)}>ذخیره توضیحات ترکیب</button>
+              </> : <p className="mt-3 text-xs text-muted-foreground">برای نمایش و مدیریت این توضیحات، مجوز مشاهده توضیحات اختصاصی ترکیب رنگ و سایز لازم است.</p>}
             </div>;
           })}
           {variantSizes.length === 0 && <p className="text-xs text-muted-foreground">ابتدا برای محصول رنگ و سایز تعریف کنید.</p>}
