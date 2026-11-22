@@ -7,7 +7,7 @@ from django.test import override_settings
 
 from apps.orders.models import Order, OrderItem, TorobPayPaymentAttempt
 from apps.orders.payment_services import PaymentRejected
-from apps.orders.torobpay import TorobPayError, TorobPayUnavailable
+from apps.orders.torobpay import TorobPayUnavailable
 from apps.orders.torobpay_services import (
     check_torobpay_eligibility,
     initiate_torobpay_payment,
