@@ -7,6 +7,7 @@ import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 import VariantImageManager from "./VariantImageManager";
 import ProductMeasurementManager from "./ProductMeasurementManager";
 import InventoryHistory from "./InventoryHistory";
+import CatalogTaxonomyManager from "./CatalogTaxonomyManager";
 
 type Page<T> = { results: T[]; next: string | null; count: number };
 type Category = { id: number; name: string; slug: string; is_active: boolean; position: number };
@@ -221,6 +222,8 @@ export default function AdminCatalogPage() {
         </div>
         <button type="button" className={buttonClass} onClick={() => { setSelected(null); resetProductForm(); }}>＋ محصول جدید</button>
       </div>
+
+      <CatalogTaxonomyManager />
 
       {notice && <div role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</div>}
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</div>}
