@@ -73,6 +73,7 @@ export default function AdminCatalogPage() {
   const [hexColor, setHexColor] = useState("#000000");
   const [editingColorId, setEditingColorId] = useState<number | null>(null);
   const [variantId, setVariantId] = useState<number | null>(null);
+  const [imageVariantId, setImageVariantId] = useState<number | null>(null);
   const [sizeId, setSizeId] = useState("");
   const [sku, setSku] = useState("");
   const [stockChanges, setStockChanges] = useState<Record<number, string>>({});
@@ -102,8 +103,10 @@ export default function AdminCatalogPage() {
       setColors(data.colors);
       setVariantSizes(data.variantSizes);
       setSelected((current) => current ? data.products.find((item) => item.id === current.id) ?? null : null);
+      return data;
     } catch (e) {
       setError(errorMessage(e));
+      return null;
     } finally {
       setLoading(false);
     }
@@ -258,8 +261,9 @@ export default function AdminCatalogPage() {
         onCreated={async (product) => {
           setShowForm(false);
           setNotice("محصول و همه رنگ‌ها و سایزهای انتخاب‌شده به‌صورت یکپارچه ساخته شدند.");
-          await refresh();
+          const data = await refresh();
           setSelected(product);
+          setImageVariantId(data?.colors.find((color) => color.product === product.id)?.id ?? null);
         }}
       />}
       {showForm && selected && (
@@ -330,6 +334,7 @@ export default function AdminCatalogPage() {
                       <button type="button" onClick={() => setVariantId(color.id)} className="flex items-center gap-3 text-right"><span className="size-8 rounded-full border border-border" style={{ backgroundColor: color.hex_color || "#ddd" }} /><span><strong className="block text-sm">{color.name}</strong><span className="text-xs text-muted-foreground">کد کارت: {color.product_code}</span></span></button>
                       <div className="flex flex-wrap gap-2">
                         <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(color.id); setColorName(color.name); setColorSlug(color.slug); setHexColor(color.hex_color || "#000000"); }}>ویرایش رنگ</button>
+                        <button type="button" className={imageVariantId === color.id ? buttonClass : secondaryClass} onClick={() => setImageVariantId(imageVariantId === color.id ? null : color.id)}>{imageVariantId === color.id ? "بستن تصاویر" : "مدیریت تصاویر"}</button>
                         <button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleColor(color)}>{color.is_active ? "غیرفعال‌سازی" : "فعال‌سازی"}</button>
                         <button type="button" className={variantId === color.id ? buttonClass : secondaryClass} onClick={() => setVariantId(color.id)}>مدیریت سایزها</button>
                       </div>
@@ -355,8 +360,9 @@ export default function AdminCatalogPage() {
                         })}
                         {variantSizes.filter((vs) => vs.variant === color.id).length === 0 && <p className="text-xs text-muted-foreground">هنوز سایزی برای این رنگ ثبت نشده است.</p>}
                       </div>
-                      <VariantImageManager variantId={color.id} />
                     </div>}
+                    {imageVariantId === color.id && <VariantImageManager variantId={color.id} />}
+                  </div>}
                   </div>)}
                   {selectedColors.length === 0 && <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">هنوز رنگی برای این محصول ثبت نشده است.</p>}
                 </div>
