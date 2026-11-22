@@ -185,6 +185,8 @@ class AdminAuditEvent(models.Model):
     entity_type = models.CharField(max_length=80)
     entity_id = models.PositiveBigIntegerField(null=True, blank=True)
     response_status = models.PositiveSmallIntegerField()
+    # Explicitly curated, non-sensitive before/after metadata for access-control changes.
+    details = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
