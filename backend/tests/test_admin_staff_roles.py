@@ -146,6 +146,7 @@ def test_assignment_preserves_groups_outside_workspace_allowlist(make_staff, sup
     staff = make_staff()
     external = Group.objects.create(name="External security group")
     external.permissions.add(Permission.objects.get(content_type__app_label="auth", codename="change_group"))
+    staff.groups.add(external)
     workspace_role = Group.objects.create(name="Catalog viewer")
     workspace_role.permissions.add(Permission.objects.get(content_type__app_label="catalog", codename="view_product"))
 
