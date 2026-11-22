@@ -27,7 +27,7 @@ class ProductColorInputSerializer(serializers.Serializer):
     )
     sizes = ProductVariantSizeInputSerializer(many=True, allow_empty=False)
 
-    
+
 class ProductWithVariantsInputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200, trim_whitespace=True)
     slug = serializers.SlugField(
