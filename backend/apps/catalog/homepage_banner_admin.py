@@ -50,6 +50,12 @@ class HomepageBannerRevisionSerializer(serializers.ModelSerializer):
             return "سیستم"
         return obj.created_by.phone or obj.created_by.get_username()
 
+    def get_snapshot(self, obj):
+        snapshot = dict(obj.snapshot)
+        snapshot["desktop_image"] = bool(snapshot.get("desktop_image"))
+        snapshot["mobile_image"] = bool(snapshot.get("mobile_image"))
+        return snapshot
+
 
 class HomepageBannerRevisionPermissions(BasePermission):
     def has_permission(self, request, view):
