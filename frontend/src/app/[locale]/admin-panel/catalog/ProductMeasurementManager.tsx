@@ -10,6 +10,7 @@ type Page<T> = { results: T[]; next: string | null };
 type Measurement = { id: number; product: number; size: number; name: string; value: string; unit: string; position: number };
 type VariantMeasurement = { id: number; variant_size: number; name: string; value: string; unit: string; position: number };
 type SizeDescription = { id: number; product: number; size: number; description: string };
+type VariantSizeDescription = { id: number; variant_size: number; description: string };
 
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm";
 const buttonClass = "rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50";
@@ -48,30 +49,48 @@ export default function ProductMeasurementManager({
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [variantMeasurements, setVariantMeasurements] = useState<VariantMeasurement[]>([]);
   const [descriptions, setDescriptions] = useState<SizeDescription[]>([]);
+  const [variantSizeDescriptions, setVariantSizeDescriptions] = useState<VariantSizeDescription[]>([]);
+  const [canViewVariantDescriptions, setCanViewVariantDescriptions] = useState(false);
   const [sharedDrafts, setSharedDrafts] = useState<Record<number, { name: string; value: string; unit: string }>>({});
   const [newVariantName, setNewVariantName] = useState<Record<number, string>>({});
   const [newVariantValue, setNewVariantValue] = useState<Record<number, string>>({});
   const [newVariantUnit, setNewVariantUnit] = useState<Record<number, string>>({});
   const [descriptionDrafts, setDescriptionDrafts] = useState<Record<number, string>>({});
+  const [variantDescriptionDrafts, setVariantDescriptionDrafts] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   const variantSizeIdKey = variantSizes.map((item) => item.id).join(",");
-  const loadData = useCallback(async () => Promise.all([
-    getAll<Measurement>("/api/admin/catalog/product-measurements/"),
-    getAll<VariantMeasurement>("/api/admin/catalog/variant-size-measurements/"),
-    getAll<SizeDescription>("/api/admin/catalog/product-size-descriptions/"),
-  ]), []);
+  const loadData = useCallback(async () => {
+    const [shared, specific, descriptionsData] = await Promise.all([
+      getAll<Measurement>("/api/admin/catalog/product-measurements/"),
+      getAll<VariantMeasurement>("/api/admin/catalog/variant-size-measurements/"),
+      getAll<SizeDescription>("/api/admin/catalog/product-size-descriptions/"),
+    ]);
+    let variantDescriptionsData: VariantSizeDescription[] = [];
+    let canViewSpecificDescriptions = true;
+    try {
+      variantDescriptionsData = await getAll<VariantSizeDescription>("/api/admin/catalog/variant-size-descriptions/");
+    } catch (error) {
+      if (!(error instanceof BrowserApiError) || (error.status !== 401 && error.status !== 403)) throw error;
+      canViewSpecificDescriptions = false;
+    }
+    return { shared, specific, descriptionsData, variantDescriptionsData, canViewSpecificDescriptions };
+  }, []);
 
-  const applyData = useCallback(([shared, specific, descriptionsData]: [Measurement[], VariantMeasurement[], SizeDescription[]]) => {
+  const applyData = useCallback(({ shared, specific, descriptionsData, variantDescriptionsData, canViewSpecificDescriptions }: Awaited<ReturnType<typeof loadData>>) => {
+    setCanViewVariantDescriptions(canViewSpecificDescriptions);
     const allowedVariantSizeIds = new Set(variantSizeIdKey.split(",").filter(Boolean).map(Number));
     setMeasurements(shared.filter((item) => item.product === productId));
     setVariantMeasurements(specific.filter((item) => allowedVariantSizeIds.has(item.variant_size)));
     const productDescriptions = descriptionsData.filter((item) => item.product === productId);
     setDescriptions(productDescriptions);
     setDescriptionDrafts(Object.fromEntries(productDescriptions.map((item) => [item.size, item.description])));
+    const specificDescriptions = variantDescriptionsData.filter((item) => allowedVariantSizeIds.has(item.variant_size));
+    setVariantSizeDescriptions(specificDescriptions);
+    setVariantDescriptionDrafts(Object.fromEntries(specificDescriptions.map((item) => [item.variant_size, item.description])));
   }, [productId, variantSizeIdKey]);
 
   const refresh = useCallback(async () => {
@@ -133,6 +152,22 @@ export default function ProductMeasurementManager({
         await apiRequest("POST", "/api/admin/catalog/product-size-descriptions/", { product: productId, size: sizeId, description });
       }
     }, "توضیحات سایز ذخیره شد.");
+  }
+
+  async function saveVariantDescription(variantSize: VariantSize) {
+    const existing = variantSizeDescriptions.find((item) => item.variant_size === variantSize.id);
+    const description = (variantDescriptionDrafts[variantSize.id] ?? "").trim();
+    if (!description) return;
+    await runSave(async () => {
+      if (existing) {
+        await apiRequest("PATCH", `/api/admin/catalog/variant-size-descriptions/${existing.id}/`, { description });
+      } else {
+        await apiRequest("POST", "/api/admin/catalog/variant-size-descriptions/", {
+          variant_size: variantSize.id,
+          description,
+        });
+      }
+    }, "توضیحات اختصاصی این ترکیب رنگ و سایز ذخیره شد.");
   }
 
   async function addVariantMeasurement(event: FormEvent<HTMLFormElement>, variantSize: VariantSize) {
@@ -214,6 +249,12 @@ export default function ProductMeasurementManager({
                   <button disabled={saving} className={buttonClass}>افزودن</button>
                 </form>
               </div>
+              {canViewVariantDescriptions ? <>
+                <label className="mt-3 block text-xs">توضیحات اختصاصی این ترکیب رنگ و سایز
+                  <textarea rows={2} className={inputClass} value={variantDescriptionDrafts[variantSize.id] ?? ""} onChange={(e) => setVariantDescriptionDrafts((old) => ({ ...old, [variantSize.id]: e.target.value }))} placeholder="مثلاً تفاوت فیت یا اندازه در این رنگ و سایز…" />
+                </label>
+                <button type="button" disabled={saving || !(variantDescriptionDrafts[variantSize.id] ?? "").trim()} className={secondaryClass + " mt-2"} onClick={() => void saveVariantDescription(variantSize)}>ذخیره توضیحات ترکیب</button>
+              </> : <p className="mt-3 text-xs text-muted-foreground">برای نمایش و مدیریت این توضیحات، مجوز مشاهده توضیحات اختصاصی ترکیب رنگ و سایز لازم است.</p>}
             </div>;
           })}
           {variantSizes.length === 0 && <p className="text-xs text-muted-foreground">ابتدا برای محصول رنگ و سایز تعریف کنید.</p>}

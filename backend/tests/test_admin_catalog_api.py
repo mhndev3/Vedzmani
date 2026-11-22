@@ -377,3 +377,35 @@ def test_color_and_variant_size_can_be_updated_or_deactivated_without_stock_writ
     row.refresh_from_db()
     assert not row.is_active
     assert row.stock_quantity == 7
+
+
+def test_variant_size_description_requires_view_and_change_permissions(make_staff, make_variant_size):
+    row = make_variant_size()
+    description = VariantSizeDescription.objects.create(
+        variant_size=row,
+        description="برای این رنگ و سایز فیت آزادتر است",
+    )
+
+    no_access = client_for(make_staff())
+    assert no_access.get("/api/admin/catalog/variant-size-descriptions/").status_code == 403
+
+    viewer = client_for(make_staff("catalog.view_variantsizedescription"))
+    assert viewer.get("/api/admin/catalog/variant-size-descriptions/").status_code == 200
+    assert viewer.patch(
+        f"/api/admin/catalog/variant-size-descriptions/{description.pk}/",
+        {"description": "تغییر بدون مجوز"},
+        content_type="application/json",
+    ).status_code == 403
+
+    editor = client_for(make_staff(
+        "catalog.view_variantsizedescription",
+        "catalog.change_variantsizedescription",
+    ))
+    changed = editor.patch(
+        f"/api/admin/catalog/variant-size-descriptions/{description.pk}/",
+        {"description": "توضیح اختصاصی ویرایش‌شده"},
+        content_type="application/json",
+    )
+    assert changed.status_code == 200, changed.content
+    description.refresh_from_db()
+    assert description.description == "توضیح اختصاصی ویرایش‌شده"
