@@ -7,7 +7,7 @@ import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 
 type Permission = { key: string; app: string; model: string; name: string };
 type Role = { id: number; name: string; permissions: string[]; member_count: number; manageable: boolean };
-type Staff = { id: number; label: string; is_active: boolean; roles: { id: number; name: string }[] };
+type Staff = { id: number; label: string; is_active: boolean; roles: { id: number; name: string }[]; unmanaged_role_count: number };
 type List<T> = { results: T[] };
 type RolesResponse = List<Role> & { permissions: Permission[] };
 
@@ -172,11 +172,11 @@ export default function AdminStaffRolesPage() {
           </section>
           <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
             <h2 className="font-bold">تخصیص نقش به مدیران</h2>
-            <p className="mt-1 text-xs leading-6 text-muted-foreground">فقط حساب‌های دارای دسترسی staff نمایش داده می‌شوند. مدیران ارشد در این فهرست قابل تغییر نیستند.</p>
+            <p className="mt-1 text-xs leading-6 text-muted-foreground">فقط حساب‌های دارای دسترسی staff نمایش داده می‌شوند. مدیران ارشد در این فهرست قابل تغییر نیستند. نقش‌های خارج از این بخش هنگام ذخیره حفظ می‌شوند.</p>
             <div className="mt-4 space-y-4">
               {staff.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">حساب مدیر دیگری ثبت نشده است.</p> : staff.map(person => <div key={person.id} className="rounded-xl border border-border p-3">
                 <div className="flex items-center justify-between gap-2"><strong className="text-sm">{person.label}</strong><span className={`text-xs ${person.is_active ? "text-muted-foreground" : "text-destructive"}`}>{person.is_active ? "فعال" : "غیرفعال"}</span></div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {person.unmanaged_role_count > 0 && <p className="mt-2 text-xs text-muted-foreground">{person.unmanaged_role_count.toLocaleString("fa-IR")} نقش خارج از این بخش بدون تغییر حفظ می‌شود.</p>}\n                <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {roles.map(role => <label key={role.id} className="flex items-center gap-2 text-xs">
                     <input type="checkbox" checked={(roleDrafts[person.id] || []).includes(role.id)} onChange={e => setRoleDrafts(current => ({...current, [person.id]: e.target.checked ? [...(current[person.id] || []), role.id] : (current[person.id] || []).filter(id => id !== role.id)}))}/>
                     <span>{role.name}</span>
