@@ -308,7 +308,7 @@ export default function AdminHomepageBannersPage() {
           <div><h2 className="font-bold">انتخاب تصویر {pickerTarget === "desktop" ? "دسکتاپ" : "موبایل"}</h2><p className="mt-1 text-xs text-muted-foreground">تصویر انتخابی بدون کپی‌کردن فایل اصلی به بنر متصل می‌شود.</p></div>
           <button type="button" className={secondary} onClick={() => setPickerTarget(null)}>بستن</button>
         </header>
-        <form className="flex gap-2 border-b border-border p-4" onSubmit={event => { event.preventDefault(); if (pickerQuery.trim().length === 1) { setPickerError("برای جستجو حداقل دو نویسه وارد کنید."); return; } setPickerLoading(true); setPickerPage(1); setPickerAppliedQuery(pickerQuery.trim()); }}>
+        <form className="flex gap-2 border-b border-border p-4" onSubmit={event => { event.preventDefault(); if (pickerQuery.trim().length === 1) { setPickerError("برای جستجو حداقل دو نویسه وارد کنید."); return; } if (pickerQuery.trim() !== pickerAppliedQuery || pickerPage !== 1) setPickerLoading(true); setPickerPage(1); setPickerAppliedQuery(pickerQuery.trim()); }}>
           <input value={pickerQuery} onChange={event => setPickerQuery(event.target.value)} placeholder="جستجوی نام محصول، رنگ، بنر یا متن جایگزین" className={field + " mt-0 min-w-0 flex-1"} />
           <button type="submit" className={primary}>جستجو</button>
         </form>
