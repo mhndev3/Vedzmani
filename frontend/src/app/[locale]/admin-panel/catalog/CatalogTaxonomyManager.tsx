@@ -13,7 +13,12 @@ const secondary = "rounded-lg border border-border px-3 py-2 text-sm disabled:op
 async function all<T>(path: string): Promise<T[]> {
   const rows: T[] = [];
   let next: string | null = path;
-  for (let page = 0; next && page < 40; page += 1) {
+  const visited = new Set<string>();
+  while (next) {
+    if (visited.has(next) || visited.size >= 10000) {
+      throw new Error("Catalog pagination did not terminate.");
+    }
+    visited.add(next);
     const result: Page<T> = await apiRequest<Page<T>>("GET", next);
     rows.push(...result.results);
     next = result.next ? new URL(result.next, window.location.origin).pathname + new URL(result.next, window.location.origin).search : null;
