@@ -14,6 +14,7 @@ from apps.orders.admin_shipping import ShippingMethodAdminViewSet
 from .homepage_admin import HomepageSectionAdminViewSet
 from .homepage_banner_admin import HomepageBannerAdminViewSet
 from .admin_media_library import AdminMediaLibraryView
+from .admin_product_variants import ProductWithVariantsCreateView
 from .storefront_theme import StorefrontThemeAdminView, StorefrontThemeRevisionView
 from .admin_views import (
     CategoryAdminViewSet,
@@ -48,6 +49,7 @@ router.register("catalog/images", VariantImageAdminViewSet, basename="admin-cata
 
 urlpatterns = [
     path("media/", AdminMediaLibraryView.as_view(), name="admin-media-library"),
+    path("catalog/products/create-with-variants/", ProductWithVariantsCreateView.as_view(), name="admin-product-create-with-variants"),
     path("storefront/theme/", StorefrontThemeAdminView.as_view(), name="admin-storefront-theme"),
     path("storefront/theme/revisions/", StorefrontThemeRevisionView.as_view(), name="admin-storefront-theme-revisions"),
     path("audit-log/", AdminAuditEventListView.as_view(), name="admin-audit-log"),
@@ -58,8 +60,7 @@ urlpatterns = [
     path("customers/", AdminCustomerListView.as_view(), name="admin-customer-list"),
     path("customers/<int:customer_id>/", AdminCustomerDetailView.as_view(), name="admin-customer-detail"),
     path("support/tickets/", AdminSupportTicketListView.as_view(), name="admin-support-ticket-list"),
-    path("support/tickets/<int:ticket_id>/", AdminSupportTicketDetailView.as_view(), name="admin-support-ticket-detail"),
-    path("orders/", AdminOrderListView.as_view(), name="admin-order-list"),
+        path("orders/", AdminOrderListView.as_view(), name="admin-order-list"),
     path("orders/<int:order_id>/", AdminOrderDetailView.as_view(), name="admin-order-detail"),
     path("", include(router.urls)),
     path("inventory/adjustments/", InventoryAdjustmentAdminView.as_view(), name="admin-inventory-adjustments"),
