@@ -362,7 +362,6 @@ export default function AdminCatalogPage() {
                       </div>
                     </div>}
                     {imageVariantId === color.id && <VariantImageManager variantId={color.id} />}
-                  </div>}
                   </div>)}
                   {selectedColors.length === 0 && <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">هنوز رنگی برای این محصول ثبت نشده است.</p>}
                 </div>
