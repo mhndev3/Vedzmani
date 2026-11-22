@@ -390,10 +390,12 @@ class HomepageSection(models.Model):
 class HomepageSectionRevision(models.Model):
     """Immutable snapshot of a homepage section configuration."""
 
+    ACTION_BASELINE = "baseline"
     ACTION_CREATED = "created"
     ACTION_UPDATED = "updated"
     ACTION_ROLLBACK = "rollback"
     ACTION_CHOICES = [
+        (ACTION_BASELINE, "Baseline"),
         (ACTION_CREATED, "Created"),
         (ACTION_UPDATED, "Updated"),
         (ACTION_ROLLBACK, "Rollback"),
