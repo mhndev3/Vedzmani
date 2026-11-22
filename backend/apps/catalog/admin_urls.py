@@ -60,7 +60,7 @@ urlpatterns = [
     path("customers/", AdminCustomerListView.as_view(), name="admin-customer-list"),
     path("customers/<int:customer_id>/", AdminCustomerDetailView.as_view(), name="admin-customer-detail"),
     path("support/tickets/", AdminSupportTicketListView.as_view(), name="admin-support-ticket-list"),
-        path("orders/", AdminOrderListView.as_view(), name="admin-order-list"),
+    path("orders/", AdminOrderListView.as_view(), name="admin-order-list"),
     path("orders/<int:order_id>/", AdminOrderDetailView.as_view(), name="admin-order-detail"),
     path("", include(router.urls)),
     path("inventory/adjustments/", InventoryAdjustmentAdminView.as_view(), name="admin-inventory-adjustments"),
