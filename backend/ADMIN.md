@@ -32,6 +32,10 @@ admin) therefore cannot use the admin until a password is set.
   errors, and moving the primary flag between images works in a single save.
 - Tests: `tests/test_admin_*.py` (access control, user forms, validation, N+1 guard on every changelist).
 
+## Custom workspace staff roles
+
+The custom Persian workspace exposes a superuser-only role editor at `/[locale]/admin-panel/staff`. It manages existing non-superuser staff through Django Groups and a curated permission allowlist; it cannot create staff accounts, change passwords, grant superuser status, or modify customers. Sessions established through the customer OTP flow are rejected. Role changes are recorded with safe before/after metadata in the append-only audit log. See `docs/ADMIN_STAFF_ROLES.md`.
+
 ## Orders admin (read-only, PII-gated)
 Code: `apps/orders/admin.py`, `apps/orders/permissions.py`, `apps/orders/apps.py`. No model fields, no migration, no business logic changed.
 
