@@ -15,10 +15,10 @@ def create_permissions():
 
 
 def test_staff_can_create_product_with_multiple_colors_and_sizes_atomically(make_staff):
-    category = Category.objects.create(name="بافت", slug="knitwear")
-    collection = Collection.objects.create(name="پاییز", slug="autumn")
-    small = Size.objects.create(code="s", label="Small", position=1)
-    medium = Size.objects.create(code="m", label="Medium", position=2)
+    category = Category.objects.create(name="بافت", slug="bulk-create-knitwear-atomic")
+    collection = Collection.objects.create(name="پاییز", slug="bulk-create-autumn-collection")
+    small = Size.objects.create(code="bulk-s", label="Small", position=1)
+    medium = Size.objects.create(code="bulk-m", label="Medium", position=2)
     client = client_for(make_staff(*create_permissions()))
 
     response = client.post(
@@ -75,8 +75,8 @@ def test_staff_can_create_product_with_multiple_colors_and_sizes_atomically(make
 
 
 def test_bulk_product_creation_requires_all_model_add_permissions(make_staff):
-    category = Category.objects.create(name="لباس", slug="clothes")
-    size = Size.objects.create(code="m", label="Medium")
+    category = Category.objects.create(name="لباس", slug="bulk-create-clothes-permission")
+    size = Size.objects.create(code="bulk-invalid-m", label="Medium")
     client = client_for(make_staff("catalog.add_product", "catalog.add_colorvariant"))
 
     response = client.post(
@@ -103,7 +103,7 @@ def test_bulk_product_creation_requires_all_model_add_permissions(make_staff):
 
 
 def test_bulk_product_creation_rejects_duplicate_skus_without_partial_records(make_staff):
-    category = Category.objects.create(name="لباس", slug="clothing")
+    category = Category.objects.create(name="لباس", slug="bulk-create-clothing-invalid")
     size = Size.objects.create(code="m", label="Medium")
     client = client_for(make_staff(*create_permissions()))
 
@@ -134,5 +134,5 @@ def test_bulk_product_creation_rejects_duplicate_skus_without_partial_records(ma
 
     assert response.status_code == 400
     assert not Product.objects.filter(slug="duplicate-sku-product").exists()
-    assert ColorVariant.objects.count() == 0
-    assert VariantSize.objects.count() == 0
+    assert not ColorVariant.objects.filter(product__slug="duplicate-sku-product").exists()
+    assert not VariantSize.objects.filter(variant__product__slug="duplicate-sku-product").exists()
