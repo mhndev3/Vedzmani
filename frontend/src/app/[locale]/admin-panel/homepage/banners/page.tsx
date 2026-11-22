@@ -12,6 +12,7 @@ type Banner = {
   cta_label: string; cta_url: string; position: number; status: "draft" | "published";
   starts_at: string | null; ends_at: string | null;
 };
+type Revision = { id: number; action: "baseline" | "created" | "updated" | "rollback"; snapshot: Partial<Banner>; created_by_label: string; created_at: string };
 type Draft = {
   title: string; subtitle: string; alt_text: string; cta_label: string; cta_url: string;
   position: number; status: "draft" | "published"; starts_at: string; ends_at: string;
@@ -51,6 +52,9 @@ export default function AdminHomepageBannersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [historyFor, setHistoryFor] = useState<number | null>(null);
+  const [revisions, setRevisions] = useState<Revision[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -117,6 +121,29 @@ export default function AdminHomepageBannersPage() {
         editingId === null ? "/api/admin/homepage/banners/" : `/api/admin/homepage/banners/${editingId}/`, data);
       reset(); setNotice("بنر ذخیره شد.");
       await refresh();
+    } catch (e) { setError(message(e)); }
+    finally { setSaving(false); }
+  }
+
+  async function openHistory(banner: Banner) {
+    if (historyFor === banner.id) { setHistoryFor(null); setRevisions([]); return; }
+    setHistoryFor(banner.id); setHistoryLoading(true); setRevisions([]); setError("");
+    try {
+      const rows = await apiRequest<Revision[]>("GET", `/api/admin/homepage/banners/${banner.id}/revisions/`);
+      setRevisions(rows);
+    } catch (e) { setError(message(e)); }
+    finally { setHistoryLoading(false); }
+  }
+
+  async function rollback(banner: Banner, revision: Revision) {
+    if (!window.confirm("محتوا، وضعیت انتشار و تصاویر این نسخه جایگزین وضعیت فعلی بنر شود؟")) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest("POST", `/api/admin/homepage/banners/${banner.id}/revisions/`, { revision_id: revision.id });
+      setNotice("نسخه انتخاب‌شده بازگردانی و در تاریخچه ثبت شد.");
+      await refresh();
+      const rows = await apiRequest<Revision[]>("GET", `/api/admin/homepage/banners/${banner.id}/revisions/`);
+      setRevisions(rows);
     } catch (e) { setError(message(e)); }
     finally { setSaving(false); }
   }
@@ -190,9 +217,19 @@ export default function AdminHomepageBannersPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h3 className="font-semibold">{banner.title || `بنر شماره ${banner.id}`}</h3><p className="mt-1 text-xs text-muted-foreground">{banner.status === "published" ? "منتشرشده" : "پیش‌نویس"} · ترتیب {banner.position + 1}{banner.mobile_image_url ? " · تصویر موبایل دارد" : ""}</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(banner,-1)} className={secondary}>↑</button><button type="button" disabled={saving || index===banners.length-1} onClick={() => void move(banner,1)} className={secondary}>↓</button><button type="button" disabled={saving} onClick={() => edit(banner)} className={secondary}>ویرایش</button><button type="button" disabled={saving} onClick={() => void togglePublish(banner)} className={primary}>{banner.status === "published" ? "پیش‌نویس" : "انتشار"}</button></div>
+            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(banner,-1)} className={secondary}>↑</button><button type="button" disabled={saving || index===banners.length-1} onClick={() => void move(banner,1)} className={secondary}>↓</button><button type="button" disabled={saving} onClick={() => edit(banner)} className={secondary}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(banner)} className={secondary}>{historyFor === banner.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void togglePublish(banner)} className={primary}>{banner.status === "published" ? "پیش‌نویس" : "انتشار"}</button></div>
           </div>
-        </article>)}</div>}
+        {historyFor === banner.id && <div className="mt-4 border-t border-border pt-4">
+             <h4 className="text-sm font-semibold">تاریخچه نسخه‌ها</h4>
+             {historyLoading ? <p className="mt-3 text-xs text-muted-foreground">در حال دریافت تاریخچه…</p> : revisions.length === 0 ? <p className="mt-3 text-xs text-muted-foreground">نسخه‌ای ثبت نشده است.</p> : <div className="mt-3 space-y-2">
+               {revisions.map((revision, revisionIndex) => <div key={revision.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
+                 <div><p className="text-sm font-medium">{revision.action === "baseline" ? "نسخه پایه" : revision.action === "created" ? "ایجاد اولیه" : revision.action === "rollback" ? "بازگردانی" : "ویرایش"}</p>
+                   <p className="mt-1 text-xs text-muted-foreground">{revision.snapshot.title || "بدون عنوان"} · {new Date(revision.created_at).toLocaleString("fa-IR")} · {revision.created_by_label}</p></div>
+                 {revisionIndex > 0 && <button type="button" disabled={saving} onClick={() => void rollback(banner, revision)} className={secondary}>بازگردانی این نسخه</button>}
+               </div>)}
+             </div>}
+           </div>}
+         </article>)}</div>}
         <p className="mt-5 text-xs leading-6 text-muted-foreground">حذف فیزیکی بنرها در این مرحله وجود ندارد. برای توقف نمایش، وضعیت را به پیش‌نویس تغییر دهید. زمان‌بندی بر اساس ساعت سرور فروشگاه اعمال می‌شود.</p>
       </section>
     </div>
