@@ -1,10 +1,10 @@
-"""Read-only customer directory for the custom staff workspace.
+"Read-only customer directory for the custom staff workspace.
 
 This endpoint deliberately exposes no direct customer PII. Contact details, addresses, national
 identifiers and profile fields remain outside this workspace; the existing order PII permission
 continues to govern delivery snapshots in the order workspace.
 """
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
@@ -31,7 +31,12 @@ def customer_queryset():
         User.objects.filter(is_staff=False, is_superuser=False)
         .annotate(
             order_count=Count("orders", distinct=True),
-            total_spent=Sum("orders__total"),
+            # "Total spent" must include only successfully paid orders. Pending and failed
+            # orders remain part of the order count, but are not completed customer spend.
+            total_spent=Sum(
+                "orders__total",
+                filter=Q(orders__payment_status=Order.PAID),
+            ),
         )
         .order_by("-date_joined", "-id")
     )
