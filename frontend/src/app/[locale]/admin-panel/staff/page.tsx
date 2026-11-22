@@ -68,18 +68,9 @@ export default function AdminStaffRolesPage() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
 
   const selectedRole = roles.find(role => role.id === selectedRoleId) || null;
-  useEffect(() => {
-    if (selectedRole) {
-      setRoleName(selectedRole.name);
-      setSelectedPermissions(selectedRole.permissions);
-    } else if (selectedRoleId === null) {
-      setRoleName("");
-      setSelectedPermissions([]);
-    }
-  }, [selectedRole, selectedRoleId]);
 
   const permissionsByApp = useMemo(() => {
     const grouped: Record<string, Permission[]> = {};
@@ -114,6 +105,8 @@ export default function AdminStaffRolesPage() {
     try {
       await apiRequest<void>("DELETE", `/api/admin/staff/roles/${selectedRole.id}/`);
       setSelectedRoleId(null);
+      setRoleName("");
+      setSelectedPermissions([]);
       setNotice("نقش حذف شد.");
       await load();
     } catch (e) {
@@ -145,9 +138,9 @@ export default function AdminStaffRolesPage() {
       {loading ? <p className="py-16 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : !error && (
         <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,.9fr)]">
           <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-bold">نقش‌ها و مجوزها</h2><button type="button" onClick={() => setSelectedRoleId(null)} className="rounded-lg border border-border px-3 py-2 text-xs">نقش جدید</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-bold">نقش‌ها و مجوزها</h2><button type="button" onClick={() => { setSelectedRoleId(null); setRoleName(""); setSelectedPermissions([]); }} className="rounded-lg border border-border px-3 py-2 text-xs">نقش جدید</button></div>
             <div className="mt-3 flex flex-wrap gap-2">
-              {roles.map(role => <button key={role.id} type="button" onClick={() => setSelectedRoleId(role.id)} className={`rounded-lg border px-3 py-2 text-sm ${selectedRoleId === role.id ? "border-primary bg-primary/10" : "border-border"}`}>{role.name} <span className="text-xs text-muted-foreground">({role.member_count})</span></button>)}
+              {roles.map(role => <button key={role.id} type="button" onClick={() => { setSelectedRoleId(role.id); setRoleName(role.name); setSelectedPermissions(role.permissions); }} className={`rounded-lg border px-3 py-2 text-sm ${selectedRoleId === role.id ? "border-primary bg-primary/10" : "border-border"}`}>{role.name} <span className="text-xs text-muted-foreground">({role.member_count})</span></button>)}
             </div>
             <div className="mt-5 border-t border-border pt-5">
               <label className="mb-2 block text-sm font-medium" htmlFor="role-name">نام نقش</label>
