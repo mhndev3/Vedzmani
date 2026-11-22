@@ -42,37 +42,6 @@ class StorefrontThemeRevisionSerializer(serializers.ModelSerializer):
         return obj.created_by.phone or obj.created_by.get_username()
 
 
-class StorefrontThemeRevisionView(APIView):
-    permission_classes = [StaffThemePermission]
-
-    @transaction.atomic
-    def get(self, request):
-        theme, created = StorefrontTheme.objects.get_or_create(pk=1)
-        if created:
-            record_theme_revision(theme, request.user, StorefrontThemeRevision.ACTION_BASELINE)
-        rows = theme.revisions.select_related("created_by").all()
-        return Response(StorefrontThemeRevisionSerializer(rows, many=True).data)
-
-    @transaction.atomic
-    @transaction.atomic
-    def post(self, request):
-        revision_id = request.data.get("revision_id")
-        if not str(revision_id or "").isdigit():
-            return Response({"revision_id": "شناسه نسخه معتبر نیست."}, status=status.HTTP_400_BAD_REQUEST)
-        theme, _ = StorefrontTheme.objects.get_or_create(pk=1)
-        revision = theme.revisions.filter(pk=int(revision_id)).first()
-        if revision is None:
-            return Response({"revision_id": "نسخه انتخاب‌شده معتبر نیست."}, status=status.HTTP_400_BAD_REQUEST)
-        settings = revision.snapshot.get("draft_settings")
-        validator = StorefrontThemeSettingsSerializer(data={"settings": settings})
-        validator.is_valid(raise_exception=True)
-        theme.draft_settings = validator.validated_data["settings"]
-        theme.updated_by = request.user
-        theme.save(update_fields=["draft_settings", "updated_by", "updated_at"])
-        record_theme_revision(theme, request.user, StorefrontThemeRevision.ACTION_ROLLBACK)
-        return Response({"draft_settings": theme.draft_settings, "published_settings": theme.published_settings})
-
-
 class StorefrontThemeSettingsSerializer(serializers.Serializer):
     settings = serializers.JSONField()
 
@@ -104,6 +73,36 @@ class StaffThemePermission(BasePermission):
             return False
         permission = "catalog.view_storefronttheme" if request.method == "GET" else "catalog.change_storefronttheme"
         return user.has_perm(permission)
+
+
+class StorefrontThemeRevisionView(APIView):
+    permission_classes = [StaffThemePermission]
+
+    @transaction.atomic
+    def get(self, request):
+        theme, created = StorefrontTheme.objects.get_or_create(pk=1)
+        if created:
+            record_theme_revision(theme, request.user, StorefrontThemeRevision.ACTION_BASELINE)
+        rows = theme.revisions.select_related("created_by").all()
+        return Response(StorefrontThemeRevisionSerializer(rows, many=True).data)
+
+    @transaction.atomic
+    def post(self, request):
+        revision_id = request.data.get("revision_id")
+        if not str(revision_id or "").isdigit():
+            return Response({"revision_id": "شناسه نسخه معتبر نیست."}, status=status.HTTP_400_BAD_REQUEST)
+        theme, _ = StorefrontTheme.objects.get_or_create(pk=1)
+        revision = theme.revisions.filter(pk=int(revision_id)).first()
+        if revision is None:
+            return Response({"revision_id": "نسخه انتخاب‌شده معتبر نیست."}, status=status.HTTP_400_BAD_REQUEST)
+        settings = revision.snapshot.get("draft_settings")
+        validator = StorefrontThemeSettingsSerializer(data={"settings": settings})
+        validator.is_valid(raise_exception=True)
+        theme.draft_settings = validator.validated_data["settings"]
+        theme.updated_by = request.user
+        theme.save(update_fields=["draft_settings", "updated_by", "updated_at"])
+        record_theme_revision(theme, request.user, StorefrontThemeRevision.ACTION_ROLLBACK)
+        return Response({"draft_settings": theme.draft_settings, "published_settings": theme.published_settings})
 
 
 class StorefrontThemeAdminView(APIView):
