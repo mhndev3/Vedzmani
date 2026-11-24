@@ -119,7 +119,7 @@ export function AdminStorefrontSection({ section, children }: { section: Editabl
       const rows = await getAllEntries(endpoint);
       setItemOptions(rows.filter(item => item.is_active));
     } catch (reason) {
-      setItemError(errorMessage(reason));
+      setItemsError(errorMessage(reason));
       setItemOptions([]);
     } finally {
       setItemsLoading(false);
