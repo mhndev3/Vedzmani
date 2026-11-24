@@ -88,7 +88,7 @@ def test_staff_password_login_survives_browser_restart(api, settings):
     session = api.client.session
     assert session.get_expire_at_browser_close() is False
     assert abs(session.get_expiry_age() - settings.AUTH_REMEMBER_ME_SECONDS) < 5
-    assert response.cookies["sessionid"]["max-age"] == settings.AUTH_REMEMBER_ME_SECONDS
+    assert int(response.cookies["sessionid"]["max-age"]) == settings.AUTH_REMEMBER_ME_SECONDS
 
 
 def test_inactive_user_cannot_authenticate(api):
