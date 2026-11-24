@@ -35,6 +35,7 @@ def category_image_upload_to(instance, filename):
 class Category(models.Model):
     name = models.CharField(max_length=100)
     image = models.ImageField(upload_to=category_image_upload_to, blank=True, default="")
+    product_fields = models.JSONField(default=list, blank=True)
     slug = models.SlugField(max_length=120, unique=True)
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField(default=0)
@@ -91,6 +92,7 @@ class Product(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True)
     description = models.TextField(blank=True)
+    attributes = models.JSONField(default=dict, blank=True)
     price = models.DecimalField(max_digits=14, decimal_places=0, validators=[MinValueValidator(Decimal("1"))])
     sale_price = models.DecimalField(
         max_digits=14,
