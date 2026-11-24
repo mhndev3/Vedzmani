@@ -13,9 +13,9 @@ async function getAllProducts(): Promise<Product[]> {
   while (next) {
     if (visited.has(next) || visited.size >= 1000) throw new Error("صفحه‌بندی محصولات معتبر نیست.");
     visited.add(next);
-    const page = await apiRequest<Page<Product>>("GET", next);
-    rows.push(...page.results);
-    next = page.next ? new URL(page.next, window.location.origin).pathname + new URL(page.next, window.location.origin).search : null;
+    const pageData: Page<Product> = await apiRequest<Page<Product>>("GET", next);
+    rows.push(...pageData.results);
+    next = pageData.next ? new URL(pageData.next, window.location.origin).pathname + new URL(pageData.next, window.location.origin).search : null;
   }
   return rows;
 }
