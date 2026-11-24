@@ -41,7 +41,8 @@ def test_homepage_banner_draft_publish_and_public_visibility(make_staff, setting
     })
     assert response.status_code == 201, response.content
     banner_id = response.json()["id"]
-    assert client.get("/api/catalog/homepage-banners/").json() == {"banners": []}
+    empty_public = client.get("/api/catalog/homepage-banners/").json()
+    assert empty_public == {"groups": [], "banners": []}
 
     published = client.patch(
         f"/api/admin/homepage/banners/{banner_id}/",
