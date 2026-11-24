@@ -14,6 +14,34 @@ def test_staff_role_management_is_superuser_only(make_staff, superuser):
     assert client_for(superuser).get("/api/admin/staff/roles/").status_code == 200
 
 
+def test_banner_group_permissions_are_available_to_curated_staff_roles(superuser):
+    client = client_for(superuser)
+    listed = client.get("/api/admin/staff/roles/")
+    assert listed.status_code == 200
+    keys = {item["key"] for item in listed.json()["permissions"]}
+    expected = {
+        "catalog.view_homepagebannergroup",
+        "catalog.add_homepagebannergroup",
+        "catalog.change_homepagebannergroup",
+    }
+    assert expected <= keys
+
+    created = client.post(
+        "/api/admin/staff/roles/",
+        {"name": "مدیر گروه بنر", "permissions": sorted(expected)},
+        content_type="application/json",
+    )
+    assert created.status_code == 201, created.content
+    role = Group.objects.get(name="مدیر گروه بنر")
+    assert set(
+        role.permissions.values_list("content_type__app_label", "codename")
+    ) == {
+        ("catalog", "view_homepagebannergroup"),
+        ("catalog", "add_homepagebannergroup"),
+        ("catalog", "change_homepagebannergroup"),
+    }
+
+
 def test_otp_established_superuser_session_cannot_manage_staff(superuser):
     client = client_for(superuser)
     session = client.session
