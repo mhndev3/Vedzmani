@@ -38,7 +38,7 @@ class SepClient:
 
     def request_token(self, *, amount_rial, res_num, redirect_url, cell_number):
         result = self._post(settings.SEP_TOKEN_URL, {
-            "action": "token", "TerminalId": self._terminal(), "Amount": amount_rial,
+            "Action": "Token", "TerminalId": self._terminal(), "Amount": amount_rial,
             "ResNum": res_num, "RedirectUrl": redirect_url, "CellNumber": cell_number,
             "TokenExpiryInMin": 20,
         })
