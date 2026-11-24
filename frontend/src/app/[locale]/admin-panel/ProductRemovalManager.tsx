@@ -31,7 +31,7 @@ export default function ProductRemovalManager() {
   useEffect(() => {
     let active = true;
     void getAllProducts().then((rows) => {
-      if (active) setProducts(rows.filter((product) => product.is_active));
+      if (active) setProducts(rows);
     }).catch(() => {
       if (active) setError("دریافت فهرست محصولات انجام نشد. مجوز مشاهده محصولات را بررسی کنید.");
     }).finally(() => {
@@ -46,19 +46,23 @@ export default function ProductRemovalManager() {
       !term || product.name.toLocaleLowerCase().includes(term) || String(product.product_code ?? "").includes(term)
     );
   }, [products, search]);
+  const activeCount = products.filter((product) => product.is_active).length;
 
-  async function remove(product: Product) {
+  async function changeVisibility(product: Product) {
+    const nextActive = !product.is_active;
     const accepted = window.confirm(
-      "محصول «" + product.name + "» از فروشگاه خارج شود؟ اطلاعات، رنگ‌ها، موجودی و سوابق آن برای حفظ تاریخچه باقی می‌مانند."
+      nextActive
+        ? "محصول «" + product.name + "» دوباره در فروشگاه منتشر شود؟"
+        : "محصول «" + product.name + "» از فروشگاه خارج شود؟ اطلاعات، رنگ‌ها، موجودی و سوابق آن برای حفظ تاریخچه باقی می‌مانند."
     );
     if (!accepted) return;
     setSavingId(product.id);
     setError("");
     setNotice("");
     try {
-      await apiRequest<Product>("PATCH", "/api/admin/catalog/products/" + product.id + "/", { is_active: false });
-      setProducts((current) => current.filter((item) => item.id !== product.id));
-      setNotice("محصول «" + product.name + "» از فروشگاه حذف شد؛ سوابق آن حفظ شده‌اند.");
+      await apiRequest<Product>("PATCH", "/api/admin/catalog/products/" + product.id + "/", { is_active: nextActive });
+      setProducts((current) => current.map((item) => item.id === product.id ? { ...item, is_active: nextActive } : item));
+      setNotice(nextActive ? "محصول «" + product.name + "» دوباره در فروشگاه منتشر شد." : "محصول «" + product.name + "» از فروشگاه حذف شد؛ سوابق آن حفظ شده‌اند.");
     } catch {
       setError("حذف محصول انجام نشد. دسترسی تغییر محصول را بررسی کنید.");
     } finally {
@@ -75,7 +79,7 @@ export default function ProductRemovalManager() {
             این بخش فقط در صفحه اصلی پنل قرار دارد. محصول از ویترین پنهان می‌شود، اما اطلاعات، موجودی و سوابق آن پاک نمی‌شوند.
           </p>
         </div>
-        <span className="rounded-full bg-muted px-3 py-1 text-xs">{products.length.toLocaleString("fa-IR")} محصول فعال</span>
+        <span className="rounded-full bg-muted px-3 py-1 text-xs">{activeCount.toLocaleString("fa-IR")} محصول فعال</span>
       </div>
       {notice && <p role="status" className="mt-3 rounded-lg bg-muted p-3 text-sm">{notice}</p>}
       {error && <p role="alert" className="mt-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
@@ -87,21 +91,21 @@ export default function ProductRemovalManager() {
         className="mt-4 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
       />
       {loading ? <p className="py-6 text-center text-sm text-muted-foreground">در حال دریافت محصولات…</p> :
-        visible.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">محصول فعالی برای نمایش پیدا نشد.</p> :
+        visible.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">محصولی برای نمایش پیدا نشد.</p> :
           <div className="mt-3 max-h-80 space-y-2 overflow-y-auto">
             {visible.map((product) => (
               <div key={product.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{product.name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">کد محصول: {product.product_code || "—"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">کد محصول: {product.product_code || "—"} · {product.is_active ? "در فروشگاه" : "خارج از فروشگاه"}</p>
                 </div>
                 <button
                   type="button"
                   disabled={savingId !== null}
-                  onClick={() => void remove(product)}
+                  onClick={() => void changeVisibility(product)}
                   className="rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/5 disabled:opacity-50"
                 >
-                  {savingId === product.id ? "در حال حذف…" : "حذف از فروشگاه"}
+                  {savingId === product.id ? "در حال ذخیره…" : product.is_active ? "حذف از فروشگاه" : "بازگردانی به فروشگاه"}
                 </button>
               </div>
             ))}
