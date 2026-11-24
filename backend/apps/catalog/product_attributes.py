@@ -33,7 +33,8 @@ def validate_product_field_schema(value):
         key = str(item.get("key", "")).strip()
         label = str(item.get("label", "")).strip()
         field_type = str(item.get("type", "text")).strip()
-        unit = str(item.get("unit", "")).strip()
+        unit = clean_optional_marker(item.get("unit", ""))
+        unit = "" if unit is None else str(unit).strip()
         required = item.get("required", False)
 
         if not _FIELD_KEY.fullmatch(key):
@@ -60,7 +61,7 @@ def validate_product_field_schema(value):
     return normalized
 
 
-def clean_product_attributes(category, value, *, reject_unknown=True):
+def clean_product_attributes(category, value, *, reject_unknown=True, enforce_required=True):
     if value is None:
         value = {}
     if not isinstance(value, dict):
@@ -81,7 +82,7 @@ def clean_product_attributes(category, value, *, reject_unknown=True):
             raise serializers.ValidationError({"attributes": {key: "مقدار فیلد باید متنی یا عددی باشد."}})
         item = clean_optional_marker(raw)
         item = "" if item is None else str(item).strip()
-        if definition["required"] and not item:
+        if enforce_required and definition["required"] and not item:
             raise serializers.ValidationError({"attributes": {key: f"فیلد «{definition['label']}» الزامی است."}})
         if definition["type"] == "number" and item:
             try:
