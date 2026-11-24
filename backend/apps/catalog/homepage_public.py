@@ -27,7 +27,9 @@ class HomepageSectionsPublicView(APIView):
                 "show_view_all": section.show_view_all,
                 "view_all_url": section.view_all_url,
                 "categories": [],
+                "category_ids": list(section.categories.order_by("position", "id").values_list("id", flat=True)),
                 "products": [],
+                "product_ids": list(section.products.order_by("id").values_list("id", flat=True)),
             }
             if section.section_type == HomepageSection.TYPE_CATEGORIES:
                 categories = section.categories.filter(is_active=True).order_by("position", "id")[:section.item_limit]
@@ -42,6 +44,7 @@ class HomepageSectionsPublicView(APIView):
                             "alt_text": category.name,
                         }
                     row["categories"].append({
+                        "id": category.pk,
                         "name": category.name,
                         "slug": category.slug,
                         "image": category_image or (product[0]["image"] if product else None),
@@ -51,7 +54,22 @@ class HomepageSectionsPublicView(APIView):
                 variants = build_variant_queryset({}).filter(product_id__in=product_ids)[:section.item_limit]
                 row["products"] = VariantProductListSerializer(variants, many=True, context={"request": request}).data
             else:
-                variants = build_variant_queryset({})[:section.item_limit]
-                row["products"] = VariantProductListSerializer(variants, many=True, context={"request": request}).data
+                pinned_ids = list(section.products.filter(
+                    is_active=True, category__is_active=True
+                ).order_by("id").values_list("id", flat=True))
+                pinned_variants = list(
+                    build_variant_queryset({}).filter(product_id__in=pinned_ids)[:section.item_limit]
+                )
+                remaining = section.item_limit - len(pinned_variants)
+                if remaining > 0:
+                    newest_variants = list(
+                        build_variant_queryset({}).exclude(product_id__in=pinned_ids)[:remaining]
+                    )
+                else:
+                    newest_variants = []
+                variants = pinned_variants + newest_variants
+                row["products"] = VariantProductListSerializer(
+                    variants, many=True, context={"request": request}
+                ).data
             result.append(row)
         return Response({"sections": result})
