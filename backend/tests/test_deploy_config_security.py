@@ -44,9 +44,9 @@ def test_base_compose_does_not_publish_redis_backend_or_frontend():
 
 def test_nginx_blocks_public_django_admin_but_keeps_api_routing_separate():
     conf = NGINX.read_text(encoding="utf-8")
-    location = re.search(r"location\\s+\\^~\\s+/admin/\\s*\\{(.*?)\\}", conf, re.DOTALL)
+    location = re.search(r"location\s+\^~\s+/admin/\s*\{(.*?)\}", conf, re.DOTALL)
     assert location, "public Django Admin must be blocked"
     assert "return 404" in location.group(1)
     assert "proxy_pass" not in location.group(1)
     # The storefront management API remains a separate route and must not be swallowed by /admin/.
-    assert re.search(r"location\\s+/api/\\s*\\{\\s*proxy_pass http://backend;", conf)
+    assert re.search(r"location\s+/api/\s*\{\s*proxy_pass http://backend;", conf)
