@@ -74,11 +74,17 @@ class ColorVariantSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
+        fields = ["name", "slug"]
+
+
+class ProductDetailCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
         fields = ["name", "slug", "product_fields"]
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
-    category = CategorySerializer(read_only=True)
+    category = ProductDetailCategorySerializer(read_only=True)
     colors = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
     attributes = serializers.SerializerMethodField()
@@ -88,10 +94,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         return clean_optional_marker(obj.description)
 
     def get_attributes(self, obj: Product):
+        allowed = {field["key"] for field in (obj.category.product_fields or [])}
         return {
-            key: value
+            key: clean_optional_marker(value)
             for key, value in (obj.attributes or {}).items()
-            if clean_optional_marker(value) != ""
+            if key in allowed and clean_optional_marker(value) != ""
         }
 
     class Meta:
