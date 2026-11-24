@@ -45,6 +45,11 @@ async function toCodeStepMocked(page: Page, phone = "09120000001") {
 }
 
 test.describe("ورود با شماره موبایل", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/auth/password/login/", (route) =>
+      route.fulfill({ status: 200, json: { requires_password: false, requires_otp: true } }),
+    );
+  });
   test("صفحه فارسی و راست‌چین است و ارسال فرم خالی اعتبارسنجی می‌شود", async ({ page }) => {
     await page.goto("/fa/sign-in");
     await expect(page.locator("html")).toHaveAttribute("lang", "fa");
