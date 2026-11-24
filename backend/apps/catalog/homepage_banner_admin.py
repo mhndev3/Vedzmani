@@ -10,7 +10,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import BasePermission, DjangoModelPermissions
 from rest_framework.response import Response
 
-from .models import HomepageBanner, HomepageBannerRevision, VariantImage
+from .models import HomepageBanner, HomepageBannerGroup, HomepageBannerRevision, VariantImage
 
 
 def banner_snapshot(banner):
@@ -96,6 +96,7 @@ def resolve_media_library_reference(reference, user):
 
 
 class HomepageBannerAdminSerializer(serializers.ModelSerializer):
+    group = serializers.PrimaryKeyRelatedField(queryset=HomepageBannerGroup.objects.filter(is_active=True), required=False)
     desktop_image_url = serializers.SerializerMethodField()
     mobile_image_url = serializers.SerializerMethodField()
     desktop_image_media_ref = serializers.CharField(write_only=True, required=False, allow_blank=False)
@@ -104,7 +105,7 @@ class HomepageBannerAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = HomepageBanner
         fields = [
-            "id", "title", "subtitle", "alt_text", "desktop_image", "mobile_image",
+            "id", "group", "title", "subtitle", "alt_text", "desktop_image", "mobile_image",
             "desktop_image_url", "mobile_image_url", "desktop_image_media_ref", "mobile_image_media_ref", "cta_label", "cta_url",
             "position", "status", "starts_at", "ends_at", "created_at",
             "updated_at", "published_at",
@@ -154,6 +155,11 @@ class HomepageBannerAdminSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        if self.instance is None and "group" not in attrs:
+            default_group = HomepageBannerGroup.objects.filter(slug="main", is_active=True).first()
+            if default_group is None:
+                raise serializers.ValidationError({"group": "ابتدا یک گروه فعال برای بنرها بسازید."})
+            attrs["group"] = default_group
         for field in ("desktop_image", "mobile_image"):
             reference_field = f"{field}_media_ref"
             if attrs.get(field) and attrs.get(reference_field):
