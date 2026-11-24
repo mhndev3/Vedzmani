@@ -13,6 +13,7 @@ from apps.accounts.support_api import AdminSupportTicketDetailView, AdminSupport
 from apps.orders.admin_shipping import ShippingMethodAdminViewSet
 from .homepage_admin import HomepageSectionAdminViewSet
 from .homepage_banner_admin import HomepageBannerAdminViewSet
+from .homepage_banner_group_admin import HomepageBannerGroupAdminViewSet
 from .admin_media_library import AdminMediaLibraryView
 from .admin_product_variants import ProductWithVariantsCreateView
 from .storefront_theme import StorefrontThemeAdminView, StorefrontThemeRevisionView
@@ -35,6 +36,7 @@ router = DefaultRouter()
 router.register("shipping/methods", ShippingMethodAdminViewSet, basename="admin-shipping-method")
 router.register("homepage/sections", HomepageSectionAdminViewSet, basename="admin-homepage-section")
 router.register("homepage/banners", HomepageBannerAdminViewSet, basename="admin-homepage-banner")
+router.register("homepage/banner-groups", HomepageBannerGroupAdminViewSet, basename="admin-homepage-banner-group")
 router.register("catalog/products", ProductAdminViewSet, basename="admin-catalog-product")
 router.register("catalog/categories", CategoryAdminViewSet, basename="admin-catalog-category")
 router.register("catalog/collections", CollectionAdminViewSet, basename="admin-catalog-collection")
