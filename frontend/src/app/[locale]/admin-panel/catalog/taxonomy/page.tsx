@@ -8,19 +8,20 @@ import { apiRequest, apiMultipartRequest, BrowserApiError } from "@/lib/browser-
 
 type CatalogGroup = "categories" | "collections";
 type ProductField = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
-type Entry = { id: number; name: string; slug: string; is_active: boolean; position: number; image_url?: string | null; product_fields?: ProductField[] };
+type Entry = { id: number; name: string; slug: string; is_active: boolean; position: number; image_url?: string | null; product_fields?: ProductField[]; sizes?: number[] };
+type Size = { id: number; code: string; label: string; position: number };
 type Page<T> = { results: T[]; next: string | null };
 
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
 const primaryClass = "rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50";
 const secondaryClass = "rounded-xl border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50";
 
-async function getAll(path: string): Promise<Entry[]> {
-  const rows: Entry[] = [];
+async function getAll<T>(path: string): Promise<T[]> {
+  const rows: T[] = [];
   let next: string | null = path;
   let pages = 0;
   while (next && pages < 40) {
-    const pageData: Page<Entry> = await apiRequest<Page<Entry>>("GET", next);
+    const pageData: Page<T> = await apiRequest<Page<T>>("GET", next);
     rows.push(...pageData.results);
     next = pageData.next
       ? new URL(pageData.next, window.location.origin).pathname + new URL(pageData.next, window.location.origin).search
@@ -45,6 +46,8 @@ export default function AdminTaxonomyPage() {
   const [group, setGroup] = useState<CatalogGroup>("categories");
   const [categories, setCategories] = useState<Entry[]>([]);
   const [collections, setCollections] = useState<Entry[]>([]);
+  const [sizes, setSizes] = useState<Size[]>([]);
+  const [selectedSizeIds, setSelectedSizeIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -66,12 +69,14 @@ export default function AdminTaxonomyPage() {
     setLoading(true);
     setError("");
     try {
-      const [categoryRows, collectionRows] = await Promise.all([
-        getAll("/api/admin/catalog/categories/"),
-        getAll("/api/admin/catalog/collections/"),
+      const [categoryRows, collectionRows, sizeRows] = await Promise.all([
+        getAll<Entry>("/api/admin/catalog/categories/"),
+        getAll<Entry>("/api/admin/catalog/collections/"),
+        getAll<Size>("/api/admin/catalog/sizes/"),
       ]);
       setCategories(categoryRows);
       setCollections(collectionRows);
+      setSizes(sizeRows);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -83,13 +88,15 @@ export default function AdminTaxonomyPage() {
     let cancelled = false;
     async function load() {
       try {
-        const [categoryRows, collectionRows] = await Promise.all([
-          getAll("/api/admin/catalog/categories/"),
-          getAll("/api/admin/catalog/collections/"),
+        const [categoryRows, collectionRows, sizeRows] = await Promise.all([
+          getAll<Entry>("/api/admin/catalog/categories/"),
+          getAll<Entry>("/api/admin/catalog/collections/"),
+          getAll<Size>("/api/admin/catalog/sizes/"),
         ]);
         if (!cancelled) {
           setCategories(categoryRows);
           setCollections(collectionRows);
+          setSizes(sizeRows);
           const query = new URLSearchParams(window.location.search);
           const editId = Number(query.get("edit"));
           const selectedCategory = Number.isSafeInteger(editId) && editId > 0
@@ -130,6 +137,7 @@ export default function AdminTaxonomyPage() {
     setImagePreview(group === "categories" ? entry?.image_url ?? null : null);
     setRemoveImage(false);
     setProductFields(group === "categories" ? entry?.product_fields ?? [] : []);
+    setSelectedSizeIds(group === "categories" ? entry?.sizes ?? [] : []);
     setError("");
     setNotice("");
   }
@@ -180,14 +188,14 @@ export default function AdminTaxonomyPage() {
         name: name.trim(),
         slug: slug.trim(),
         position: editing === null ? entries.length : entries.find((entry) => entry.id === editing)?.position ?? 0,
-        ...(group === "categories" ? { product_fields: productFields } : {}),
+        ...(group === "categories" ? { product_fields: productFields, size_ids: selectedSizeIds } : {}),
       };
       const method = editing === null ? "POST" : "PATCH";
       const url = editing === null ? endpoint : endpoint + editing + "/";
       if (group === "categories" && (imageFile || removeImage)) {
         const form = new FormData();
         Object.entries({ ...payload, ...(editing === null ? { is_active: true } : {}) }).forEach(([key, value]) => {
-          form.set(key, key === "product_fields" ? JSON.stringify(value) : String(value));
+          form.set(key, key === "product_fields" || key === "size_ids" ? JSON.stringify(value) : String(value));
         });
         if (imageFile) form.set("image", imageFile);
         if (removeImage) form.set("remove_image", "true");
@@ -272,6 +280,20 @@ export default function AdminTaxonomyPage() {
             </label>
             {group === "categories" && (
               <div className="space-y-3">
+              <section className="space-y-3 rounded-xl border border-border p-3">
+                <div>
+                  <h3 className="text-sm font-semibold">سایزهای مجاز این دسته‌بندی</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">فقط سایزهای انتخاب‌شده هنگام ساخت محصول در این دسته‌بندی نمایش داده می‌شوند.</p>
+                </div>
+                {sizes.length === 0 ? <p className="text-xs text-muted-foreground">ابتدا از فهرست سایزها گزینه تعریف کنید.</p> : (
+                  <div className="flex flex-wrap gap-2">
+                    {sizes.map((size) => <label key={size.id} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                      <input type="checkbox" checked={selectedSizeIds.includes(size.id)} onChange={(event) => setSelectedSizeIds((current) => event.target.checked ? [...current, size.id] : current.filter((id) => id !== size.id))} />
+                      {size.label} <span dir="ltr" className="text-xs text-muted-foreground">({size.code})</span>
+                    </label>)}
+                  </div>
+                )}
+              </section>
               <section className="space-y-3 rounded-xl border border-border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
