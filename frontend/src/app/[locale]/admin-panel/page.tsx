@@ -106,13 +106,23 @@ export default function AdminWorkspacePage() {
         <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">ورود به پشتیبانی ←</span>
       </Link>
 
-      <Link href={"/" + locale + "/admin-panel/shipping"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">\n        <div><h2 className="font-bold">مدیریت روش‌های ارسال</h2><p className="mt-1 text-sm text-muted-foreground">تعریف شرکت حمل، تعرفه‌ها، محدوده سرویس‌دهی و زمان تحویل</p></div>\n        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت ارسال ←</span>\n      </Link>\n\n      <Link href={"/" + locale + "/admin-panel/homepage"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">
+      <Link href={"/" + locale + "/admin-panel/shipping"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
+        <div><h2 className="font-bold">مدیریت روش‌های ارسال</h2><p className="mt-1 text-sm text-muted-foreground">تعریف شرکت حمل، تعرفه‌ها، محدوده سرویس‌دهی و زمان تحویل</p></div>
+        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت ارسال ←</span>
+      </Link>
+
+      <Link href={"/" + locale + "/admin-panel/homepage"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">
         <div><h2 className="font-bold">مدیریت صفحه اصلی</h2><p className="mt-1 text-sm text-muted-foreground">ساخت و انتشار بخش‌های دسته‌بندی و محصولات منتخب در ویترین فروشگاه</p></div>
         <span className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">مدیریت صفحه اصلی ←</span>
       </Link>
 
 
-      <Link href={"/" + locale + "/admin-panel/staff"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">\n        <div><h2 className="font-bold">مدیریت مدیران و نقش‌ها</h2><p className="mt-1 text-sm text-muted-foreground">تعریف نقش‌ها، تعیین مجوزها و تخصیص دسترسی به مدیران</p></div>\n        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت دسترسی‌ها ←</span>\n      </Link>\n\n      <Link href={"/" + locale + "/admin-panel/audit-log"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
+      <Link href={"/" + locale + "/admin-panel/staff"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
+        <div><h2 className="font-bold">مدیریت مدیران و نقش‌ها</h2><p className="mt-1 text-sm text-muted-foreground">تعریف نقش‌ها، تعیین مجوزها و تخصیص دسترسی به مدیران</p></div>
+        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت دسترسی‌ها ←</span>
+      </Link>
+
+      <Link href={"/" + locale + "/admin-panel/audit-log"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
         <div><h2 className="font-bold">تاریخچه فعالیت مدیران</h2><p className="mt-1 text-sm text-muted-foreground">مشاهده عملیات مدیریتی، زمان اجرا و نتیجه درخواست‌ها</p></div>
         <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مشاهده تاریخچه ←</span>
       </Link>
