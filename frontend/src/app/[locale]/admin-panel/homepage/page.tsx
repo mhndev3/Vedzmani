@@ -93,8 +93,8 @@ export default function AdminHomepagePage() {
       const editId = Number(query.get("edit"));
       const target = Number.isSafeInteger(editId) && editId > 0 ? ordered.find(item => item.id === editId) : undefined;
       if (target) {
-        const { id: _id, ...values } = target;
-        setEditingId(target.id);
+        const { id, ...values } = target;
+        setEditingId(id);
         setDraft(values);
         setNotice("بخش انتخاب‌شده برای ویرایش باز شد.");
       } else if (query.get("new") === "1") {
