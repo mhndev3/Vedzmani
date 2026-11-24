@@ -86,6 +86,7 @@ class ProductAdminViewSet(StaffModelPermissionViewSet):
 class CategoryAdminViewSet(StaffModelPermissionViewSet):
     queryset = Category.objects.all()
     serializer_class = CategoryAdminSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
 
 class CollectionAdminViewSet(StaffModelPermissionViewSet):
