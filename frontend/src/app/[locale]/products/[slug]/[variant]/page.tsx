@@ -137,7 +137,7 @@ export default async function VariantProductPage({ params }: Props) {
 
         <section className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{product.name}</h1>
-          <StorefrontProductEditor productId={product.id} name={product.name} description={product.description} price={product.price} salePrice={product.sale_price} />
+          <StorefrontProductEditor productId={product.id} locale={locale} name={product.name} description={product.description} price={product.price} salePrice={product.sale_price} />
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <ColorSwatch name={color.name} hexColor={color.hex_color} className="size-4" />
             <span>{color.name}</span>
