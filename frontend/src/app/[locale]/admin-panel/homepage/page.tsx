@@ -85,8 +85,23 @@ export default function AdminHomepagePage() {
         getAll<Entry>("/api/admin/catalog/products/"),
       ]);
       if (!live) return;
-      setSections(s.sort((a,b) => a.position - b.position || a.id - b.id));
+      const ordered = [...s].sort((a,b) => a.position - b.position || a.id - b.id);
+      setSections(ordered);
       setCategories(c.filter(x => x.is_active)); setProducts(p.filter(x => x.is_active));
+
+      const query = new URLSearchParams(window.location.search);
+      const editId = Number(query.get("edit"));
+      const target = Number.isSafeInteger(editId) && editId > 0 ? ordered.find(item => item.id === editId) : undefined;
+      if (target) {
+        const { id: _id, ...values } = target;
+        setEditingId(target.id);
+        setDraft(values);
+        setNotice("بخش انتخاب‌شده برای ویرایش باز شد.");
+      } else if (query.get("new") === "1") {
+        setEditingId(null);
+        setDraft({ ...blank(), position: ordered.length });
+        setNotice("فرم ساخت بخش جدید باز شد.");
+      }
     } catch(e) { if (live) setError(errorText(e)); }
     finally { if (live) setLoading(false); }
   })(); return () => { live = false; }; }, []);

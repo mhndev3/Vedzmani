@@ -92,7 +92,7 @@ export default function AdminWorkspacePage() {
           <h1 className="mt-2 text-3xl font-bold tracking-tight">پنل مدیریت</h1>
           <p className="mt-2 text-sm text-muted-foreground">مدیریت فروشگاه از یک فضای یکپارچه</p>
         </div>
-        <Link href="/" className="inline-flex w-fit items-center rounded-xl border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted">مشاهده فروشگاه</Link>
+        <Link href={"/" + locale + "?admin=1"} className="inline-flex w-fit items-center rounded-xl border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted">مشاهده فروشگاه در حالت مدیریت</Link>
       </div>
 
       <section className="mt-7 rounded-2xl border border-border bg-card p-5 sm:p-6">
