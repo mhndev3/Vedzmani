@@ -42,12 +42,11 @@ def test_base_compose_does_not_publish_redis_backend_or_frontend():
         assert "ports:" not in _service_block(text, service), f"{service} must stay internal to the Compose network"
 
 
-def test_nginx_throttles_admin_login_posts():
+def test_nginx_blocks_public_django_admin_but_keeps_api_routing_separate():
     conf = NGINX.read_text(encoding="utf-8")
-    assert re.search(r"limit_req_zone\s+\$admin_login_limit_key\s+zone=admin_login:", conf)
-    location = re.search(r"location\s+=\s+/admin/login/\s*\{(.*?)\}", conf, re.DOTALL)
-    assert location, "exact-match /admin/login/ location is missing"
-    assert "limit_req zone=admin_login" in location.group(1)
-    assert "proxy_pass http://backend" in location.group(1)
-    # Only POST is keyed, so loading the login page is never throttled.
-    assert re.search(r"map\s+\$request_method\s+\$admin_login_limit_key\s*\{[^}]*POST\s+\$binary_remote_addr", conf)
+    location = re.search(r"location\s+\^~\s+/admin/\s*\{(.*?)\}", conf, re.DOTALL)
+    assert location, "public Django Admin must be blocked"
+    assert "return 404" in location.group(1)
+    assert "proxy_pass" not in location.group(1)
+    # The storefront management API remains a separate route and must not be swallowed by /admin/.
+    assert re.search(r"location\s+/api/\s*\{\s*proxy_pass http://backend;", conf)
