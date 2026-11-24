@@ -1,8 +1,6 @@
 # Django Admin (Agent 8, Session 1)
 
-Served at `/admin/` by Django's built-in admin. Access = Django session auth + `is_staff` + the stock per-model
-permissions (view/add/change/delete). There is no custom RBAC and no custom frontend admin. This is an operations
-tool for V1, not a claim of production readiness (static-file serving for admin is still open, see README).
+Django Admin remains registered for internal maintenance and automated tests, but it is **not a public product interface**. Nginx returns 404 for public `/admin/` paths. Store managers sign in through the storefront phone + password form and use the Persian custom workspace at `/{locale}/admin-panel`; its `/api/admin/` endpoints enforce staff permissions server-side. Do not direct store managers to Django Admin.
 
 ## Logging in
 Staff sign in with **phone + password** at `/admin/login/`. The login form does **not** normalize the phone yet:
