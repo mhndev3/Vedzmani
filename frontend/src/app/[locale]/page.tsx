@@ -15,7 +15,16 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   return (
     <AdminStorefrontMode locale={locale}>
-      <HomepageHeroSlider banners={content.banners} locale={locale} />
+      {content.bannerGroups.length > 0 ? content.bannerGroups.map(group => (
+        <HomepageHeroSlider
+          key={group.id}
+          banners={group.banners}
+          locale={locale}
+          groupTitle={group.slug === "main" ? undefined : group.name}
+        />
+      )) : (
+        <HomepageHeroSlider banners={content.banners} locale={locale} />
+      )}
       {content.sections.length > 0 ? content.sections.map((section) => (
         section.section_type === "categories" ? (
           <AdminStorefrontSection key={section.id} section={{
