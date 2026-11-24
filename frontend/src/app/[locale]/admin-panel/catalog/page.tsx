@@ -11,10 +11,11 @@ import CatalogTaxonomyManager from "./CatalogTaxonomyManager";
 import CreateProductWithVariantsForm from "./CreateProductWithVariantsForm";
 
 type Page<T> = { results: T[]; next: string | null; count: number };
-type Category = { id: number; name: string; slug: string; is_active: boolean; position: number };
+type ProductField = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
+type Category = { id: number; name: string; slug: string; is_active: boolean; position: number; product_fields: ProductField[] };
 type Collection = { id: number; name: string; slug: string; is_active: boolean; position: number };
 type Size = { id: number; code: string; label: string; position: number };
-type Product = { id: number; product_code: string | null; name: string; slug: string; description: string; price: string; sale_price: string | null; category: number; collections: number[]; is_active: boolean };
+type Product = { id: number; product_code: string | null; name: string; slug: string; description: string; attributes: Record<string, string>; price: string; sale_price: string | null; category: number; collections: number[]; is_active: boolean };
 type Color = { id: number; product: number; name: string; slug: string; product_code: string; hex_color: string; is_active: boolean; position: number };
 type VariantSize = { id: number; variant: number; size: number; sku: string; stock_quantity: number; is_active: boolean };
 type Adjustment = { id: number; variant_size: number; quantity_change: number; stock_after: number; reason: string; created_at: string };
@@ -71,6 +72,7 @@ export default function AdminCatalogPage() {
   const [salePrice, setSalePrice] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [collectionIds, setCollectionIds] = useState<number[]>([]);
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [colorName, setColorName] = useState("");
   const [colorSlug, setColorSlug] = useState("");
   const [hexColor, setHexColor] = useState("#000000");
@@ -145,13 +147,19 @@ export default function AdminCatalogPage() {
   const formatPrice = (value: string | number) => Number(value).toLocaleString("fa-IR") + " تومان";
 
   function resetProductForm(product?: Product) {
+    const nextCategoryId = product?.category ?? categories.find((c) => c.is_active)?.id ?? 0;
+    const nextCategory = categories.find((category) => category.id === nextCategoryId);
     setName(product?.name ?? "");
     setSlug(product?.slug ?? "");
     setDescription(product?.description ?? "");
     setPrice(product?.price ?? "");
     setSalePrice(product?.sale_price ?? "");
-    setCategoryId(String(product?.category ?? categories.find((c) => c.is_active)?.id ?? ""));
+    setCategoryId(String(nextCategoryId || ""));
     setCollectionIds(product?.collections ?? []);
+    setAttributes(Object.fromEntries((nextCategory?.product_fields ?? []).map(field => [
+      field.key,
+      product?.attributes?.[field.key] ?? "",
+    ])));
     setProductFormMode("edit");
     setError("");
   }
@@ -164,7 +172,16 @@ export default function AdminCatalogPage() {
       setError("حالت ویرایش محصول معتبر نیست؛ برای ساخت محصول از فرم محصول جدید استفاده کنید.");
       return;
     }
-    const payload = { name, slug, description, price, sale_price: salePrice || null, category: Number(categoryId), collections: collectionIds };
+    const payload = {
+      name,
+      slug,
+      description: description.trim() === "//" ? "" : description,
+      attributes: Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, value.trim() === "//" ? "" : value.trim()])),
+      price,
+      sale_price: salePrice || null,
+      category: Number(categoryId),
+      collections: collectionIds,
+    };
     try {
       const saved = await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${selected.id}/`, payload);
       setProductFormMode(null);
@@ -313,11 +330,37 @@ export default function AdminCatalogPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm">نام محصول<input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} /></label>
             <label className="text-sm">شناسه انگلیسی (Slug)<input required value={slug} onChange={(e) => setSlug(e.target.value)} dir="ltr" className={inputClass} /></label>
-            <label className="text-sm">دسته‌بندی<select required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}><option value="">انتخاب دسته‌بندی</option>{categories.filter((c) => c.is_active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            <label className="text-sm">دسته‌بندی<select required value={categoryId} onChange={(event) => {
+              const nextId = Number(event.target.value);
+              setCategoryId(event.target.value);
+              const nextCategory = categories.find(item => item.id === nextId);
+              setAttributes(old => Object.fromEntries((nextCategory?.product_fields ?? []).map(field => [field.key, old[field.key] ?? ""])));
+            }} className={inputClass}><option value="">انتخاب دسته‌بندی</option>{categories.filter((c) => c.is_active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             <label className="text-sm">قیمت اصلی (تومان)<input required type="number" min="1" step="1" value={price} onChange={(e) => setPrice(e.target.value)} className={inputClass} dir="ltr" /></label>
             <label className="text-sm">قیمت با تخفیف (اختیاری)<input type="number" min="1" step="1" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className={inputClass} dir="ltr" /></label>
             <label className="text-sm sm:col-span-2 lg:col-span-1">توضیحات<textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={inputClass} /></label>
           </div>
+          {(categories.find(item => item.id === Number(categoryId))?.product_fields ?? []).length > 0 && (
+            <section className="mt-5 rounded-xl border border-border p-4">
+              <h3 className="font-semibold">مشخصات اختصاصی این دسته‌بندی</h3>
+              <p className="mt-1 text-xs text-muted-foreground">فقط فیلدهای تعریف‌شده برای دسته‌بندی انتخاب‌شده نمایش داده می‌شوند.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(categories.find(item => item.id === Number(categoryId))?.product_fields ?? []).map(definition => (
+                  <label key={definition.key} className="text-sm">
+                    {definition.label}{definition.unit ? ` (${definition.unit})` : ""}{definition.required ? " *" : ""}
+                    <input
+                      type={definition.type === "number" ? "number" : "text"}
+                      step={definition.type === "number" ? "any" : undefined}
+                      required={definition.required}
+                      value={attributes[definition.key] ?? ""}
+                      onChange={event => setAttributes(old => ({ ...old, [definition.key]: event.target.value }))}
+                      className={inputClass}
+                    />
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
           <div className="mt-4">
             <p className="mb-2 text-sm">مجموعه‌ها</p>
             <div className="flex flex-wrap gap-2">{collections.filter((c) => c.is_active).map((c) => <label key={c.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"><input type="checkbox" checked={collectionIds.includes(c.id)} onChange={(e) => setCollectionIds((old) => e.target.checked ? [...old, c.id] : old.filter((id) => id !== c.id))} />{c.name}</label>)}</div>
