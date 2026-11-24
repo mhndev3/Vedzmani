@@ -1,5 +1,5 @@
 import "server-only";
-import { emptyState, getProducts, type CatalogImage, type ProductCardData } from "./catalog";
+import { emptyState, getProducts, type ProductCardData } from "./catalog";
 import { apiGet } from "./api";
 
 export type HomepageCategoryImage = { url: string; thumbnail_url?: string; alt_text?: string; width?: number; height?: number };
