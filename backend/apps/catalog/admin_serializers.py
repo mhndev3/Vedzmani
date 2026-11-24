@@ -31,17 +31,56 @@ class CategoryAdminSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     remove_image = serializers.BooleanField(required=False, write_only=True)
     product_fields = serializers.JSONField(required=False)
+    sizes = serializers.SerializerMethodField()
+    size_ids = serializers.JSONField(required=False, write_only=True)
 
     class Meta:
         model = Category
         fields = [
             "id", "name", "slug", "image", "image_url", "remove_image", "product_fields",
-            "is_active", "position", "created_at", "updated_at",
+            "sizes", "size_ids", "is_active", "position", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "image_url", "created_at", "updated_at"]
 
     def get_image_url(self, obj):
         return public_image_url(obj.image.name) if obj.image else None
+
+    def get_sizes(self, obj):
+        return list(obj.sizes.order_by("position", "id").values_list("id", flat=True))
+
+    def validate_size_ids(self, value):
+        if not isinstance(value, list) or any(
+            isinstance(item, bool) or not isinstance(item, int) or item <= 0
+            for item in value
+        ):
+            raise serializers.ValidationError("فهرست سایزهای دسته‌بندی معتبر نیست.")
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError("سایز تکراری در فهرست دسته‌بندی مجاز نیست.")
+        if Size.objects.filter(pk__in=value).count() != len(value):
+            raise serializers.ValidationError("یکی از سایزهای انتخاب‌شده وجود ندارد.")
+        return value
+
+    def create(self, validated_data):
+        size_ids = validated_data.pop("size_ids", None)
+        validated_data.pop("remove_image", None)
+        instance = super().create(validated_data)
+        if size_ids is not None:
+            instance.sizes.set(size_ids)
+        return instance
+
+    def update(self, instance, validated_data):
+        size_ids = validated_data.pop("size_ids", None)
+        remove_image = validated_data.pop("remove_image", False)
+        old_image_name = instance.image.name if instance.image else ""
+        old_storage = instance.image.storage if instance.image else None
+        if remove_image:
+            instance.image = ""
+        updated = super().update(instance, validated_data)
+        if size_ids is not None:
+            updated.sizes.set(size_ids)
+        if old_image_name and old_storage and (remove_image or updated.image.name != old_image_name):
+            old_storage.delete(old_image_name)
+        return updated
 
     def validate_product_fields(self, value):
         return validate_product_field_schema(value)
@@ -67,20 +106,6 @@ class CategoryAdminSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"image": "برای یک درخواست، تصویر جدید یا حذف تصویر فعلی را انتخاب کنید."})
         return attrs
 
-    def update(self, instance, validated_data):
-        remove_image = validated_data.pop("remove_image", False)
-        old_image_name = instance.image.name if instance.image else ""
-        old_storage = instance.image.storage if instance.image else None
-        if remove_image:
-            instance.image = ""
-        updated = super().update(instance, validated_data)
-        if old_image_name and old_storage and (remove_image or updated.image.name != old_image_name):
-            old_storage.delete(old_image_name)
-        return updated
-
-    def create(self, validated_data):
-        validated_data.pop("remove_image", None)
-        return super().create(validated_data)
 
 
 class CollectionAdminSerializer(serializers.ModelSerializer):

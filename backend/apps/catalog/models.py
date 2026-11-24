@@ -36,6 +36,7 @@ class Category(models.Model):
     name = models.CharField(max_length=100)
     image = models.ImageField(upload_to=category_image_upload_to, blank=True, default="")
     product_fields = models.JSONField(default=list, blank=True)
+    sizes = models.ManyToManyField("Size", blank=True, related_name="categories")
     slug = models.SlugField(max_length=120, unique=True)
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField(default=0)

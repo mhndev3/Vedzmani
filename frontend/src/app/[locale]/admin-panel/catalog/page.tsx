@@ -7,12 +7,11 @@ import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 import VariantImageManager from "./VariantImageManager";
 import ProductMeasurementManager from "./ProductMeasurementManager";
 import InventoryHistory from "./InventoryHistory";
-import CatalogTaxonomyManager from "./CatalogTaxonomyManager";
 import CreateProductWithVariantsForm from "./CreateProductWithVariantsForm";
 
 type Page<T> = { results: T[]; next: string | null; count: number };
 type ProductField = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
-type Category = { id: number; name: string; slug: string; is_active: boolean; position: number; product_fields: ProductField[] };
+type Category = { id: number; name: string; slug: string; is_active: boolean; position: number; product_fields: ProductField[]; sizes: number[] };
 type Collection = { id: number; name: string; slug: string; is_active: boolean; position: number };
 type Size = { id: number; code: string; label: string; position: number };
 type Product = { id: number; product_code: string | null; name: string; slug: string; description: string; attributes: Record<string, string>; price: string; sale_price: string | null; category: number; collections: number[]; is_active: boolean };
@@ -144,6 +143,11 @@ export default function AdminCatalogPage() {
   }, [products, search]);
 
   const selectedColors = selected ? colors.filter((color) => color.product === selected.id) : [];
+  const selectedCategory = selected ? categories.find((category) => category.id === selected.category) : undefined;
+  const editableSizeIds = new Set([
+    ...(selectedCategory?.sizes ?? []),
+    ...variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant)).map((item) => item.size),
+  ]);
   const formatPrice = (value: string | number) => Number(value).toLocaleString("fa-IR") + " تومان";
 
   function resetProductForm(product?: Product) {
@@ -188,16 +192,6 @@ export default function AdminCatalogPage() {
       setNotice("اطلاعات محصول ذخیره شد.");
       await refresh();
       setSelected(saved);
-    } catch (e) { setError(errorMessage(e)); }
-    finally { setSaving(false); }
-  }
-
-  async function toggleProduct(product: Product) {
-    setSaving(true); setError(""); setNotice("");
-    try {
-      await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${product.id}/`, { is_active: !product.is_active });
-      setNotice(product.is_active ? "محصول از فروشگاه خارج شد." : "محصول منتشر شد.");
-      await refresh();
     } catch (e) { setError(errorMessage(e)); }
     finally { setSaving(false); }
   }
@@ -301,8 +295,6 @@ export default function AdminCatalogPage() {
         <button type="button" className={buttonClass} onClick={() => { setSelected(null); setProductFormMode("create"); setError(""); setNotice(""); }}>＋ محصول جدید</button>
       </div>
 
-      <CatalogTaxonomyManager />
-
       {notice && <div role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</div>}
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</div>}
 
@@ -389,13 +381,13 @@ export default function AdminCatalogPage() {
               <section className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><p className="text-xs text-muted-foreground">محصول انتخاب‌شده</p><h2 className="mt-1 text-xl font-bold">{selected.name}</h2><p className="mt-1 text-xs text-muted-foreground">کد محصول: {selected.product_code || "—"} · {formatPrice(selected.sale_price || selected.price)}</p></div>
-                  <div className="flex flex-wrap gap-2"><button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button><button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleProduct(selected)}>{selected.is_active ? "خروج از انتشار" : "انتشار محصول"}</button></div>
+                  <div className="flex flex-wrap gap-2"><button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button></div>
                 </div>
               </section>
 
               <ProductMeasurementManager
                 productId={selected.id}
-                sizes={sizes}
+                sizes={sizes.filter((size) => editableSizeIds.has(size.id))}
                 colors={selectedColors}
                 variantSizes={variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant))}
               />
@@ -424,7 +416,7 @@ export default function AdminCatalogPage() {
                     </div>
                     {variantId === color.id && <div className="mt-4 border-t border-border pt-4">
                       <form onSubmit={addVariantSize} className="grid gap-3 sm:grid-cols-3">
-                        <label className="text-sm">سایز<select required value={sizeId} onChange={(e) => setSizeId(e.target.value)} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((s) => !variantSizes.some((vs) => vs.variant === color.id && vs.size === s.id)).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+                        <label className="text-sm">سایز<select required value={sizeId} onChange={(e) => setSizeId(e.target.value)} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((s) => categories.find((category) => category.id === selected.category)?.sizes.includes(s.id) && !variantSizes.some((vs) => vs.variant === color.id && vs.size === s.id)).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
                         <label className="text-sm">SKU<input required value={sku} onChange={(e) => setSku(e.target.value)} className={inputClass} dir="ltr" /></label>
                         <div className="flex items-end"><button disabled={saving} className={buttonClass}>افزودن سایز</button></div>
                       </form>

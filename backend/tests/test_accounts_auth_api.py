@@ -78,6 +78,19 @@ def test_remember_me_true_sets_fixed_lifetime(api, settings):
     assert abs(session.get_expiry_age() - settings.AUTH_REMEMBER_ME_SECONDS) < 5
 
 
+def test_staff_password_login_survives_browser_restart(api, settings):
+    User.objects.create_user(PHONE, password="Secure-Vedzmani-2026!", is_staff=True)
+    response = api.post(
+        "/api/auth/password/login/",
+        {"phone": PHONE, "password": "Secure-Vedzmani-2026!"},
+    )
+    assert response.status_code == 200
+    session = api.client.session
+    assert session.get_expire_at_browser_close() is False
+    assert abs(session.get_expiry_age() - settings.AUTH_REMEMBER_ME_SECONDS) < 5
+    assert int(response.cookies["sessionid"]["max-age"]) == settings.AUTH_REMEMBER_ME_SECONDS
+
+
 def test_inactive_user_cannot_authenticate(api):
     User.objects.create_user("+989123456789", is_active=False)
     api.request_otp(PHONE)

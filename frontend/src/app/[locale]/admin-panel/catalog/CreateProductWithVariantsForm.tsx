@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { apiRequest, apiUploadRequest, BrowserApiError } from "@/lib/browser-api";
 
 type ProductField = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
-type Category = { id: number; name: string; is_active: boolean; product_fields: ProductField[] };
+type Category = { id: number; name: string; is_active: boolean; product_fields: ProductField[]; sizes: number[] };
 type Collection = { id: number; name: string; is_active: boolean };
 type Size = { id: number; code: string; label: string; position: number };
 type Product = {
@@ -52,7 +52,7 @@ export default function CreateProductWithVariantsForm({
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [salePrice, setSalePrice] = useState("");
-  const [categoryId, setCategoryId] = useState(String(categories.find(item => item.is_active)?.id ?? ""));
+  const [categoryId, setCategoryId] = useState("");
   const [collectionIds, setCollectionIds] = useState<number[]>([]);
   const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [colors, setColors] = useState<ColorDraft[]>([
@@ -62,6 +62,7 @@ export default function CreateProductWithVariantsForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const selectedCategory = categories.find(item => item.id === Number(categoryId));
+  const categorySizes = selectedCategory ? sizes.filter(size => selectedCategory.sizes.includes(size.id)) : [];
 
   function updateColor(index: number, patch: Partial<ColorDraft>) {
     setColors(current => current.map((color, i) => i === index ? { ...color, ...patch } : color));
@@ -184,6 +185,7 @@ export default function CreateProductWithVariantsForm({
           setCategoryId(event.target.value);
           const nextCategory = categories.find(item => item.id === nextId);
           setAttributes(old => Object.fromEntries((nextCategory?.product_fields ?? []).map(definition => [definition.key, old[definition.key] ?? ""])));
+          setColors(current => current.map(color => ({ ...color, sizes: [] })));
         }} className={field}><option value="">انتخاب دسته‌بندی</option>{categories.filter(item => item.is_active).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <label className="text-sm">قیمت اصلی (تومان)<input required type="number" min="1" step="1" value={price} onChange={event => setPrice(event.target.value)} className={field} dir="ltr" /></label>
         <label className="text-sm">قیمت با تخفیف (اختیاری)<input type="number" min="1" step="1" value={salePrice} onChange={event => setSalePrice(event.target.value)} className={field} dir="ltr" /></label>
@@ -240,9 +242,10 @@ export default function CreateProductWithVariantsForm({
               </div>
               <div className="mt-4">
                 <p className="mb-2 text-sm font-medium">سایزهای این رنگ و SKU</p>
-                {sizes.length === 0 ? <p className="text-xs text-muted-foreground">ابتدا از مدیریت ساختار کاتالوگ، سایز تعریف کنید.</p> :
+                {!selectedCategory ? <p className="text-xs text-muted-foreground">ابتدا دسته‌بندی محصول را انتخاب کنید تا سایزهای همان دسته‌بندی نمایش داده شوند.</p> :
+                  categorySizes.length === 0 ? <p className="text-xs text-muted-foreground">برای این دسته‌بندی هنوز سایزی تعریف نشده است؛ از مدیریت دسته‌بندی‌ها سایزهای مجاز را انتخاب کنید.</p> :
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {sizes.map(size => {
+                    {categorySizes.map(size => {
                       const selectedSize = color.sizes.find(item => item.size === size.id);
                       return <div key={size.id} className="rounded-lg border border-border p-3">
                         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(selectedSize)} onChange={event => toggleSize(index, size.id, event.target.checked)} />{size.label}</label>

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { authApi } from "@/lib/auth/api";
 import type { AuthUser } from "@/lib/auth/api";
+import ProductRemovalManager from "./ProductRemovalManager";
 
 export default function AdminWorkspacePage() {
   const params = useParams<{ locale: string }>();
@@ -79,6 +80,8 @@ export default function AdminWorkspacePage() {
         <div><h2 className="font-bold">مدیریت دسته‌بندی‌ها و مجموعه‌ها</h2><p className="mt-1 text-sm text-muted-foreground">ساخت، ویرایش، مرتب‌سازی و فعال‌سازی ساختار کاتالوگ</p></div>
         <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت ساختار ←</span>
       </Link>
+
+      <ProductRemovalManager />
 
       <Link href={"/" + locale + "/admin-panel/media"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">
         <div><h2 className="font-bold">کتابخانه رسانه</h2><p className="mt-1 text-sm text-muted-foreground">جستجو و مشاهده یکپارچه تصاویر محصولات و بنرهای صفحه اصلی</p></div>
