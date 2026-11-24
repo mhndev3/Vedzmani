@@ -259,6 +259,7 @@ export default function AdminTaxonomyPage() {
               <input required maxLength={120} pattern="[A-Za-z0-9_-]+" dir="ltr" value={slug} onChange={(event) => setSlug(event.target.value)} className={inputClass} />
             </label>
             {group === "categories" && (
+              <div className="space-y-3">
               <section className="space-y-3 rounded-xl border border-border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -324,6 +325,7 @@ export default function AdminTaxonomyPage() {
                     {imageFile && <button type="button" className={secondaryClass} disabled={saving} onClick={() => chooseCategoryImage(null)}>لغو انتخاب</button>}
                   </div>
                 )}
+              </div>
               </div>
             )}
             <div className="flex flex-wrap gap-2">
