@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 
 from . import services
 from .authentication import OTP_SESSION_FLAG
-from .models import OTPChallenge
+from .models import OTPChallenge, User
 from .ratelimit import enforce_password_login, get_client_ip
 from .serializers import (
     CurrentUserSerializer,
@@ -63,6 +63,14 @@ class PasswordLoginView(CSRFProtectedAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         enforce_password_login(get_client_ip(request), data["phone"])
+        if not data.get("password"):
+            # Let the storefront choose the correct next step without sending an OTP to staff.
+            # The phone number alone never creates a session or grants staff access.
+            is_staff = User.objects.filter(
+                phone=data["phone"], is_active=True, is_staff=True
+            ).exists()
+            return Response({"requires_password": is_staff, "requires_otp": not is_staff})
+
         user = authenticate(request._request, phone=data["phone"], password=data["password"])
         if user is None or not user.is_active:
             return Response(
