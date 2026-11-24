@@ -33,9 +33,9 @@ async function getAllEntries(path: string): Promise<CatalogEntry[]> {
   let next: string | null = path;
   let pages = 0;
   while (next && pages < 100) {
-    const page = await apiRequest<CatalogPage>("GET", next);
-    rows.push(...page.results);
-    next = page.next
+    const pageData: CatalogPage = await apiRequest<CatalogPage>("GET", next);
+    rows.push(...pageData.results);
+    next = pageData.next
       ? new URL(page.next, window.location.origin).pathname + new URL(page.next, window.location.origin).search
       : null;
     pages += 1;
