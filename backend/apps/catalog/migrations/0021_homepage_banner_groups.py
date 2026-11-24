@@ -1,4 +1,5 @@
 # Group homepage banners into named sliders and preserve existing banners.
+import apps.catalog.models
 from django.db import migrations, models
 import django.db.models.deletion
 
@@ -54,6 +55,7 @@ class Migration(migrations.Migration):
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="banners",
                 to="catalog.homepagebannergroup",
+                default=apps.catalog.models.default_homepage_banner_group,
             ),
         ),
     ]
