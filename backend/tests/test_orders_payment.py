@@ -285,3 +285,29 @@ def test_short_sep_callback_accepts_provider_form_post_and_returns_customer_to_r
     process.assert_called_once_with(res_num="VZ-short-callback-test", ref_num="ref-short-callback-test")
     assert response.status_code == 302
     assert response["Location"] == "/fa/checkout/payment-result?status=success"
+
+
+@override_settings(
+    SEP_TERMINAL_ID="15958957",
+    SEP_TOKEN_URL="https://sep.shaparak.ir/OnlinePG/OnlinePG",
+)
+def test_sep_token_request_uses_documented_action_key_and_value():
+    payload = {
+        "Action": "Token",
+        "TerminalId": "15958957",
+        "Amount": 125000,
+        "ResNum": "VZ-token-case-test",
+        "RedirectUrl": "https://vedzmani.ir/sep/cb/",
+        "CellNumber": "9123456789",
+        "TokenExpiryInMin": 20,
+    }
+    with patch.object(SepClient, "_post", return_value={"status": 1, "token": "sep-token"}) as post:
+        token = SepClient().request_token(
+            amount_rial=125000,
+            res_num="VZ-token-case-test",
+            redirect_url="https://vedzmani.ir/sep/cb/",
+            cell_number="9123456789",
+        )
+
+    assert token == "sep-token"
+    post.assert_called_once_with("https://sep.shaparak.ir/OnlinePG/OnlinePG", payload)
