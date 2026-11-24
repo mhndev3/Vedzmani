@@ -68,6 +68,7 @@ export function AdminStorefrontMode({ locale, children }: { locale: string; chil
               <p className="mt-0.5 text-xs opacity-80">برای ویرایش هر بخش از کنترل همان بخش استفاده کنید.</p>
             </div>
             <nav aria-label="ابزارهای مدیریت فروشگاه" className="flex flex-wrap items-center gap-2 text-xs font-semibold sm:text-sm">
+              <Link href={"/" + locale + "/admin-panel/catalog/taxonomy?new=1"} className="rounded-lg bg-primary-foreground px-3 py-2 text-primary hover:opacity-90">＋ افزودن دسته‌بندی</Link>
               <Link href={"/" + locale + "/admin-panel/homepage?new=1"} className="rounded-lg bg-primary-foreground px-3 py-2 text-primary hover:opacity-90">افزودن بخش</Link>
               <Link href={"/" + locale + "/admin-panel/homepage"} className="rounded-lg border border-primary-foreground/40 px-3 py-2 hover:bg-primary-foreground/10">مدیریت صفحه اصلی</Link>
               <Link href={"/" + locale + "/admin-panel/homepage/banners"} className="rounded-lg border border-primary-foreground/40 px-3 py-2 hover:bg-primary-foreground/10">مدیریت بنرها</Link>
@@ -290,6 +291,22 @@ export function AdminStorefrontSection({ section, children }: { section: Editabl
         </form>
       )}
       {children}
+    </div>
+  );
+}
+
+
+export function AdminStorefrontCategoryActions({ categoryId }: { categoryId?: number }) {
+  const { enabled, locale } = useContext(AdminStorefrontContext);
+  if (!enabled || !categoryId) return null;
+  return (
+    <div className="mt-2 flex justify-center">
+      <Link
+        href={"/" + locale + "/admin-panel/catalog/taxonomy?edit=" + categoryId}
+        className="rounded-lg border border-primary/40 bg-card px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/5"
+      >
+        ویرایش دسته‌بندی
+      </Link>
     </div>
   );
 }
