@@ -9,6 +9,7 @@ type Collection = { id: number; name: string; is_active: boolean };
 type Size = { id: number; code: string; label: string; position: number };
 type Product = {
   id: number; product_code: string | null; name: string; slug: string; description: string;
+  attributes: Record<string, string>;
   price: string; sale_price: string | null; category: number; collections: number[]; is_active: boolean;
   colors: { id: number; name: string; slug: string }[];
 };
