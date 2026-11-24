@@ -23,23 +23,28 @@ from apps.catalog.models import (
 from apps.inventory.models import InventoryAdjustment
 from apps.inventory.services import adjust_stock
 from apps.catalog.storage import public_image_url
+from apps.catalog.product_attributes import clean_optional_marker, clean_product_attributes, validate_product_field_schema
 
 
 class CategoryAdminSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_empty_file=False, write_only=True)
     image_url = serializers.SerializerMethodField()
     remove_image = serializers.BooleanField(required=False, write_only=True)
+    product_fields = serializers.JSONField(required=False)
 
     class Meta:
         model = Category
         fields = [
-            "id", "name", "slug", "image", "image_url", "remove_image",
+            "id", "name", "slug", "image", "image_url", "remove_image", "product_fields",
             "is_active", "position", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "image_url", "created_at", "updated_at"]
 
     def get_image_url(self, obj):
         return public_image_url(obj.image.name) if obj.image else None
+
+    def validate_product_fields(self, value):
+        return validate_product_field_schema(value)
 
     def validate_image(self, value):
         if value.size <= 0 or value.size > 8 * 1024 * 1024:
@@ -93,13 +98,29 @@ class SizeAdminSerializer(serializers.ModelSerializer):
 
 
 class ProductAdminSerializer(serializers.ModelSerializer):
+    attributes = serializers.JSONField(required=False)
+
     class Meta:
         model = Product
         fields = [
-            "id", "product_code", "name", "slug", "description", "price", "sale_price",
+            "id", "product_code", "name", "slug", "description", "attributes", "price", "sale_price",
             "category", "collections", "is_active", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_description(self, value):
+        return clean_optional_marker(value)
+
+    def validate(self, attrs):
+        category = attrs.get("category", self.instance.category if self.instance else None)
+        attributes = attrs.get("attributes", self.instance.attributes if self.instance else {})
+        if category is not None:
+            attrs["attributes"] = clean_product_attributes(
+                category,
+                attributes,
+                reject_unknown="attributes" in attrs,
+            )
+        return attrs
 
 
 class ColorVariantAdminSerializer(serializers.ModelSerializer):
@@ -120,24 +141,44 @@ class VariantSizeAdminSerializer(serializers.ModelSerializer):
 
 
 class ProductSizeMeasurementAdminSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(allow_blank=True, required=True)
+    value = serializers.CharField(allow_blank=True, required=True)
+    unit = serializers.CharField(allow_blank=True, required=False)
+
     class Meta:
         model = ProductSizeMeasurement
         fields = ["id", "product", "size", "name", "value", "unit", "position"]
         read_only_fields = ["id"]
 
+    def validate(self, attrs):
+        for field in ("name", "value", "unit"):
+            if field in attrs:
+                attrs[field] = clean_optional_marker(attrs[field])
+        return attrs
+
 
 class ProductSizeDescriptionAdminSerializer(serializers.ModelSerializer):
+    description = serializers.CharField(allow_blank=True, required=False)
+
     class Meta:
         model = ProductSizeDescription
         fields = ["id", "product", "size", "description"]
         read_only_fields = ["id"]
 
+    def validate_description(self, value):
+        return clean_optional_marker(value)
+
 
 class VariantSizeDescriptionAdminSerializer(serializers.ModelSerializer):
+    description = serializers.CharField(allow_blank=True, required=False)
+
     class Meta:
         model = VariantSizeDescription
         fields = ["id", "variant_size", "description"]
         read_only_fields = ["id"]
+
+    def validate_description(self, value):
+        return clean_optional_marker(value)
 
 
 class VariantSizeMeasurementAdminSerializer(serializers.ModelSerializer):
