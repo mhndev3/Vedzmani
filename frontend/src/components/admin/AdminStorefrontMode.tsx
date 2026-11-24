@@ -267,7 +267,7 @@ export function AdminStorefrontSection({ section, children }: { section: Editabl
             </div>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" disabled={itemsLoading || itemsSaving || (section.section_type === "categories" ? selectedCategoryIds.length === 0 : selectedProductIds.length === 0)} onClick={() => void saveItems()} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            <button type="button" disabled={itemsLoading || itemsSaving || (section.section_type === "categories" ? selectedCategoryIds.length === 0 : section.section_type === "products" && selectedProductIds.length === 0)} onClick={() => void saveItems()} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
               {itemsSaving ? "در حال ذخیره…" : "ذخیره کارت‌های این بخش"}
             </button>
             <button type="button" disabled={itemsSaving} onClick={() => { setItemsOpen(false); setItemsError(""); }} className="rounded-xl border border-border px-4 py-2.5 text-sm hover:bg-muted">انصراف</button>
