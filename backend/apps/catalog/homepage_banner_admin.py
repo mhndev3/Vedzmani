@@ -97,7 +97,7 @@ def resolve_media_library_reference(reference, user):
 
 
 class HomepageBannerAdminSerializer(serializers.ModelSerializer):
-    group = serializers.PrimaryKeyRelatedField(queryset=HomepageBannerGroup.objects.filter(is_active=True), required=False)
+    group = serializers.PrimaryKeyRelatedField(queryset=HomepageBannerGroup.objects.all(), required=False)
     desktop_image_url = serializers.SerializerMethodField()
     mobile_image_url = serializers.SerializerMethodField()
     desktop_image_media_ref = serializers.CharField(write_only=True, required=False, allow_blank=False)
@@ -161,6 +161,8 @@ class HomepageBannerAdminSerializer(serializers.ModelSerializer):
             if default_group is None:
                 raise serializers.ValidationError({"group": "ابتدا یک گروه فعال برای بنرها بسازید."})
             attrs["group"] = default_group
+        if self.instance is None and attrs.get("group") and not attrs["group"].is_active:
+            raise serializers.ValidationError({"group": "فقط می‌توانید بنر را به یک گروه فعال اضافه کنید."})
         for field in ("desktop_image", "mobile_image"):
             reference_field = f"{field}_media_ref"
             if attrs.get(field) and attrs.get(reference_field):
