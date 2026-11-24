@@ -28,6 +28,7 @@ def test_filter_options_only_include_published_data():
     data = Client().get(URL).json()
 
     assert [c["slug"] for c in data["categories"]] == ["hoodie"]
+    assert data["categories"][0]["id"] == category.pk
     assert [c["slug"] for c in data["collections"]] == ["winter"]
     assert sorted(c["slug"] for c in data["colors"]) == ["black", "white"]
     assert sorted(s["code"] for s in data["sizes"]) == ["m", "s"]
