@@ -148,7 +148,20 @@ export default function AdminHomepagePage() {
     finally { setSaving(false); }
   }
 
-  async function removeSection(section: Section) {\n    if (!window.confirm(`بخش «${section.title}» حذف شود؟ نسخه‌های ذخیره‌شده این بخش نیز حذف خواهند شد.`)) return;\n    setSaving(true); setError(""); setNotice("");\n    try {\n      await apiRequest<void>("DELETE", `/api/admin/homepage/sections/${section.id}/`);\n      if (historyFor === section.id) { setHistoryFor(null); setRevisions([]); }\n      if (editingId === section.id) newSection();\n      await refresh();\n      setNotice("بخش صفحه اصلی حذف شد.");\n    } catch (e) { setError(errorText(e)); }\n    finally { setSaving(false); }\n  }\n\n  async function publish(section: Section) {
+  async function removeSection(section: Section) {
+    if (!window.confirm(`بخش «${section.title}» حذف شود؟ نسخه‌های ذخیره‌شده این بخش نیز حذف خواهند شد.`)) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest<void>("DELETE", `/api/admin/homepage/sections/${section.id}/`);
+      if (historyFor === section.id) { setHistoryFor(null); setRevisions([]); }
+      if (editingId === section.id) newSection();
+      await refresh();
+      setNotice("بخش صفحه اصلی حذف شد.");
+    } catch (e) { setError(errorText(e)); }
+    finally { setSaving(false); }
+  }
+
+  async function publish(section: Section) {
     setSaving(true); setError(""); setNotice("");
     try {
       await apiRequest<Section>("PATCH", `/api/admin/homepage/sections/${section.id}/`, { status: section.status === "published" ? "draft" : "published" });
