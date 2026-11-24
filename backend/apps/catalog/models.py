@@ -441,6 +441,23 @@ def homepage_banner_upload_to(instance, filename):
     return f"homepage-banners/{uuid.uuid4().hex}{extension}"
 
 
+class HomepageBannerGroup(models.Model):
+    """Named collection of banners rendered together as one homepage slider."""
+
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120, unique=True)
+    position = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.name
+
+
 class HomepageBanner(models.Model):
     STATUS_DRAFT = "draft"
     STATUS_PUBLISHED = "published"
@@ -449,6 +466,11 @@ class HomepageBanner(models.Model):
     title = models.CharField(max_length=120, blank=True)
     subtitle = models.CharField(max_length=240, blank=True)
     alt_text = models.CharField(max_length=200)
+    group = models.ForeignKey(
+        HomepageBannerGroup,
+        on_delete=models.PROTECT,
+        related_name="banners",
+    )
     desktop_image = models.ImageField(upload_to=homepage_banner_upload_to)
     mobile_image = models.ImageField(upload_to=homepage_banner_upload_to, blank=True)
     cta_label = models.CharField(max_length=60, blank=True)
