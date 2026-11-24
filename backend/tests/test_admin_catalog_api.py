@@ -490,13 +490,13 @@ def test_category_creation_preserves_existing_categories_and_size_assignments(ma
 
     first = client.post(
         "/api/admin/catalog/categories/",
-        {"name": "شلوار", "slug": "trousers", "size_ids": [sizes[0].pk]},
+        {"name": "شلوار آزمایشی", "slug": "test-category-trousers-size-map", "size_ids": [sizes[0].pk]},
         content_type="application/json",
     )
     assert first.status_code == 201, first.content
     second = client.post(
         "/api/admin/catalog/categories/",
-        {"name": "پیراهن", "slug": "shirts", "size_ids": [sizes[1].pk]},
+        {"name": "پیراهن آزمایشی", "slug": "test-category-shirts-size-map", "size_ids": [sizes[1].pk]},
         content_type="application/json",
     )
     assert second.status_code == 201, second.content
@@ -504,9 +504,9 @@ def test_category_creation_preserves_existing_categories_and_size_assignments(ma
     listed = client.get("/api/admin/catalog/categories/")
     assert listed.status_code == 200
     rows = listed.json()["results"]
-    assert {row["slug"] for row in rows} >= {"trousers", "shirts"}
-    assert set(next(row for row in rows if row["slug"] == "trousers")["sizes"]) == {sizes[0].pk}
-    assert set(next(row for row in rows if row["slug"] == "shirts")["sizes"]) == {sizes[1].pk}
+    assert {row["slug"] for row in rows} >= {"test-category-trousers-size-map", "test-category-shirts-size-map"}
+    assert set(next(row for row in rows if row["slug"] == "test-category-trousers-size-map")["sizes"]) == {sizes[0].pk}
+    assert set(next(row for row in rows if row["slug"] == "test-category-shirts-size-map")["sizes"]) == {sizes[1].pk}
 
     category_id = first.json()["id"]
     unchanged = client.patch(
