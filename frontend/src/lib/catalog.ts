@@ -153,7 +153,7 @@ export type Paginated<T> = {
 };
 
 export type FilterOptions = {
-  categories: { name: string; slug: string }[];
+  categories: { id: number; name: string; slug: string }[];
   collections: { name: string; slug: string }[];
   colors: Swatch[];
   sizes: { code: string; label: string }[];
