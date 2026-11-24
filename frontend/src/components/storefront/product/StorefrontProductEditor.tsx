@@ -7,6 +7,7 @@ import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 
 type Props = {
   productId: number;
+  locale: string;
   name: string;
   description: string;
   price: string;
@@ -54,6 +55,24 @@ export function StorefrontProductEditor(props: Props) {
     return null;
   }
 
+  async function deactivateProduct() {
+    if (!window.confirm("این محصول از فروشگاه خارج شود؟ برای بازگرداندن آن باید از مدیریت کاتالوگ دوباره منتشرش کنید.")) return;
+    setSaving(true);
+    setError("");
+    try {
+      await apiRequest("PATCH", `/api/admin/catalog/products/${props.productId}/`, { is_active: false });
+      router.push(`/${props.locale}/admin-panel/catalog`);
+      router.refresh();
+    } catch (cause) {
+      if (cause instanceof BrowserApiError && cause.status === 403) {
+        setError("حساب شما مجوز غیرفعال‌کردن محصول را ندارد.");
+      } else {
+        setError("خروج محصول از فروشگاه انجام نشد. دوباره تلاش کنید.");
+      }
+      setSaving(false);
+    }
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const validationError = validate();
@@ -86,6 +105,7 @@ export function StorefrontProductEditor(props: Props) {
 
   return (
     <>
+      <div className="mt-3 flex flex-wrap gap-2">
       <button
         type="button"
         onClick={() => {
@@ -103,6 +123,15 @@ export function StorefrontProductEditor(props: Props) {
         <span aria-hidden="true">✎</span>
         ویرایش همین محصول
       </button>
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => void deactivateProduct()}
+        className="inline-flex min-h-9 items-center rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive transition hover:bg-destructive/5 disabled:opacity-50"
+      >
+        خروج محصول از فروشگاه
+      </button>
+      </div>
 
       {open && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/50 p-4" role="presentation" onMouseDown={(event) => {
