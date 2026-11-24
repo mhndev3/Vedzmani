@@ -98,7 +98,7 @@ class FilterOptionsView(APIView):
             Category.objects.filter(is_active=True)
             .filter(Exists(published_products.filter(category=OuterRef("pk"))))
             .order_by("position", "name", "id")
-            .values("name", "slug", "image")
+            .values("id", "name", "slug", "image")
         )
         collection_products = Product.collections.through.objects.filter(
             product__is_active=True,
@@ -137,6 +137,7 @@ class FilterOptionsView(APIView):
             {
                 "categories": [
                     {
+                        "id": category["id"],
                         "name": category["name"],
                         "slug": category["slug"],
                         "image": {
