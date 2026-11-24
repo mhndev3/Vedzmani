@@ -12,7 +12,7 @@ export type HomepageBanner = {
   cta_url: string;
 };
 
-export function HomepageHeroSlider({ banners = [], locale = "fa" }: { banners?: HomepageBanner[]; locale?: string }) {
+export function HomepageHeroSlider({ banners = [], locale = "fa", groupTitle }: { banners?: HomepageBanner[]; locale?: string; groupTitle?: string }) {
   if (banners.length === 0) {
     return (
       <section aria-label="بنر ویژه ودزمانی" className="mx-auto w-full max-w-[1440px] px-3 pt-4 sm:px-6 sm:pt-6">
@@ -25,7 +25,8 @@ export function HomepageHeroSlider({ banners = [], locale = "fa" }: { banners?: 
   }
 
   return (
-    <section aria-label="بنرهای ویژه ودزمانی" className="mx-auto w-full max-w-[1440px] px-3 pt-4 sm:px-6 sm:pt-6">
+    <section aria-label={groupTitle ? `بنرهای ویژه ودزمانی، ${groupTitle}` : "بنرهای ویژه ودزمانی"} className="mx-auto w-full max-w-[1440px] px-3 pt-4 sm:px-6 sm:pt-6">
+      {groupTitle && <h2 className="mb-2 px-1 text-sm font-semibold text-muted-foreground">{groupTitle}</h2>}
       <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth rounded-2xl" dir="rtl">
         {banners.map((banner, index) => (
           <article key={banner.id} className="relative min-w-full snap-center overflow-hidden rounded-2xl bg-muted">
