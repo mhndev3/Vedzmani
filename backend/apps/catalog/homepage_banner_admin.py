@@ -15,6 +15,7 @@ from .models import HomepageBanner, HomepageBannerGroup, HomepageBannerRevision,
 
 def banner_snapshot(banner):
     return {
+        "group": banner.group_id,
         "title": banner.title,
         "subtitle": banner.subtitle,
         "alt_text": banner.alt_text,
