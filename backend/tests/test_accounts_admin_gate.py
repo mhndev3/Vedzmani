@@ -109,6 +109,23 @@ def test_staff_password_login_through_storefront_creates_session_without_otp(api
     assert not InMemoryDelivery.outbox
 
 
+def test_staff_phone_only_discovery_requests_password_without_otp(api, superuser_phone):
+    response = api.post("/api/auth/password/login/", {"phone": superuser_phone})
+    assert response.status_code == 200
+    assert response.json() == {"requires_password": True, "requires_otp": False}
+    assert api.get("/api/auth/me/").status_code == 401
+    assert not InMemoryDelivery.outbox
+
+
+def test_customer_phone_only_discovery_keeps_otp_flow(api):
+    phone = new_phone()
+    response = api.post("/api/auth/password/login/", {"phone": phone})
+    assert response.status_code == 200
+    assert response.json() == {"requires_password": False, "requires_otp": True}
+    assert api.get("/api/auth/me/").status_code == 401
+    assert not InMemoryDelivery.outbox
+
+
 # ------------------------------------------------------ nothing else moves --
 def test_logout_closes_the_admin(api, superuser_phone):
     admin_password_login(api.client, superuser_phone, ADMIN_PASSWORD)
