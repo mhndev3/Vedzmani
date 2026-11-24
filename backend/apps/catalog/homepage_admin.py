@@ -118,11 +118,11 @@ class HomepageSectionRevisionPermissions(BasePermission):
         user = request.user
         if not user or not user.is_authenticated or not user.is_staff:
             return False
-        permission = "catalog.view_homepagesection" if request.method == "GET" else "catalog.change_homepagesection"
+        permission = "catalog.view_homepagesection" if request.method == "GET" else ("catalog.delete_homepagesection" if request.method == "DELETE" else "catalog.change_homepagesection")
         return request.method in {"GET", "POST"} and user.has_perm(permission)
 
 
-class HomepageSectionAdminViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+class HomepageSectionAdminViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
     """Create/read/update sections; destructive deletion is intentionally unavailable."""
 
     serializer_class = HomepageSectionAdminSerializer

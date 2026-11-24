@@ -148,7 +148,7 @@ export default function AdminHomepagePage() {
     finally { setSaving(false); }
   }
 
-  async function publish(section: Section) {
+  async function removeSection(section: Section) {\n    if (!window.confirm(`بخش «${section.title}» حذف شود؟ نسخه‌های ذخیره‌شده این بخش نیز حذف خواهند شد.`)) return;\n    setSaving(true); setError(""); setNotice("");\n    try {\n      await apiRequest<void>("DELETE", `/api/admin/homepage/sections/${section.id}/`);\n      if (historyFor === section.id) { setHistoryFor(null); setRevisions([]); }\n      if (editingId === section.id) newSection();\n      await refresh();\n      setNotice("بخش صفحه اصلی حذف شد.");\n    } catch (e) { setError(errorText(e)); }\n    finally { setSaving(false); }\n  }\n\n  async function publish(section: Section) {
     setSaving(true); setError(""); setNotice("");
     try {
       await apiRequest<Section>("PATCH", `/api/admin/homepage/sections/${section.id}/`, { status: section.status === "published" ? "draft" : "published" });
@@ -203,7 +203,7 @@ export default function AdminHomepagePage() {
         <div className="mb-4 flex items-center justify-between gap-3"><h2 className="font-bold">بخش‌های تعریف‌شده</h2><span className="text-xs text-muted-foreground">{sections.length.toLocaleString("fa-IR")} بخش</span></div>
         {loading ? <p className="py-10 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : sections.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">هنوز بخشی ساخته نشده است.</p> : <div className="space-y-3">{sections.map((s,index) => <article key={s.id} className="rounded-xl border border-border p-4">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{s.title}</h3><span className={s.status === "published" ? "rounded-full bg-primary/10 px-2 py-1 text-xs" : "rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"}>{s.status === "published" ? "منتشرشده" : "پیش‌نویس"}</span></div><p className="mt-2 text-xs text-muted-foreground">{s.section_type === "categories" ? "دسته‌بندی‌ها" : s.section_type === "products" ? "محصولات منتخب" : "جدیدترین محصولات"} · {s.item_limit} مورد · ترتیب {s.position + 1}</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(s,-1)} className={secondaryClass}>↑</button><button type="button" disabled={saving || index===sections.length-1} onClick={() => void move(s,1)} className={secondaryClass}>↓</button><button type="button" disabled={saving} onClick={() => editSection(s)} className={secondaryClass}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(s)} className={secondaryClass}>{historyFor === s.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void publish(s)} className={primaryClass}>{s.status === "published" ? "تبدیل به پیش‌نویس" : "انتشار"}</button></div>
+            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(s,-1)} className={secondaryClass}>↑</button><button type="button" disabled={saving || index===sections.length-1} onClick={() => void move(s,1)} className={secondaryClass}>↓</button><button type="button" disabled={saving} onClick={() => editSection(s)} className={secondaryClass}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(s)} className={secondaryClass}>{historyFor === s.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void publish(s)} className={primaryClass}>{s.status === "published" ? "تبدیل به پیش‌نویس" : "انتشار"}</button><button type="button" disabled={saving} onClick={() => void removeSection(s)} className={secondaryClass}>حذف بخش</button></div>
           </div>
           {historyFor === s.id && <div className="mt-4 border-t border-border pt-4">
             <h4 className="text-sm font-semibold">تاریخچه نسخه‌های «{s.title}»</h4>
@@ -218,7 +218,7 @@ export default function AdminHomepagePage() {
             </div>}
           </div>}
         </article>)}</div>}
-        <p className="mt-5 text-xs leading-6 text-muted-foreground">حذف فیزیکی بخش‌ها در این پنل وجود ندارد. برای پنهان‌کردن موقت، وضعیت را به پیش‌نویس تغییر دهید. بخش‌های منتشرشده به ترتیب بالا در صفحه اصلی نمایش داده می‌شوند.</p>
+        <p className="mt-5 text-xs leading-6 text-muted-foreground">برای پنهان‌کردن موقت، وضعیت را به پیش‌نویس تغییر دهید. حذف بخش، نسخه‌های تاریخچه همان بخش را نیز پاک می‌کند. بخش‌های منتشرشده به ترتیب بالا در صفحه اصلی نمایش داده می‌شوند.</p>
       </section>
     </div>
   </main>;
