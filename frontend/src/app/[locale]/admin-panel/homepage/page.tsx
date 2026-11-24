@@ -98,9 +98,13 @@ export default function AdminHomepagePage() {
         setDraft(values);
         setNotice("بخش انتخاب‌شده برای ویرایش باز شد.");
       } else if (query.get("new") === "1") {
+        const requestedPosition = Number(query.get("position"));
+        const position = Number.isSafeInteger(requestedPosition) && requestedPosition >= 0
+          ? Math.min(requestedPosition, ordered.length)
+          : ordered.length;
         setEditingId(null);
-        setDraft({ ...blank(), position: ordered.length });
-        setNotice("فرم ساخت بخش جدید باز شد.");
+        setDraft({ ...blank(), position });
+        setNotice("فرم ساخت بخش جدید در جایگاه انتخاب‌شده باز شد.");
       }
     } catch(e) { if (live) setError(errorText(e)); }
     finally { if (live) setLoading(false); }
@@ -130,10 +134,28 @@ export default function AdminHomepagePage() {
     if (draft.show_view_all && draft.view_all_url && (!draft.view_all_url.startsWith("/") || draft.view_all_url.startsWith("//"))) {
       setError("لینک مشاهده همه باید یک مسیر داخلی سایت باشد؛ نشانی خارجی مجاز نیست."); setSaving(false); return;
     }
-    const payload = { ...draft, title: draft.title.trim(), eyebrow: draft.eyebrow.trim(), view_all_url: draft.show_view_all ? draft.view_all_url.trim() : "" };
+    const payload = {
+      ...draft,
+      title: draft.title.trim(),
+      eyebrow: draft.eyebrow.trim(),
+      view_all_url: draft.show_view_all ? draft.view_all_url.trim() : "",
+    };
     try {
-      if (editingId === null) await apiRequest<Section>("POST", "/api/admin/homepage/sections/", payload);
-      else await apiRequest<Section>("PATCH", `/api/admin/homepage/sections/${editingId}/`, payload);
+      if (editingId === null) {
+        const ordered = [...sections].sort((a, b) => a.position - b.position || a.id - b.id);
+        const insertionPosition = Math.max(0, Math.min(ordered.length, payload.position));
+        for (let index = ordered.length - 1; index >= insertionPosition; index -= 1) {
+          await apiRequest<Section>("PATCH", `/api/admin/homepage/sections/${ordered[index].id}/`, {
+            position: index + 1,
+          });
+        }
+        await apiRequest<Section>("POST", "/api/admin/homepage/sections/", {
+          ...payload,
+          position: insertionPosition,
+        });
+      } else {
+        await apiRequest<Section>("PATCH", `/api/admin/homepage/sections/${editingId}/`, payload);
+      }
       newSection();
       setNotice("تغییرات ذخیره شد. برای نمایش در فروشگاه، وضعیت انتشار را فعال کنید.");
       await refresh();
@@ -215,10 +237,29 @@ export default function AdminHomepagePage() {
             <option value="categories">دسته‌بندی‌های منتخب</option><option value="products">محصولات منتخب</option><option value="newest_products">جدیدترین محصولات</option>
           </select></label>
           {draft.section_type === "categories" && <fieldset className="rounded-xl border border-border p-3"><legend className="px-1 text-sm font-medium">انتخاب دسته‌بندی‌ها</legend><div className="max-h-48 space-y-2 overflow-y-auto">{categories.map(c => <label key={c.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.categories.includes(c.id)} onChange={() => toggleId("categories", c.id)} />{c.name}</label>)}</div></fieldset>}
-          {draft.section_type === "products" && <fieldset className="rounded-xl border border-border p-3"><legend className="px-1 text-sm font-medium">انتخاب محصولات</legend><input value={search} onChange={e => setSearch(e.target.value)} placeholder="جستجوی محصول…" className={inputClass + " mb-3"} /><div className="max-h-56 space-y-2 overflow-y-auto">{visibleProducts.map(p => <label key={p.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.products.includes(p.id)} onChange={() => toggleId("products", p.id)} />{p.name}<span className="text-xs text-muted-foreground">#{p.id}</span></label>)}</div><p className="mt-2 text-xs text-muted-foreground">حداکثر ۲۵۰ نتیجه نخست برای جستجو بارگذاری شده است.</p></fieldset>}
-          {draft.section_type === "newest_products" && <p className="rounded-xl bg-muted p-3 text-xs leading-6 text-muted-foreground">این بخش به‌صورت خودکار جدیدترین محصولات فعال را نمایش می‌دهد.</p>}
-          <div className="grid gap-3 sm:grid-cols-2">
+          {(draft.section_type === "products" || draft.section_type === "newest_products") && (
+            <fieldset className="rounded-xl border border-border p-3">
+              <legend className="px-1 text-sm font-medium">
+                {draft.section_type === "newest_products" ? "محصولات منتخب در ابتدای بخش (اختیاری)" : "انتخاب کارت‌های محصول"}
+              </legend>
+              {draft.section_type === "newest_products" && (
+                <p className="mb-3 text-xs leading-6 text-muted-foreground">کارت‌های انتخاب‌شده ابتدا نمایش داده می‌شوند و جای خالی با جدیدترین محصولات فعال پر می‌شود.</p>
+              )}
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="جستجوی محصول…" className={inputClass + " mb-3"} />
+              <div className="max-h-56 space-y-2 overflow-y-auto">
+                {visibleProducts.map(p => (
+                  <label key={p.id} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={draft.products.includes(p.id)} onChange={() => toggleId("products", p.id)} />
+                    {p.name}<span className="text-xs text-muted-foreground">#{p.id}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">حداکثر ۲۵۰ نتیجه نخست برای جستجو بارگذاری شده است.</p>
+            </fieldset>
+          )}
+          <div className="grid gap-3 sm:grid-cols-3">
             <label className="block text-sm">تعداد نمایش<input type="number" min="1" max="24" value={draft.item_limit} onChange={e => update("item_limit", Math.max(1, Math.min(24, Number(e.target.value))))} className={inputClass} /></label>
+            <label className="block text-sm">جایگاه نمایش<input type="number" min="1" value={draft.position + 1} onChange={e => update("position", Math.max(0, Number(e.target.value) - 1))} className={inputClass} /></label>
             <label className="block text-sm">وضعیت<select value={draft.status} onChange={e => update("status", e.target.value as SectionStatus)} className={inputClass}><option value="draft">پیش‌نویس</option><option value="published">منتشرشده</option></select></label>
           </div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.show_view_all} onChange={e => update("show_view_all", e.target.checked)} />نمایش لینک «مشاهده همه»</label>
