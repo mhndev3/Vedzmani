@@ -83,7 +83,9 @@ class PasswordLoginView(CSRFProtectedAPIView):
         if user.is_staff:
             logout(request._request)
             login(request._request, user, backend=BACKEND)
-            request._request.session.set_expiry(0)
+            # Staff sessions must survive browser restarts so navigation never drops admin mode.
+            # Use the same bounded lifetime as an explicit customer remember-me session.
+            request._request.session.set_expiry(settings.AUTH_REMEMBER_ME_SECONDS)
             return Response({"user": CurrentUserSerializer(user).data, "is_staff": True})
 
         logout(request._request)  # discard any prior customer session before the second factor
