@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from apps.catalog.models import VariantSize
 from apps.orders.models import Order, OrderItem, SepPaymentAttempt
 from apps.orders.payment_services import initiate_sep_payment, process_sep_callback
+from apps.orders.sep import SepClient
 from tests.conftest import DELIVERY, new_phone
 
 pytestmark = pytest.mark.django_db
