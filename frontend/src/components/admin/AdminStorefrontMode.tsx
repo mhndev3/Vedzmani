@@ -16,13 +16,11 @@ function errorMessage(error: unknown): string {
 }
 
 export function AdminStorefrontMode({ locale, children }: { locale: string; children: ReactNode }) {
-  const [requested, setRequested] = useState(false);
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("admin") !== "1") return;
     let active = true;
-    setRequested(true);
     authApi.me().then((user) => {
       if (active) setAuthorized(user?.is_staff === true);
     }).catch(() => {
@@ -31,7 +29,7 @@ export function AdminStorefrontMode({ locale, children }: { locale: string; chil
     return () => { active = false; };
   }, []);
 
-  const enabled = requested && authorized;
+  const enabled = authorized;
   return (
     <AdminStorefrontContext.Provider value={{ enabled, locale }}>
       {enabled && (
