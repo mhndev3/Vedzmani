@@ -76,7 +76,7 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
 
 class PasswordLoginSerializer(serializers.Serializer):
     phone = PhoneField()
-    password = serializers.CharField(trim_whitespace=False, write_only=True, max_length=128)
+    password = serializers.CharField(trim_whitespace=False, write_only=True, max_length=128, required=False, allow_blank=True)
 
 
 class SetPasswordSerializer(serializers.Serializer):

@@ -11,7 +11,7 @@ Secure in production). **No tokens in localStorage.** CSRF is enforced on every 
 ## Endpoints
 | Method | Path | Auth | Success |
 |---|---|---|---|
-| POST | `/password/login/` `{phone, password}` | public | Staff: `200 {user, is_staff: true}` + session, no OTP. Customers: `202` and sends login OTP; no session until OTP verify |
+| POST | `/password/login/` `{phone}` or `{phone, password}` | public | Phone-only discovery returns `requires_password` for active staff and `requires_otp` for customers, without creating a session or sending SMS. With a password: Staff gets `200 {user, is_staff: true}` + session, no OTP. Customers get `202` and a login OTP; no session until OTP verify |
 | POST | `/otp/request/` `{phone, purpose: signup\|password_reset}` | public | `202` (same response for eligible/ineligible phones) |
 | POST | `/otp/verify/` `{phone, purpose, code, remember_me?}` | public | `200 {user, is_new_user}` + session cookie; login purpose requires a preceding successful password login |
 | GET | `/me/` | session | `200 {id, phone, is_staff}`; `401` if anonymous |
