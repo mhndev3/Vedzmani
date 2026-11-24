@@ -64,11 +64,20 @@ class PasswordLoginView(CSRFProtectedAPIView):
         data = serializer.validated_data
         enforce_password_login(get_client_ip(request), data["phone"])
         user = authenticate(request._request, phone=data["phone"], password=data["password"])
-        if user is None or not user.is_active or user.is_staff:
+        if user is None or not user.is_active:
             return Response(
                 {"error": {"code": "invalid_credentials", "message": "Invalid phone or password."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Staff authenticate directly with their password in the storefront. The session is
+        # rotated by Django login(), and no OTP is issued or accepted as an admin factor.
+        if user.is_staff:
+            logout(request._request)
+            login(request._request, user, backend=BACKEND)
+            request._request.session.set_expiry(0)
+            return Response({"user": CurrentUserSerializer(user).data, "is_staff": True})
+
         logout(request._request)  # discard any prior customer session before the second factor
         services.request_otp(phone=data["phone"], purpose=OTPChallenge.Purpose.LOGIN, ip=get_client_ip(request))
         request._request.session[PENDING_PASSWORD_LOGIN] = data["phone"]
