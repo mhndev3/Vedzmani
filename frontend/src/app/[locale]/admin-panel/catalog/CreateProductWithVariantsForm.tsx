@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from "react";
 import { apiRequest, apiUploadRequest, BrowserApiError } from "@/lib/browser-api";
 
-type Category = { id: number; name: string; is_active: boolean };
+type ProductField = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
+type Category = { id: number; name: string; is_active: boolean; product_fields: ProductField[] };
 type Collection = { id: number; name: string; is_active: boolean };
 type Size = { id: number; code: string; label: string; position: number };
 type Product = {
@@ -52,12 +53,14 @@ export default function CreateProductWithVariantsForm({
   const [salePrice, setSalePrice] = useState("");
   const [categoryId, setCategoryId] = useState(String(categories.find(item => item.is_active)?.id ?? ""));
   const [collectionIds, setCollectionIds] = useState<number[]>([]);
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [colors, setColors] = useState<ColorDraft[]>([
     { key: 1, name: "", slug: "", hex_color: "#000000", sizes: [], imageFiles: [] },
   ]);
   const [nextKey, setNextKey] = useState(2);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const selectedCategory = categories.find(item => item.id === Number(categoryId));
 
   function updateColor(index: number, patch: Partial<ColorDraft>) {
     setColors(current => current.map((color, i) => i === index ? { ...color, ...patch } : color));
@@ -128,6 +131,7 @@ export default function CreateProductWithVariantsForm({
         sale_price: salePrice || null,
         category: Number(categoryId),
         collections: collectionIds,
+        attributes: Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, value.trim() === "//" ? "" : value.trim()])),
         colors: colors.map(color => ({
           name: color.name.trim(),
           slug: color.slug.trim(),
@@ -174,11 +178,38 @@ export default function CreateProductWithVariantsForm({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <label className="text-sm">نام محصول<input required maxLength={200} value={name} onChange={event => setName(event.target.value)} className={field} /></label>
         <label className="text-sm">شناسه انگلیسی (Slug)<input required maxLength={220} value={slug} onChange={event => setSlug(event.target.value)} dir="ltr" className={field} /></label>
-        <label className="text-sm">دسته‌بندی<select required value={categoryId} onChange={event => setCategoryId(event.target.value)} className={field}><option value="">انتخاب دسته‌بندی</option>{categories.filter(item => item.is_active).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="text-sm">دسته‌بندی<select required value={categoryId} onChange={event => {
+          const nextId = Number(event.target.value);
+          setCategoryId(event.target.value);
+          const nextCategory = categories.find(item => item.id === nextId);
+          setAttributes(old => Object.fromEntries((nextCategory?.product_fields ?? []).map(definition => [definition.key, old[definition.key] ?? ""])));
+        }} className={field}><option value="">انتخاب دسته‌بندی</option>{categories.filter(item => item.is_active).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <label className="text-sm">قیمت اصلی (تومان)<input required type="number" min="1" step="1" value={price} onChange={event => setPrice(event.target.value)} className={field} dir="ltr" /></label>
         <label className="text-sm">قیمت با تخفیف (اختیاری)<input type="number" min="1" step="1" value={salePrice} onChange={event => setSalePrice(event.target.value)} className={field} dir="ltr" /></label>
         <label className="text-sm sm:col-span-2 lg:col-span-1">توضیحات<textarea value={description} onChange={event => setDescription(event.target.value)} rows={2} className={field} /></label>
       </div>
+
+      {(selectedCategory?.product_fields ?? []).length > 0 && (
+        <section className="mt-5 rounded-xl border border-border p-4">
+          <h3 className="font-semibold">مشخصات اختصاصی این دسته‌بندی</h3>
+          <p className="mt-1 text-xs text-muted-foreground">فقط فیلدهای تعریف‌شده برای «{selectedCategory?.name}» نمایش داده می‌شوند.</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {selectedCategory?.product_fields.map(definition => (
+              <label key={definition.key} className="text-sm">
+                {definition.label}{definition.unit ? ` (${definition.unit})` : ""}{definition.required ? " *" : ""}
+                <input
+                  type={definition.type === "number" ? "number" : "text"}
+                  step={definition.type === "number" ? "any" : undefined}
+                  required={definition.required}
+                  value={attributes[definition.key] ?? ""}
+                  onChange={event => setAttributes(old => ({ ...old, [definition.key]: event.target.value }))}
+                  className={field}
+                />
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mt-4">
         <p className="mb-2 text-sm font-medium">مجموعه‌ها</p>
