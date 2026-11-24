@@ -143,6 +143,11 @@ export default function AdminCatalogPage() {
   }, [products, search]);
 
   const selectedColors = selected ? colors.filter((color) => color.product === selected.id) : [];
+  const selectedCategory = selected ? categories.find((category) => category.id === selected.category) : undefined;
+  const editableSizeIds = new Set([
+    ...(selectedCategory?.sizes ?? []),
+    ...variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant)).map((item) => item.size),
+  ]);
   const formatPrice = (value: string | number) => Number(value).toLocaleString("fa-IR") + " تومان";
 
   function resetProductForm(product?: Product) {
@@ -382,7 +387,7 @@ export default function AdminCatalogPage() {
 
               <ProductMeasurementManager
                 productId={selected.id}
-                sizes={sizes.filter((size) => categories.find((category) => category.id === selected.category)?.sizes.includes(size.id))}
+                sizes={sizes.filter((size) => editableSizeIds.has(size.id))}
                 colors={selectedColors}
                 variantSizes={variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant))}
               />
