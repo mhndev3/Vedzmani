@@ -28,3 +28,10 @@ The API requires an active staff account and the corresponding Django model perm
 - If no published banner is available or the endpoint fails, the existing static Vedzmani hero remains as fallback.
 
 No inventory, order, checkout, payment, SEP, Enamad, footer, or search behavior is changed.
+
+
+## Banner groups
+- Staff manage groups at `/api/admin/homepage/banner-groups/`; groups have a name, unique slug, position, and active flag. Deactivation hides the group's slider without deleting banners or revision history.
+- Every banner belongs to one group. Existing banners are assigned to the default `main` group during migration.
+- The public `/api/catalog/homepage-banners/` response includes `groups[]`, each with its own ordered `banners[]`, as well as a flattened `banners[]` field for backwards compatibility.
+- The storefront renders each active group as an independent slider. Draft, inactive-group, and out-of-window banners are omitted.
