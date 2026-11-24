@@ -119,6 +119,7 @@ class ProductAdminSerializer(serializers.ModelSerializer):
                 category,
                 attributes,
                 reject_unknown="attributes" in attrs,
+                enforce_required=("attributes" in attrs or "category" in attrs or self.instance is None),
             )
         return attrs
 
