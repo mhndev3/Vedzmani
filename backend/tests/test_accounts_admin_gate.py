@@ -1,8 +1,4 @@
-"""Django admin must be entered with the staff password, never with an OTP-only session.
-
-ADMIN.md: staff sign in with phone + password at /admin/login/. The customer OTP flow creates a normal Django
-session; without a gate that session would also open /admin/ for any is_staff phone, so possession of an SMS
-code (SIM swap, provider compromise, interception) would equal admin access."""
+"""Storefront staff password login must create a privileged session without sending an OTP."""
 
 import pytest
 from django.test import Client
@@ -102,10 +98,14 @@ def test_wrong_password_does_not_lift_the_gate(api, superuser_phone):
     assert is_admin_login_redirect(api.get("/admin/"))
 
 
-def test_customer_password_login_rejects_staff_accounts(api, superuser_phone):
+def test_staff_password_login_through_storefront_creates_session_without_otp(api, superuser_phone):
     response = api.post("/api/auth/password/login/", {"phone": superuser_phone, "password": ADMIN_PASSWORD})
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "invalid_credentials"
+    assert response.status_code == 200
+    assert response.json()["is_staff"] is True
+    assert response.json()["user"]["phone"] == superuser_phone
+    assert api.get("/api/auth/me/").json()["is_staff"] is True
+    assert api.get("/admin/").status_code == 200
+    assert not api.client.session.get(OTP_SESSION_FLAG)
     assert not InMemoryDelivery.outbox
 
 
