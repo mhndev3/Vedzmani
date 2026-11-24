@@ -5,6 +5,7 @@ Related records are managed through their own permission-checked endpoints. Stoc
 never writable through these serializers.
 """
 from rest_framework import serializers
+from PIL import Image, UnidentifiedImageError
 
 from apps.catalog.models import (
     Category,
@@ -21,13 +22,60 @@ from apps.catalog.models import (
 )
 from apps.inventory.models import InventoryAdjustment
 from apps.inventory.services import adjust_stock
+from apps.catalog.storage import public_image_url
 
 
 class CategoryAdminSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False, allow_empty_file=False, write_only=True)
+    image_url = serializers.SerializerMethodField()
+    remove_image = serializers.BooleanField(required=False, write_only=True)
+
     class Meta:
         model = Category
-        fields = ["id", "name", "slug", "is_active", "position", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        fields = [
+            "id", "name", "slug", "image", "image_url", "remove_image",
+            "is_active", "position", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "image_url", "created_at", "updated_at"]
+
+    def get_image_url(self, obj):
+        return public_image_url(obj.image.name) if obj.image else None
+
+    def validate_image(self, value):
+        if value.size <= 0 or value.size > 8 * 1024 * 1024:
+            raise serializers.ValidationError("حجم تصویر باید بیشتر از صفر و حداکثر ۸ مگابایت باشد.")
+        try:
+            value.seek(0)
+            with Image.open(value) as image:
+                if image.format not in {"JPEG", "PNG", "WEBP"}:
+                    raise serializers.ValidationError("فرمت تصویر باید JPEG، PNG یا WebP باشد.")
+                if image.width < 1 or image.height < 1 or image.width * image.height > 40_000_000:
+                    raise serializers.ValidationError("ابعاد تصویر بیش از حد مجاز است.")
+                image.verify()
+            value.seek(0)
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            raise serializers.ValidationError("فایل تصویر معتبر یا قابل خواندن نیست.") from exc
+        return value
+
+    def validate(self, attrs):
+        if attrs.get("remove_image") and attrs.get("image"):
+            raise serializers.ValidationError({"image": "برای یک درخواست، تصویر جدید یا حذف تصویر فعلی را انتخاب کنید."})
+        return attrs
+
+    def update(self, instance, validated_data):
+        remove_image = validated_data.pop("remove_image", False)
+        old_image_name = instance.image.name if instance.image else ""
+        old_storage = instance.image.storage if instance.image else None
+        if remove_image:
+            instance.image = ""
+        updated = super().update(instance, validated_data)
+        if old_image_name and old_storage and (remove_image or updated.image.name != old_image_name):
+            old_storage.delete(old_image_name)
+        return updated
+
+    def create(self, validated_data):
+        validated_data.pop("remove_image", None)
+        return super().create(validated_data)
 
 
 class CollectionAdminSerializer(serializers.ModelSerializer):
