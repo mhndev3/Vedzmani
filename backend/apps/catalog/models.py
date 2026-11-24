@@ -458,6 +458,14 @@ class HomepageBannerGroup(models.Model):
         return self.name
 
 
+def default_homepage_banner_group():
+    group, _ = HomepageBannerGroup.objects.get_or_create(
+        slug="main",
+        defaults={"name": "بنرهای اصلی", "position": 0, "is_active": True},
+    )
+    return group.pk
+
+
 class HomepageBanner(models.Model):
     STATUS_DRAFT = "draft"
     STATUS_PUBLISHED = "published"
@@ -470,6 +478,7 @@ class HomepageBanner(models.Model):
         HomepageBannerGroup,
         on_delete=models.PROTECT,
         related_name="banners",
+        default=default_homepage_banner_group,
     )
     desktop_image = models.ImageField(upload_to=homepage_banner_upload_to)
     mobile_image = models.ImageField(upload_to=homepage_banner_upload_to, blank=True)
