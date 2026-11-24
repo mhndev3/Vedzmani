@@ -71,6 +71,7 @@ def test_category_image_upload_requires_category_change_permission(make_staff):
     assert not category.image
 
 
+@override_settings(MEDIA_ROOT="/tmp/vedzmani-test-category-images")
 def test_public_homepage_and_filter_api_return_category_image():
     category = Category.objects.create(
         name="دورس",
