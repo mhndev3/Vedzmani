@@ -18,11 +18,31 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <HomepageHeroSlider banners={content.banners} locale={locale} />
       {content.sections.length > 0 ? content.sections.map((section) => (
         section.section_type === "categories" ? (
-          <AdminStorefrontSection key={section.id} section={{ id: section.id, title: section.title, eyebrow: section.eyebrow, show_view_all: section.show_view_all, view_all_url: section.view_all_url }}>
+          <AdminStorefrontSection key={section.id} section={{
+            id: section.id,
+            position: section.position,
+            title: section.title,
+            eyebrow: section.eyebrow,
+            section_type: section.section_type,
+            show_view_all: section.show_view_all,
+            view_all_url: section.view_all_url,
+            category_ids: section.category_ids,
+            product_ids: section.product_ids,
+          }}>
             <HomeCategoryGrid sectionId={`home-categories-${section.id}`} locale={locale} categories={section.categories} title={section.title} eyebrow={section.eyebrow} />
           </AdminStorefrontSection>
         ) : (
-          <AdminStorefrontSection key={section.id} section={{ id: section.id, title: section.title, eyebrow: section.eyebrow, show_view_all: section.show_view_all, view_all_url: section.view_all_url }}>
+          <AdminStorefrontSection key={section.id} section={{
+            id: section.id,
+            position: section.position,
+            title: section.title,
+            eyebrow: section.eyebrow,
+            section_type: section.section_type,
+            show_view_all: section.show_view_all,
+            view_all_url: section.view_all_url,
+            category_ids: section.category_ids,
+            product_ids: section.product_ids,
+          }}>
           <NewestProductsCarousel
             sectionId={`home-newest-products-${section.id}`}
             locale={locale}
