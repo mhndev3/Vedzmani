@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { SignInLink } from "@/components/auth/SignInLink";
 import { ProfileDashboard } from "@/components/profile/ProfileDashboard";
 import { isLocale } from "@/i18n/config";
@@ -18,15 +18,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : {};
 }
 
-type MeState = { kind: "anonymous" } | { kind: "ok"; profile: CustomerProfile } | { kind: "error" };
+type MeState = { kind: "anonymous" } | { kind: "staff" } | { kind: "ok"; profile: CustomerProfile } | { kind: "error" };
 
 async function getMe(): Promise<MeState> {
   const sessionId = (await cookies()).get("sessionid")?.value;
   if (!sessionId) return { kind: "anonymous" };
   try {
-    const profile = await apiGet<CustomerProfile>("/api/auth/profile/", {
-      headers: { Cookie: `sessionid=${sessionId}` },
-    });
+    const headers = { Cookie: `sessionid=${sessionId}` };
+    const current = await apiGet<{ is_staff: boolean }>("/api/auth/me/", { headers });
+    if (current.is_staff) return { kind: "staff" };
+    const profile = await apiGet<CustomerProfile>("/api/auth/profile/", { headers });
     return { kind: "ok", profile };
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) return { kind: "anonymous" };
@@ -41,6 +42,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   const { next } = await searchParams;
   const continueTo = safeRedirectPath(next, locale);
   const state = await getMe();
+  if (state.kind === "staff") redirect("/" + locale + "/admin-panel");
 
   return (
     <div>
