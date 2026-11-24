@@ -14,8 +14,12 @@ export type HomepageBanner = {
   id: number; title: string; subtitle: string; alt_text: string;
   desktop_image: string; mobile_image: string | null; cta_label: string; cta_url: string;
 };
+export type HomepageBannerGroup = {
+  id: number; name: string; slug: string; position: number; banners: HomepageBanner[];
+};
 export type HomepageContent = {
   banners: HomepageBanner[];
+  bannerGroups: HomepageBannerGroup[];
   categories: HomepageCategory[];
   newestProducts: ProductCardData[];
   sections: HomepageSection[];
@@ -32,11 +36,25 @@ const HOME_CATEGORIES = [
 /** Prefer published admin configuration; retain the original storefront when no section is published. */
 export async function getHomepageContent(): Promise<HomepageContent> {
   let banners: HomepageBanner[] = [];
+  let bannerGroups: HomepageBannerGroup[] = [];
   try {
-    const bannerResponse = await apiGet<{ banners: HomepageBanner[] }>("/api/catalog/homepage-banners/", {
+    const bannerResponse = await apiGet<{
+      banners: HomepageBanner[];
+      groups?: HomepageBannerGroup[];
+    }>("/api/catalog/homepage-banners/", {
       cache: "no-store",
     });
     banners = bannerResponse.banners;
+    bannerGroups = bannerResponse.groups ?? [];
+    if (bannerGroups.length === 0 && banners.length > 0) {
+      bannerGroups = [{
+        id: 0,
+        name: "بنرهای اصلی",
+        slug: "main",
+        position: 0,
+        banners,
+      }];
+    }
   } catch {
     // Keep the static brand hero if banner configuration is unavailable.
   }
@@ -46,7 +64,7 @@ export async function getHomepageContent(): Promise<HomepageContent> {
       cache: "no-store",
     });
     if (configured.sections.length > 0) {
-      return { banners, categories: [], newestProducts: [], sections: configured.sections };
+      return { banners, bannerGroups, categories: [], newestProducts: [], sections: configured.sections };
     }
   } catch {
     // Keep the existing homepage available if the new endpoint is temporarily unavailable.
@@ -68,6 +86,7 @@ export async function getHomepageContent(): Promise<HomepageContent> {
     const categoryBySlug = new Map(catalogCategories.map((category) => [category.slug, category]));
     return {
       banners,
+      bannerGroups,
       sections: [],
       categories: HOME_CATEGORIES.map((category) => ({
         ...category,
@@ -78,6 +97,7 @@ export async function getHomepageContent(): Promise<HomepageContent> {
   } catch {
     return {
       banners,
+      bannerGroups,
       sections: [],
       categories: HOME_CATEGORIES.map((category) => ({ ...category, image: null })),
       newestProducts: [],
