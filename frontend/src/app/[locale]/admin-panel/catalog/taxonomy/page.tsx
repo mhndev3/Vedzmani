@@ -7,7 +7,8 @@ import Image from "next/image";
 import { apiRequest, apiMultipartRequest, BrowserApiError } from "@/lib/browser-api";
 
 type CatalogGroup = "categories" | "collections";
-type Entry = { id: number; name: string; slug: string; is_active: boolean; position: number; image_url?: string | null };
+type ProductField = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
+type Entry = { id: number; name: string; slug: string; is_active: boolean; position: number; image_url?: string | null; product_fields?: ProductField[] };
 type Page<T> = { results: T[]; next: string | null };
 
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
@@ -55,6 +56,7 @@ export default function AdminTaxonomyPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
+  const [productFields, setProductFields] = useState<ProductField[]>([]);
   const previewObjectUrl = useRef<string | null>(null);
 
   const endpoint = group === "categories" ? "/api/admin/catalog/categories/" : "/api/admin/catalog/collections/";
@@ -115,11 +117,36 @@ export default function AdminTaxonomyPage() {
     setImageFile(null);
     setImagePreview(group === "categories" ? entry?.image_url ?? null : null);
     setRemoveImage(false);
+    setProductFields(group === "categories" ? entry?.product_fields ?? [] : []);
     setError("");
     setNotice("");
   }
 
-  function chooseCategoryImage(file: File | null) {
+  function addProductField() {
+    const nextNumber = productFields.reduce((max, field) => {
+      const match = /^attribute_(\d+)$/.exec(field.key);
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0) + 1;
+    setProductFields(current => [...current, {
+      key: `attribute_${nextNumber}`,
+      label: "",
+      type: "text",
+      unit: "",
+      required: false,
+    }]);
+  }
+
+  function updateProductField(index: number, patch: Partial<ProductField>) {
+    setProductFields(current => current.map((field, fieldIndex) =>
+      fieldIndex === index ? { ...field, ...patch } : field
+    ));
+  }
+
+  function removeProductField(index: number) {
+    setProductFields(current => current.filter((_, fieldIndex) => fieldIndex !== index));
+  }
+
+    function chooseCategoryImage(file: File | null) {
     if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
     previewObjectUrl.current = file ? URL.createObjectURL(file) : null;
     setImageFile(file);
@@ -137,12 +164,19 @@ export default function AdminTaxonomyPage() {
     setError("");
     setNotice("");
     try {
-      const payload = { name: name.trim(), slug: slug.trim(), position: editing === null ? entries.length : entries.find((entry) => entry.id === editing)?.position ?? 0 };
+      const payload = {
+        name: name.trim(),
+        slug: slug.trim(),
+        position: editing === null ? entries.length : entries.find((entry) => entry.id === editing)?.position ?? 0,
+        ...(group === "categories" ? { product_fields: productFields } : {}),
+      };
       const method = editing === null ? "POST" : "PATCH";
       const url = editing === null ? endpoint : endpoint + editing + "/";
       if (group === "categories" && (imageFile || removeImage)) {
         const form = new FormData();
-        Object.entries({ ...payload, ...(editing === null ? { is_active: true } : {}) }).forEach(([key, value]) => form.set(key, String(value)));
+        Object.entries({ ...payload, ...(editing === null ? { is_active: true } : {}) }).forEach(([key, value]) => {
+          form.set(key, key === "product_fields" ? JSON.stringify(value) : String(value));
+        });
         if (imageFile) form.set("image", imageFile);
         if (removeImage) form.set("remove_image", "true");
         await apiMultipartRequest<Entry>(method, url, form);
@@ -225,6 +259,42 @@ export default function AdminTaxonomyPage() {
               <input required maxLength={120} pattern="[A-Za-z0-9_-]+" dir="ltr" value={slug} onChange={(event) => setSlug(event.target.value)} className={inputClass} />
             </label>
             {group === "categories" && (
+              <section className="space-y-3 rounded-xl border border-border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-semibold">فیلدهای اختصاصی فرم محصول</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">فقط همین فیلدها هنگام انتخاب این دسته‌بندی در فرم محصول نمایش داده می‌شوند.</p>
+                  </div>
+                  <button type="button" className={secondaryClass} disabled={saving || productFields.length >= 20} onClick={addProductField}>＋ افزودن فیلد</button>
+                </div>
+                {productFields.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">برای این دسته‌بندی فیلد اختصاصی تعریف نشده است.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {productFields.map((field, index) => (
+                      <div key={field.key} className="grid gap-2 rounded-lg bg-muted/30 p-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(100px,0.7fr)_minmax(90px,0.6fr)_auto]">
+                        <label className="text-xs">عنوان فیلد
+                          <input required maxLength={80} value={field.label} onChange={(event) => updateProductField(index, { label: event.target.value })} className={inputClass} placeholder="مثلاً جنس پارچه" />
+                          <span dir="ltr" className="mt-1 block text-[10px] text-muted-foreground">{field.key}</span>
+                        </label>
+                        <label className="text-xs">نوع مقدار
+                          <select value={field.type} onChange={(event) => updateProductField(index, { type: event.target.value as ProductField["type"] })} className={inputClass}>
+                            <option value="text">متنی</option>
+                            <option value="number">عددی</option>
+                          </select>
+                        </label>
+                        <label className="text-xs">واحد (اختیاری)
+                          <input maxLength={24} value={field.unit} onChange={(event) => updateProductField(index, { unit: event.target.value })} className={inputClass} placeholder="مثلاً سانتی‌متر" />
+                        </label>
+                        <div className="flex flex-wrap items-end gap-2">
+                          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={field.required} onChange={(event) => updateProductField(index, { required: event.target.checked })} />اجباری</label>
+                          <button type="button" className={secondaryClass} disabled={saving} onClick={() => removeProductField(index)}>حذف</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
               <div className="space-y-2">
                 <label className="block text-sm">تصویر دسته‌بندی (اختیاری)
                   <input
