@@ -90,6 +90,18 @@ export default function AdminTaxonomyPage() {
         if (!cancelled) {
           setCategories(categoryRows);
           setCollections(collectionRows);
+          const query = new URLSearchParams(window.location.search);
+          const editId = Number(query.get("edit"));
+          const selectedCategory = Number.isSafeInteger(editId) && editId > 0
+            ? categoryRows.find((entry) => entry.id === editId)
+            : undefined;
+          if (selectedCategory) {
+            resetForm(selectedCategory);
+            setNotice("دسته‌بندی انتخاب‌شده برای ویرایش باز شد.");
+          } else if (query.get("new") === "1") {
+            resetForm();
+            setNotice("فرم ایجاد دسته‌بندی جدید آماده است.");
+          }
         }
       } catch (e) {
         if (!cancelled) setError(errorMessage(e));
