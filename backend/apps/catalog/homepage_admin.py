@@ -44,8 +44,9 @@ class HomepageSectionAdminSerializer(serializers.ModelSerializer):
             if categories:
                 raise serializers.ValidationError({"categories": "بخش محصولات نمی‌تواند دسته‌بندی انتخابی داشته باشد."})
         elif section_type == HomepageSection.TYPE_NEWEST_PRODUCTS:
-            if categories or products:
-                raise serializers.ValidationError("بخش جدیدترین محصولات انتخاب دستی نمی‌پذیرد.")
+            if categories:
+                raise serializers.ValidationError({"categories": "بخش جدیدترین محصولات نمی‌تواند دسته‌بندی انتخابی داشته باشد."})
+            # Explicitly selected products are pinned before the automatically newest cards.
         return attrs
 
     def update(self, instance, validated_data):
