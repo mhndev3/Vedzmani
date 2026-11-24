@@ -22,8 +22,19 @@ from .storage import ALLOWED_IMAGE_CONTENT_TYPES, public_image_url
 from .validators import validate_hex_color, validate_storage_key
 
 
+def category_image_upload_to(instance, filename):
+    import os
+    import uuid
+
+    extension = os.path.splitext(filename)[1].lower()
+    if extension not in {".jpg", ".jpeg", ".png", ".webp"}:
+        extension = ".img"
+    return f"categories/{uuid.uuid4().hex}{extension}"
+
+
 class Category(models.Model):
     name = models.CharField(max_length=100)
+    image = models.ImageField(upload_to=category_image_upload_to, blank=True, default="")
     slug = models.SlugField(max_length=120, unique=True)
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField(default=0)
