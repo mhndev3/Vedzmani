@@ -139,6 +139,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
               {item.label}
             </Link>
           ))}
+          {isAdmin && <Link href={"/" + locale + "/admin-panel"} prefetch={false} className="rounded py-2 font-semibold text-primary transition-colors hover:text-foreground">پنل مدیریت</Link>}
         </nav>
         <div className={"ms-auto flex items-center gap-1 " + (searchExpanded ? "min-w-0 flex-1" : "shrink-0")}>
           <div className="hidden md:block">
@@ -148,7 +149,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
             <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></svg>
           </button>
           <CartButton locale={locale} />
-          <Link href={"/" + locale + "/profile"} prefetch={false} aria-label="حساب کاربری" title="حساب کاربری" className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
+          <Link href={isAdmin ? "/" + locale + "/admin-panel" : "/" + locale + "/profile"} prefetch={false} aria-label={isAdmin ? "پنل مدیریت" : "حساب کاربری"} title={isAdmin ? "پنل مدیریت" : "حساب کاربری"} className="inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
           </Link>
           <ThemeToggle label={t.a11y.toggleTheme} />
