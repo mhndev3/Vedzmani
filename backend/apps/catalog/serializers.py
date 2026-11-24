@@ -46,11 +46,15 @@ class VariantSizeSerializer(serializers.ModelSerializer):
         # Exact color + size rows win; otherwise fall back to the product + size rows shared by all colors.
         own = list(obj.measurements.all())
         rows = own if own else self.context.get("product_measurements_by_size", {}).get(obj.size_id, [])
-        visible = [
-            item for item in rows
+        return [
+            {
+                "name": clean_optional_marker(item.name),
+                "value": clean_optional_marker(item.value),
+                "unit": clean_optional_marker(item.unit),
+            }
+            for item in rows
             if clean_optional_marker(item.name) and clean_optional_marker(item.value)
         ]
-        return ProductSizeMeasurementSerializer(visible, many=True).data
 
     def get_size_description(self, obj: VariantSize) -> str:
         # Exact color + size wins; otherwise fall back to the product + size description.
