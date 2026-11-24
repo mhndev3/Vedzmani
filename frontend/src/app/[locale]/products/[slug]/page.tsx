@@ -116,6 +116,12 @@ export default async function ProductPage({ params, searchParams }: Props) {
     ? [...color.images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.position - b.position)
     : [];
   const inStock = !!color?.sizes.some((s) => s.in_stock);
+  const visibleAttributes = (product.category.product_fields ?? [])
+    .map((field) => ({
+      ...field,
+      value: String(product.attributes?.[field.key] ?? "").trim(),
+    }))
+    .filter((field) => field.value && field.value !== "//");
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <nav aria-label={t.product.breadcrumb} className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -146,7 +152,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
         <section className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{product.name}</h1>
-          <StorefrontProductEditor productId={product.id} name={product.name} description={product.description} price={product.price} salePrice={product.sale_price} />
+          <StorefrontProductEditor productId={product.id} locale={locale} name={product.name} description={product.description} price={product.price} salePrice={product.sale_price} />
           {(color?.product_code ?? product.code) && <p className="mt-1 text-sm text-muted-foreground">کد محصول: {color?.product_code ?? product.code}</p>}
           <Price
             price={product.price}
@@ -240,6 +246,20 @@ export default async function ProductPage({ params, searchParams }: Props) {
                 <p className="mt-2 text-sm text-muted-foreground">{t.product.noSizes}</p>
               </div>
             ))}
+
+          {visibleAttributes.length > 0 && (
+            <section className="mt-8 border-t border-border pt-6">
+              <h2 className="text-sm font-semibold">مشخصات محصول</h2>
+              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                {visibleAttributes.map((field) => (
+                  <div key={field.key} className="rounded-lg bg-muted/40 px-3 py-2">
+                    <dt className="text-xs text-muted-foreground">{field.label}</dt>
+                    <dd className="mt-1 text-sm font-medium">{field.value}{field.unit ? ` ${field.unit}` : ""}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
 
           {product.description.trim() && (
             <div className="mt-8 border-t border-border pt-6">

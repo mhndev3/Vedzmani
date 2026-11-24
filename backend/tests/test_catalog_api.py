@@ -43,7 +43,9 @@ def test_detail_returns_nested_structure():
     assert r.status_code == 200
     body = r.json()
     assert body["code"] == "VZ-BASIC-HOODIE"
-    assert body["category"] == {"name": "Hoodie", "slug": "hoodie"}
+    assert body["category"]["name"] == "Hoodie"
+    assert body["category"]["slug"] == "hoodie"
+    assert body["category"]["product_fields"] == []
     assert [c["slug"] for c in body["colors"]] == ["c0", "c1"]
     first = body["colors"][0]
     assert [s["size"] for s in first["sizes"]] == ["s", "m", "l"]

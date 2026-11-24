@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from .models import Category, Collection, ColorVariant, Product, Size, VariantSize
 from .admin_serializers import ProductAdminSerializer
+from .product_attributes import clean_optional_marker, clean_product_attributes
 
 
 class ProductVariantSizeInputSerializer(serializers.Serializer):
@@ -35,6 +36,7 @@ class ProductWithVariantsInputSerializer(serializers.Serializer):
         validators=[UniqueValidator(queryset=Product.objects.all())],
     )
     description = serializers.CharField(required=False, allow_blank=True, default="")
+    attributes = serializers.JSONField(required=False, default=dict)
     price = serializers.DecimalField(max_digits=14, decimal_places=0, min_value=1)
     sale_price = serializers.DecimalField(
         max_digits=14, decimal_places=0, min_value=1, required=False, allow_null=True
@@ -45,7 +47,11 @@ class ProductWithVariantsInputSerializer(serializers.Serializer):
     )
     colors = ProductColorInputSerializer(many=True, allow_empty=False)
 
+    def validate_description(self, value):
+        return clean_optional_marker(value)
+
     def validate(self, attrs):
+        attrs["attributes"] = clean_product_attributes(attrs["category"], attrs.get("attributes", {}))
         sale_price = attrs.get("sale_price")
         if sale_price is not None and sale_price >= attrs["price"]:
             raise serializers.ValidationError({"sale_price": "قیمت با تخفیف باید کمتر از قیمت اصلی باشد."})

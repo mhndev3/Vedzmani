@@ -100,7 +100,7 @@ orders, inventory logic, pricing/discount engine, caching. Image resizing/conver
 media is now handled by `image_processing.py` and `optimize_catalog_images`.
 
 ### Filter vocabulary: `GET /api/catalog/filters/` (Agent 6, Session 2)
-Public, read-only. Returns `{categories[{name,slug}], collections[{name,slug}], colors[{name,slug,hex_color}], sizes[{code,label}]}`
+Public, read-only. Returns `{categories[{id,name,slug}], collections[{name,slug}], colors[{name,slug,hex_color}], sizes[{code,label}]}`
 containing **only values that exist on published products** (active product + active category/variant/size/collection).
 Optional repeated `category=<slug>` parameters scope dependent facets (collections, colors and sizes) to the selected
 category set; the top-level category list remains global so customers can change their selection. Fixed cost of 4

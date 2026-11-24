@@ -20,6 +20,7 @@ def test_knitwear_category_is_seeded():
 
 def test_filter_options_only_include_published_data():
     make("live", category="hoodie", collections=["winter"], variants={"black": {"m": 1, "l": 0}, "white": {"s": 1}})
+    category = Category.objects.get(slug="hoodie")
     make("hidden", category="secret", active=False, collections=["hidden-col"], variants={"red": {"xl": 1}})
     Category.objects.get_or_create(slug="empty", defaults={"name": "Empty"})
     Collection.objects.get_or_create(slug="unused", defaults={"name": "Unused"})
@@ -28,6 +29,7 @@ def test_filter_options_only_include_published_data():
     data = Client().get(URL).json()
 
     assert [c["slug"] for c in data["categories"]] == ["hoodie"]
+    assert data["categories"][0]["id"] == category.pk
     assert [c["slug"] for c in data["collections"]] == ["winter"]
     assert sorted(c["slug"] for c in data["colors"]) == ["black", "white"]
     assert sorted(s["code"] for s in data["sizes"]) == ["m", "s"]

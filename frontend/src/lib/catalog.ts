@@ -153,11 +153,13 @@ export type Paginated<T> = {
 };
 
 export type FilterOptions = {
-  categories: { name: string; slug: string }[];
+  categories: { id: number; name: string; slug: string }[];
   collections: { name: string; slug: string }[];
   colors: Swatch[];
   sizes: { code: string; label: string }[];
 };
+
+export type ProductFieldDefinition = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
 
 export type ProductDetail = {
   id: number;
@@ -167,7 +169,8 @@ export type ProductDetail = {
   description: string;
   price: string;
   sale_price: string | null;
-  category: { name: string; slug: string };
+  attributes: Record<string, string>;
+  category: { name: string; slug: string; product_fields: ProductFieldDefinition[] };
   colors: {
     id: number;
     name: string;

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { HomepageCategory } from "@/lib/homepage";
+import { AdminStorefrontCategoryActions } from "@/components/admin/AdminStorefrontMode";
 
 function CategoryHeadingDots({ reverse = false }: { reverse?: boolean }) {
   const sizes = reverse ? ["h-2 w-2", "h-1.5 w-1.5", "h-1 w-1"] : ["h-1 w-1", "h-1.5 w-1.5", "h-2 w-2"];
@@ -31,6 +32,7 @@ export function HomeCategoryGrid({ locale, categories, title = "دسته‌بن�
               </span>
               <span className="mt-2 block text-sm font-semibold text-foreground sm:mt-3 sm:text-base">{category.name}</span>
             </Link>
+            <AdminStorefrontCategoryActions categoryId={category.id} />
           </li>;
         })}
       </ul>

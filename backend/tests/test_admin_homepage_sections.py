@@ -1,7 +1,7 @@
 import pytest
 from django.utils import timezone
 
-from apps.catalog.models import Category, HomepageSection, Product
+from apps.catalog.models import Category, HomepageSection, HomepageSectionRevision, Product
 from tests.conftest import client_for
 
 pytestmark = pytest.mark.django_db
@@ -51,3 +51,25 @@ def test_homepage_section_cannot_select_inactive_products(make_staff):
         "title": "محصولات", "section_type": "products", "products": [product.pk],
     }, content_type="application/json")
     assert response.status_code == 400
+
+
+def test_homepage_section_delete_requires_delete_permission_and_removes_history(make_staff):
+    section = HomepageSection.objects.create(
+        title="بخش آزمایشی",
+        section_type=HomepageSection.TYPE_NEWEST_PRODUCTS,
+    )
+    HomepageSectionRevision.objects.create(
+        section=section,
+        snapshot={"title": "بخش آزمایشی", "section_type": "newest_products"},
+        action=HomepageSectionRevision.ACTION_CREATED,
+    )
+
+    read_write = client_for(make_staff("catalog.view_homepagesection", "catalog.change_homepagesection"))
+    assert read_write.delete(f"/api/admin/homepage/sections/{section.pk}/").status_code == 403
+    assert HomepageSection.objects.filter(pk=section.pk).exists()
+
+    deleter = client_for(make_staff("catalog.view_homepagesection", "catalog.delete_homepagesection"))
+    response = deleter.delete(f"/api/admin/homepage/sections/{section.pk}/")
+    assert response.status_code == 204
+    assert not HomepageSection.objects.filter(pk=section.pk).exists()
+    assert not HomepageSectionRevision.objects.filter(section_id=section.pk).exists()

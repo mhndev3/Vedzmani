@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 
@@ -86,6 +86,7 @@ class ProductAdminViewSet(StaffModelPermissionViewSet):
 class CategoryAdminViewSet(StaffModelPermissionViewSet):
     queryset = Category.objects.all()
     serializer_class = CategoryAdminSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
 
 class CollectionAdminViewSet(StaffModelPermissionViewSet):

@@ -85,8 +85,27 @@ export default function AdminHomepagePage() {
         getAll<Entry>("/api/admin/catalog/products/"),
       ]);
       if (!live) return;
-      setSections(s.sort((a,b) => a.position - b.position || a.id - b.id));
+      const ordered = [...s].sort((a,b) => a.position - b.position || a.id - b.id);
+      setSections(ordered);
       setCategories(c.filter(x => x.is_active)); setProducts(p.filter(x => x.is_active));
+
+      const query = new URLSearchParams(window.location.search);
+      const editId = Number(query.get("edit"));
+      const target = Number.isSafeInteger(editId) && editId > 0 ? ordered.find(item => item.id === editId) : undefined;
+      if (target) {
+        const { id, ...values } = target;
+        setEditingId(id);
+        setDraft(values);
+        setNotice("بخش انتخاب‌شده برای ویرایش باز شد.");
+      } else if (query.get("new") === "1") {
+        const requestedPosition = Number(query.get("position"));
+        const position = Number.isSafeInteger(requestedPosition) && requestedPosition >= 0
+          ? Math.min(requestedPosition, ordered.length)
+          : ordered.length;
+        setEditingId(null);
+        setDraft({ ...blank(), position });
+        setNotice("فرم ساخت بخش جدید در جایگاه انتخاب‌شده باز شد.");
+      }
     } catch(e) { if (live) setError(errorText(e)); }
     finally { if (live) setLoading(false); }
   })(); return () => { live = false; }; }, []);
@@ -115,10 +134,28 @@ export default function AdminHomepagePage() {
     if (draft.show_view_all && draft.view_all_url && (!draft.view_all_url.startsWith("/") || draft.view_all_url.startsWith("//"))) {
       setError("لینک مشاهده همه باید یک مسیر داخلی سایت باشد؛ نشانی خارجی مجاز نیست."); setSaving(false); return;
     }
-    const payload = { ...draft, title: draft.title.trim(), eyebrow: draft.eyebrow.trim(), view_all_url: draft.show_view_all ? draft.view_all_url.trim() : "" };
+    const payload = {
+      ...draft,
+      title: draft.title.trim(),
+      eyebrow: draft.eyebrow.trim(),
+      view_all_url: draft.show_view_all ? draft.view_all_url.trim() : "",
+    };
     try {
-      if (editingId === null) await apiRequest<Section>("POST", "/api/admin/homepage/sections/", payload);
-      else await apiRequest<Section>("PATCH", `/api/admin/homepage/sections/${editingId}/`, payload);
+      if (editingId === null) {
+        const ordered = [...sections].sort((a, b) => a.position - b.position || a.id - b.id);
+        const insertionPosition = Math.max(0, Math.min(ordered.length, payload.position));
+        for (let index = ordered.length - 1; index >= insertionPosition; index -= 1) {
+          await apiRequest<Section>("PATCH", `/api/admin/homepage/sections/${ordered[index].id}/`, {
+            position: index + 1,
+          });
+        }
+        await apiRequest<Section>("POST", "/api/admin/homepage/sections/", {
+          ...payload,
+          position: insertionPosition,
+        });
+      } else {
+        await apiRequest<Section>("PATCH", `/api/admin/homepage/sections/${editingId}/`, payload);
+      }
       newSection();
       setNotice("تغییرات ذخیره شد. برای نمایش در فروشگاه، وضعیت انتشار را فعال کنید.");
       await refresh();
@@ -144,6 +181,19 @@ export default function AdminHomepagePage() {
       await refresh();
       const rows = await apiRequest<Revision[]>("GET", `/api/admin/homepage/sections/${section.id}/revisions/`);
       setRevisions(rows);
+    } catch (e) { setError(errorText(e)); }
+    finally { setSaving(false); }
+  }
+
+  async function removeSection(section: Section) {
+    if (!window.confirm(`بخش «${section.title}» حذف شود؟ نسخه‌های ذخیره‌شده این بخش نیز حذف خواهند شد.`)) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest<void>("DELETE", `/api/admin/homepage/sections/${section.id}/`);
+      if (historyFor === section.id) { setHistoryFor(null); setRevisions([]); }
+      if (editingId === section.id) newSection();
+      await refresh();
+      setNotice("بخش صفحه اصلی حذف شد.");
     } catch (e) { setError(errorText(e)); }
     finally { setSaving(false); }
   }
@@ -187,10 +237,29 @@ export default function AdminHomepagePage() {
             <option value="categories">دسته‌بندی‌های منتخب</option><option value="products">محصولات منتخب</option><option value="newest_products">جدیدترین محصولات</option>
           </select></label>
           {draft.section_type === "categories" && <fieldset className="rounded-xl border border-border p-3"><legend className="px-1 text-sm font-medium">انتخاب دسته‌بندی‌ها</legend><div className="max-h-48 space-y-2 overflow-y-auto">{categories.map(c => <label key={c.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.categories.includes(c.id)} onChange={() => toggleId("categories", c.id)} />{c.name}</label>)}</div></fieldset>}
-          {draft.section_type === "products" && <fieldset className="rounded-xl border border-border p-3"><legend className="px-1 text-sm font-medium">انتخاب محصولات</legend><input value={search} onChange={e => setSearch(e.target.value)} placeholder="جستجوی محصول…" className={inputClass + " mb-3"} /><div className="max-h-56 space-y-2 overflow-y-auto">{visibleProducts.map(p => <label key={p.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.products.includes(p.id)} onChange={() => toggleId("products", p.id)} />{p.name}<span className="text-xs text-muted-foreground">#{p.id}</span></label>)}</div><p className="mt-2 text-xs text-muted-foreground">حداکثر ۲۵۰ نتیجه نخست برای جستجو بارگذاری شده است.</p></fieldset>}
-          {draft.section_type === "newest_products" && <p className="rounded-xl bg-muted p-3 text-xs leading-6 text-muted-foreground">این بخش به‌صورت خودکار جدیدترین محصولات فعال را نمایش می‌دهد.</p>}
-          <div className="grid gap-3 sm:grid-cols-2">
+          {(draft.section_type === "products" || draft.section_type === "newest_products") && (
+            <fieldset className="rounded-xl border border-border p-3">
+              <legend className="px-1 text-sm font-medium">
+                {draft.section_type === "newest_products" ? "محصولات منتخب در ابتدای بخش (اختیاری)" : "انتخاب کارت‌های محصول"}
+              </legend>
+              {draft.section_type === "newest_products" && (
+                <p className="mb-3 text-xs leading-6 text-muted-foreground">کارت‌های انتخاب‌شده ابتدا نمایش داده می‌شوند و جای خالی با جدیدترین محصولات فعال پر می‌شود.</p>
+              )}
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="جستجوی محصول…" className={inputClass + " mb-3"} />
+              <div className="max-h-56 space-y-2 overflow-y-auto">
+                {visibleProducts.map(p => (
+                  <label key={p.id} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={draft.products.includes(p.id)} onChange={() => toggleId("products", p.id)} />
+                    {p.name}<span className="text-xs text-muted-foreground">#{p.id}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">حداکثر ۲۵۰ نتیجه نخست برای جستجو بارگذاری شده است.</p>
+            </fieldset>
+          )}
+          <div className="grid gap-3 sm:grid-cols-3">
             <label className="block text-sm">تعداد نمایش<input type="number" min="1" max="24" value={draft.item_limit} onChange={e => update("item_limit", Math.max(1, Math.min(24, Number(e.target.value))))} className={inputClass} /></label>
+            <label className="block text-sm">جایگاه نمایش<input type="number" min="1" value={draft.position + 1} onChange={e => update("position", Math.max(0, Number(e.target.value) - 1))} className={inputClass} /></label>
             <label className="block text-sm">وضعیت<select value={draft.status} onChange={e => update("status", e.target.value as SectionStatus)} className={inputClass}><option value="draft">پیش‌نویس</option><option value="published">منتشرشده</option></select></label>
           </div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.show_view_all} onChange={e => update("show_view_all", e.target.checked)} />نمایش لینک «مشاهده همه»</label>
@@ -203,7 +272,7 @@ export default function AdminHomepagePage() {
         <div className="mb-4 flex items-center justify-between gap-3"><h2 className="font-bold">بخش‌های تعریف‌شده</h2><span className="text-xs text-muted-foreground">{sections.length.toLocaleString("fa-IR")} بخش</span></div>
         {loading ? <p className="py-10 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : sections.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">هنوز بخشی ساخته نشده است.</p> : <div className="space-y-3">{sections.map((s,index) => <article key={s.id} className="rounded-xl border border-border p-4">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{s.title}</h3><span className={s.status === "published" ? "rounded-full bg-primary/10 px-2 py-1 text-xs" : "rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"}>{s.status === "published" ? "منتشرشده" : "پیش‌نویس"}</span></div><p className="mt-2 text-xs text-muted-foreground">{s.section_type === "categories" ? "دسته‌بندی‌ها" : s.section_type === "products" ? "محصولات منتخب" : "جدیدترین محصولات"} · {s.item_limit} مورد · ترتیب {s.position + 1}</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(s,-1)} className={secondaryClass}>↑</button><button type="button" disabled={saving || index===sections.length-1} onClick={() => void move(s,1)} className={secondaryClass}>↓</button><button type="button" disabled={saving} onClick={() => editSection(s)} className={secondaryClass}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(s)} className={secondaryClass}>{historyFor === s.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void publish(s)} className={primaryClass}>{s.status === "published" ? "تبدیل به پیش‌نویس" : "انتشار"}</button></div>
+            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(s,-1)} className={secondaryClass}>↑</button><button type="button" disabled={saving || index===sections.length-1} onClick={() => void move(s,1)} className={secondaryClass}>↓</button><button type="button" disabled={saving} onClick={() => editSection(s)} className={secondaryClass}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(s)} className={secondaryClass}>{historyFor === s.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void publish(s)} className={primaryClass}>{s.status === "published" ? "تبدیل به پیش‌نویس" : "انتشار"}</button><button type="button" disabled={saving} onClick={() => void removeSection(s)} className={secondaryClass}>حذف بخش</button></div>
           </div>
           {historyFor === s.id && <div className="mt-4 border-t border-border pt-4">
             <h4 className="text-sm font-semibold">تاریخچه نسخه‌های «{s.title}»</h4>
@@ -218,7 +287,7 @@ export default function AdminHomepagePage() {
             </div>}
           </div>}
         </article>)}</div>}
-        <p className="mt-5 text-xs leading-6 text-muted-foreground">حذف فیزیکی بخش‌ها در این پنل وجود ندارد. برای پنهان‌کردن موقت، وضعیت را به پیش‌نویس تغییر دهید. بخش‌های منتشرشده به ترتیب بالا در صفحه اصلی نمایش داده می‌شوند.</p>
+        <p className="mt-5 text-xs leading-6 text-muted-foreground">برای پنهان‌کردن موقت، وضعیت را به پیش‌نویس تغییر دهید. حذف بخش، نسخه‌های تاریخچه همان بخش را نیز پاک می‌کند. بخش‌های منتشرشده به ترتیب بالا در صفحه اصلی نمایش داده می‌شوند.</p>
       </section>
     </div>
   </main>;

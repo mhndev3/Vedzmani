@@ -22,8 +22,20 @@ from .storage import ALLOWED_IMAGE_CONTENT_TYPES, public_image_url
 from .validators import validate_hex_color, validate_storage_key
 
 
+def category_image_upload_to(instance, filename):
+    import os
+    import uuid
+
+    extension = os.path.splitext(filename)[1].lower()
+    if extension not in {".jpg", ".jpeg", ".png", ".webp"}:
+        extension = ".img"
+    return f"categories/{uuid.uuid4().hex}{extension}"
+
+
 class Category(models.Model):
     name = models.CharField(max_length=100)
+    image = models.ImageField(upload_to=category_image_upload_to, blank=True, default="")
+    product_fields = models.JSONField(default=list, blank=True)
     slug = models.SlugField(max_length=120, unique=True)
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField(default=0)
@@ -80,6 +92,7 @@ class Product(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True)
     description = models.TextField(blank=True)
+    attributes = models.JSONField(default=dict, blank=True)
     price = models.DecimalField(max_digits=14, decimal_places=0, validators=[MinValueValidator(Decimal("1"))])
     sale_price = models.DecimalField(
         max_digits=14,
@@ -428,6 +441,31 @@ def homepage_banner_upload_to(instance, filename):
     return f"homepage-banners/{uuid.uuid4().hex}{extension}"
 
 
+class HomepageBannerGroup(models.Model):
+    """Named collection of banners rendered together as one homepage slider."""
+
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120, unique=True)
+    position = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+def default_homepage_banner_group():
+    group, _ = HomepageBannerGroup.objects.get_or_create(
+        slug="main",
+        defaults={"name": "بنرهای اصلی", "position": 0, "is_active": True},
+    )
+    return group.pk
+
+
 class HomepageBanner(models.Model):
     STATUS_DRAFT = "draft"
     STATUS_PUBLISHED = "published"
@@ -436,6 +474,12 @@ class HomepageBanner(models.Model):
     title = models.CharField(max_length=120, blank=True)
     subtitle = models.CharField(max_length=240, blank=True)
     alt_text = models.CharField(max_length=200)
+    group = models.ForeignKey(
+        HomepageBannerGroup,
+        on_delete=models.PROTECT,
+        related_name="banners",
+        default=default_homepage_banner_group,
+    )
     desktop_image = models.ImageField(upload_to=homepage_banner_upload_to)
     mobile_image = models.ImageField(upload_to=homepage_banner_upload_to, blank=True)
     cta_label = models.CharField(max_length=60, blank=True)

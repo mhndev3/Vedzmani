@@ -44,8 +44,9 @@ class HomepageSectionAdminSerializer(serializers.ModelSerializer):
             if categories:
                 raise serializers.ValidationError({"categories": "بخش محصولات نمی‌تواند دسته‌بندی انتخابی داشته باشد."})
         elif section_type == HomepageSection.TYPE_NEWEST_PRODUCTS:
-            if categories or products:
-                raise serializers.ValidationError("بخش جدیدترین محصولات انتخاب دستی نمی‌پذیرد.")
+            if categories:
+                raise serializers.ValidationError({"categories": "بخش جدیدترین محصولات نمی‌تواند دسته‌بندی انتخابی داشته باشد."})
+            # Explicitly selected products are pinned before the automatically newest cards.
         return attrs
 
     def update(self, instance, validated_data):
@@ -118,12 +119,12 @@ class HomepageSectionRevisionPermissions(BasePermission):
         user = request.user
         if not user or not user.is_authenticated or not user.is_staff:
             return False
-        permission = "catalog.view_homepagesection" if request.method == "GET" else "catalog.change_homepagesection"
-        return request.method in {"GET", "POST"} and user.has_perm(permission)
+        permission = "catalog.view_homepagesection" if request.method == "GET" else ("catalog.delete_homepagesection" if request.method == "DELETE" else "catalog.change_homepagesection")
+        return request.method in {"GET", "POST", "DELETE"} and user.has_perm(permission)
 
 
-class HomepageSectionAdminViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
-    """Create/read/update sections; destructive deletion is intentionally unavailable."""
+class HomepageSectionAdminViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    """Create/read/update/delete homepage sections behind explicit model permissions."""
 
     serializer_class = HomepageSectionAdminSerializer
     permission_classes = [StaffHomepagePermissions]

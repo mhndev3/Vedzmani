@@ -6,8 +6,9 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { apiMultipartRequest, apiRequest, BrowserApiError } from "@/lib/browser-api";
 
+type BannerGroup = { id: number; name: string; slug: string; position: number; is_active: boolean };
 type Banner = {
-  id: number; title: string; subtitle: string; alt_text: string;
+  id: number; group: number; title: string; subtitle: string; alt_text: string;
   desktop_image_url: string; mobile_image_url: string | null;
   cta_label: string; cta_url: string; position: number; status: "draft" | "published";
   starts_at: string | null; ends_at: string | null;
@@ -16,11 +17,11 @@ type Revision = { id: number; action: "baseline" | "created" | "updated" | "roll
 type MediaItem = { id: string; source: "product" | "banner"; source_label: string; title: string; alt_text: string; url: string; thumbnail_url: string; width: number | null; height: number | null; owner_label: string };
 type MediaPage = { count: number; next: string | null; previous: string | null; results: MediaItem[] };
 type Draft = {
-  title: string; subtitle: string; alt_text: string; cta_label: string; cta_url: string;
+  group: number; title: string; subtitle: string; alt_text: string; cta_label: string; cta_url: string;
   position: number; status: "draft" | "published"; starts_at: string; ends_at: string;
 };
-const blank = (): Draft => ({
-  title: "", subtitle: "", alt_text: "", cta_label: "", cta_url: "",
+const blank = (groupId = 0): Draft => ({
+  group: groupId, title: "", subtitle: "", alt_text: "", cta_label: "", cta_url: "",
   position: 0, status: "draft", starts_at: "", ends_at: "",
 });
 const field = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
@@ -46,6 +47,7 @@ export default function AdminHomepageBannersPage() {
   const params = useParams<{ locale: string }>();
   const locale = params.locale || "fa";
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [groups, setGroups] = useState<BannerGroup[]>([]);
   const [draft, setDraft] = useState<Draft>(blank());
   const [desktopFile, setDesktopFile] = useState<File | null>(null);
   const [mobileFile, setMobileFile] = useState<File | null>(null);
@@ -67,12 +69,25 @@ export default function AdminHomepageBannersPage() {
   const [historyFor, setHistoryFor] = useState<number | null>(null);
   const [revisions, setRevisions] = useState<Revision[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [groupFormOpen, setGroupFormOpen] = useState(false);
+  const [groupSaving, setGroupSaving] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [groupSlug, setGroupSlug] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await apiRequest<Banner[]>("GET", "/api/admin/homepage/banners/");
-      setBanners(rows.sort((a, b) => a.position - b.position || a.id - b.id));
+      const [rows, groupRows] = await Promise.all([
+        apiRequest<Banner[]>("GET", "/api/admin/homepage/banners/"),
+        apiRequest<BannerGroup[]>("GET", "/api/admin/homepage/banner-groups/"),
+      ]);
+      const orderedGroups = groupRows.sort((a, b) => a.position - b.position || a.id - b.id);
+      setGroups(orderedGroups);
+      setBanners(rows.sort((a, b) => a.group - b.group || a.position - b.position || a.id - b.id));
+      setDraft(current => current.group ? current : {
+        ...current,
+        group: orderedGroups.find(group => group.is_active)?.id ?? 0,
+      });
       setError("");
     } catch (e) { setError(message(e)); }
     finally { setLoading(false); }
@@ -82,8 +97,19 @@ export default function AdminHomepageBannersPage() {
     let active = true;
     void (async () => {
       try {
-        const rows = await apiRequest<Banner[]>("GET", "/api/admin/homepage/banners/");
-        if (active) setBanners(rows.sort((a, b) => a.position - b.position || a.id - b.id));
+        const [rows, groupRows] = await Promise.all([
+          apiRequest<Banner[]>("GET", "/api/admin/homepage/banners/"),
+          apiRequest<BannerGroup[]>("GET", "/api/admin/homepage/banner-groups/"),
+        ]);
+        if (active) {
+          const orderedGroups = groupRows.sort((a, b) => a.position - b.position || a.id - b.id);
+          setGroups(orderedGroups);
+          setBanners(rows.sort((a, b) => a.group - b.group || a.position - b.position || a.id - b.id));
+          setDraft(current => current.group ? current : {
+            ...current,
+            group: orderedGroups.find(group => group.is_active)?.id ?? 0,
+          });
+        }
       } catch (e) {
         if (active) setError(message(e));
       } finally {
@@ -94,12 +120,15 @@ export default function AdminHomepageBannersPage() {
   }, []);
 
   function reset() {
-    setEditingId(null); setDraft({ ...blank(), position: banners.length });
+    const groupId = groups.find(group => group.is_active)?.id ?? 0;
+    setEditingId(null);
+    setDraft({ ...blank(groupId), position: banners.filter(banner => banner.group === groupId).length });
     setDesktopFile(null); setMobileFile(null); setDesktopMediaRef(""); setMobileMediaRef(""); setNotice(""); setError("");
   }
   function edit(banner: Banner) {
     setEditingId(banner.id);
     setDraft({
+      group: banner.group,
       title: banner.title, subtitle: banner.subtitle, alt_text: banner.alt_text,
       cta_label: banner.cta_label, cta_url: banner.cta_url, position: banner.position,
       status: banner.status, starts_at: localDate(banner.starts_at), ends_at: localDate(banner.ends_at),
@@ -153,8 +182,50 @@ export default function AdminHomepageBannersPage() {
     setPickerTarget(null);
   }
 
+  async function createGroup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setGroupSaving(true); setError(""); setNotice("");
+    try {
+      const created = await apiRequest<BannerGroup>("POST", "/api/admin/homepage/banner-groups/", {
+        name: groupName.trim(),
+        slug: groupSlug.trim(),
+        position: groups.length,
+        is_active: true,
+      });
+      await refresh();
+      set("group", created.id);
+      set("position", banners.filter(banner => banner.group === created.id).length);
+      setGroupName("");
+      setGroupSlug("");
+      setGroupFormOpen(false);
+      setNotice("گروه بنر ساخته شد؛ بنرهای بعدی را به همین گروه اضافه کنید.");
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setGroupSaving(false);
+    }
+  }
+
+  async function toggleGroup(group: BannerGroup) {
+    setGroupSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest<BannerGroup>("PATCH", `/api/admin/homepage/banner-groups/${group.id}/`, {
+        is_active: !group.is_active,
+      });
+      setNotice(group.is_active ? "گروه بنر غیرفعال شد و اسلایدر آن از فروشگاه پنهان می‌شود." : "گروه بنر دوباره فعال شد.");
+      await refresh();
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setGroupSaving(false);
+    }
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(""); setNotice("");
+    if (!draft.group || !groups.some(group => group.id === draft.group && group.is_active)) {
+      setError("یک گروه فعال برای این بنر انتخاب کنید."); setSaving(false); return;
+    }
     if (draft.cta_url && (!draft.cta_url.startsWith("/") || draft.cta_url.startsWith("//") || draft.cta_url.includes("\\"))) {
       setError("لینک دکمه باید مسیر داخلی سایت باشد."); setSaving(false); return;
     }
@@ -218,8 +289,11 @@ export default function AdminHomepageBannersPage() {
   }
 
   async function move(banner: Banner, delta: number) {
-    const index = banners.findIndex(item => item.id === banner.id);
-    const other = banners[index + delta];
+    const grouped = banners
+      .filter(item => item.group === banner.group)
+      .sort((a, b) => a.position - b.position || a.id - b.id);
+    const index = grouped.findIndex(item => item.id === banner.id);
+    const other = grouped[index + delta];
     if (!other) return;
     setSaving(true); setError("");
     try {
@@ -231,6 +305,7 @@ export default function AdminHomepageBannersPage() {
   }
 
   const current = banners.find(item => item.id === editingId);
+  const groupNameFor = (groupId: number) => groups.find(group => group.id === groupId)?.name ?? "گروه نامشخص";
   return <main dir="rtl" className="mx-auto w-full max-w-7xl px-4 py-8 sm:py-10">
     <div className="mb-7">
       <Link href={`/${locale}/admin-panel/homepage`} className="text-sm text-muted-foreground hover:text-foreground">← بازگشت به مدیریت صفحه اصلی</Link>
@@ -239,10 +314,54 @@ export default function AdminHomepageBannersPage() {
     </div>
     {notice && <p role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</p>}
     {error && <p role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</p>}
+    <section className="mb-6 rounded-2xl border border-border bg-card p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-bold">گروه‌های بنر و اسلایدرها</h2>
+          <p className="mt-1 text-xs leading-6 text-muted-foreground">هر گروه یک اسلایدر مستقل در صفحه اصلی می‌سازد. برای توقف نمایش، گروه را غیرفعال کنید؛ بنرها و تاریخچه آن‌ها حفظ می‌شوند.</p>
+        </div>
+        <button type="button" className={secondary} onClick={() => setGroupFormOpen(value => !value)}>＋ گروه جدید</button>
+      </div>
+      {groupFormOpen && (
+        <form onSubmit={createGroup} className="mt-4 grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-[1fr_1fr_auto]">
+          <label className="block text-sm">نام گروه
+            <input required maxLength={100} value={groupName} onChange={event => setGroupName(event.target.value)} className={field} placeholder="مثلاً پیشنهادهای ویژه" />
+          </label>
+          <label className="block text-sm">شناسه انگلیسی
+            <input required maxLength={120} pattern="[A-Za-z0-9_-]+" dir="ltr" value={groupSlug} onChange={event => setGroupSlug(event.target.value)} className={field} placeholder="special-offers" />
+          </label>
+          <div className="flex items-end">
+            <button type="submit" disabled={groupSaving || !groupName.trim() || !groupSlug.trim()} className={primary}>{groupSaving ? "در حال ساخت…" : "ساخت گروه"}</button>
+          </div>
+        </form>
+      )}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {groups.map(group => (
+          <article key={group.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{group.name}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{banners.filter(banner => banner.group === group.id).length.toLocaleString("fa-IR")} بنر · {group.is_active ? "فعال" : "غیرفعال"}</p>
+            </div>
+            <button type="button" disabled={groupSaving} onClick={() => void toggleGroup(group)} className={secondary}>{group.is_active ? "توقف اسلایدر" : "فعال‌سازی"}</button>
+          </article>
+        ))}
+        {groups.length === 0 && <p className="text-sm text-muted-foreground">هنوز گروهی ساخته نشده است.</p>}
+      </div>
+    </section>
     <div className="grid gap-6 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-3"><h2 className="font-bold">{editingId === null ? "افزودن بنر" : "ویرایش بنر"}</h2><button type="button" className={secondary} onClick={reset}>بنر جدید</button></div>
         <form onSubmit={save} className="mt-4 space-y-4">
+          <label className="block text-sm">گروه بنر / اسلایدر
+            <select required value={draft.group || ""} onChange={event => {
+              const groupId = Number(event.target.value);
+              set("group", groupId);
+              set("position", banners.filter(banner => banner.group === groupId && banner.id !== editingId).length);
+            }} className={field}>
+              <option value="">انتخاب گروه</option>
+              {groups.filter(group => group.is_active).map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+          </label>
           <label className="block text-sm">عنوان داخلی بنر<input maxLength={120} value={draft.title} onChange={e => set("title", e.target.value)} className={field} /></label>
           <label className="block text-sm">متن توضیحی<input maxLength={240} value={draft.subtitle} onChange={e => set("subtitle", e.target.value)} className={field} /></label>
           <label className="block text-sm">متن جایگزین تصویر<input required maxLength={200} value={draft.alt_text} onChange={e => set("alt_text", e.target.value)} className={field} /></label>
@@ -279,14 +398,14 @@ export default function AdminHomepageBannersPage() {
       </section>
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="mb-4 font-bold">بنرهای ثبت‌شده <span className="text-xs font-normal text-muted-foreground">({banners.length.toLocaleString("fa-IR")})</span></h2>
-        {loading ? <p className="py-10 text-center text-sm text-muted-foreground">در حال دریافت…</p> : banners.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">هنوز بنری ثبت نشده است.</p> : <div className="space-y-4">{banners.map((banner, index) => <article key={banner.id} className="rounded-xl border border-border p-4">
+        {loading ? <p className="py-10 text-center text-sm text-muted-foreground">در حال دریافت…</p> : banners.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">هنوز بنری ثبت نشده است.</p> : <div className="space-y-4">{banners.map((banner) => <article key={banner.id} className="rounded-xl border border-border p-4">
           <div className="relative mb-3 aspect-[2048/746] overflow-hidden rounded-lg bg-muted">
             {/* Admin preview uses the same-origin media URL returned by the API. */}
             <Image src={banner.desktop_image_url} alt={banner.alt_text} fill sizes="(max-width: 768px) 100vw, 720px" unoptimized className="object-cover" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h3 className="font-semibold">{banner.title || `بنر شماره ${banner.id}`}</h3><p className="mt-1 text-xs text-muted-foreground">{banner.status === "published" ? "منتشرشده" : "پیش‌نویس"} · ترتیب {banner.position + 1}{banner.mobile_image_url ? " · تصویر موبایل دارد" : ""}</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(banner,-1)} className={secondary}>↑</button><button type="button" disabled={saving || index===banners.length-1} onClick={() => void move(banner,1)} className={secondary}>↓</button><button type="button" disabled={saving} onClick={() => edit(banner)} className={secondary}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(banner)} className={secondary}>{historyFor === banner.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void togglePublish(banner)} className={primary}>{banner.status === "published" ? "پیش‌نویس" : "انتشار"}</button></div>
+            <div><h3 className="font-semibold">{banner.title || `بنر شماره ${banner.id}`}</h3><p className="mt-1 text-xs text-muted-foreground">{groupNameFor(banner.group)} · {banner.status === "published" ? "منتشرشده" : "پیش‌نویس"} · ترتیب {banner.position + 1}{banner.mobile_image_url ? " · تصویر موبایل دارد" : ""}</p></div>
+            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || banners.filter(item => item.group === banner.group).sort((a, b) => a.position - b.position || a.id - b.id)[0]?.id === banner.id} onClick={() => void move(banner,-1)} className={secondary}>↑</button><button type="button" disabled={saving || banners.filter(item => item.group === banner.group).sort((a, b) => a.position - b.position || a.id - b.id).slice(-1)[0]?.id === banner.id} onClick={() => void move(banner,1)} className={secondary}>↓</button><button type="button" disabled={saving} onClick={() => edit(banner)} className={secondary}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(banner)} className={secondary}>{historyFor === banner.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void togglePublish(banner)} className={primary}>{banner.status === "published" ? "پیش‌نویس" : "انتشار"}</button></div>
           </div>
         {historyFor === banner.id && <div className="mt-4 border-t border-border pt-4">
              <h4 className="text-sm font-semibold">تاریخچه نسخه‌ها</h4>

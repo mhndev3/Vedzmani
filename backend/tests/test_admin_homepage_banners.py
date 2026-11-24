@@ -6,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from PIL import Image
 
-from apps.catalog.models import HomepageBanner
+from apps.catalog.models import HomepageBanner, HomepageBannerGroup
 from tests.conftest import client_for
 
 pytestmark = pytest.mark.django_db
@@ -41,7 +41,8 @@ def test_homepage_banner_draft_publish_and_public_visibility(make_staff, setting
     })
     assert response.status_code == 201, response.content
     banner_id = response.json()["id"]
-    assert client.get("/api/catalog/homepage-banners/").json() == {"banners": []}
+    empty_public = client.get("/api/catalog/homepage-banners/").json()
+    assert empty_public == {"groups": [], "banners": []}
 
     published = client.patch(
         f"/api/admin/homepage/banners/{banner_id}/",
@@ -79,3 +80,89 @@ def test_homepage_banner_rejects_external_cta_and_invalid_schedule(make_staff):
     })
     assert response.status_code == 400
     assert "ends_at" in response.json()["error"]["details"]
+
+
+def test_banner_groups_can_be_created_and_render_as_independent_sliders(make_staff, settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    permissions = (
+        "catalog.add_homepagebanner",
+        "catalog.view_homepagebanner",
+        "catalog.change_homepagebanner",
+        "catalog.add_homepagebannergroup",
+        "catalog.view_homepagebannergroup",
+        "catalog.change_homepagebannergroup",
+    )
+    client = client_for(make_staff(*permissions))
+    created_group = client.post(
+        "/api/admin/homepage/banner-groups/",
+        {"name": "پیشنهادهای ویژه", "slug": "special-offers", "position": 1, "is_active": True},
+        content_type="application/json",
+    )
+    assert created_group.status_code == 201, created_group.content
+    group_id = created_group.json()["id"]
+
+    created_banner = client.post("/api/admin/homepage/banners/", {
+        "group": group_id,
+        "title": "تخفیف ویژه",
+        "alt_text": "بنر تخفیف ویژه",
+        "desktop_image": image_file("special.png"),
+        "position": 0,
+        "status": "published",
+    })
+    assert created_banner.status_code == 201, created_banner.content
+    banner = HomepageBanner.objects.get(pk=created_banner.json()["id"])
+    assert banner.group_id == group_id
+
+    public = client.get("/api/catalog/homepage-banners/")
+    assert public.status_code == 200
+    assert [group["id"] for group in public.json()["groups"]] == [group_id]
+    assert public.json()["groups"][0]["name"] == "پیشنهادهای ویژه"
+    assert public.json()["groups"][0]["banners"][0]["id"] == banner.pk
+    assert public.json()["banners"][0]["id"] == banner.pk
+
+    disabled = client.patch(
+        f"/api/admin/homepage/banner-groups/{group_id}/",
+        {"is_active": False},
+        content_type="application/json",
+    )
+    assert disabled.status_code == 200, disabled.content
+    assert client.get("/api/catalog/homepage-banners/").json()["groups"] == []
+    assert HomepageBanner.objects.filter(pk=banner.pk).exists()
+
+
+def test_banner_revision_snapshot_keeps_its_group(make_staff, settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    group_a = HomepageBannerGroup.objects.get(slug="main")
+    group_b = HomepageBannerGroup.objects.create(name="ویژه", slug="banner-revision-special")
+    client = client_for(make_staff(
+        "catalog.add_homepagebanner",
+        "catalog.view_homepagebanner",
+        "catalog.change_homepagebanner",
+    ))
+    created = client.post("/api/admin/homepage/banners/", {
+        "group": group_a.pk,
+        "title": "بنر",
+        "alt_text": "تصویر بنر",
+        "desktop_image": image_file("revision.png"),
+        "status": "draft",
+    })
+    assert created.status_code == 201, created.content
+    banner_id = created.json()["id"]
+
+    changed = client.patch(
+        f"/api/admin/homepage/banners/{banner_id}/",
+        {"group": group_b.pk},
+        content_type="application/json",
+    )
+    assert changed.status_code == 200, changed.content
+    history = client.get(f"/api/admin/homepage/banners/{banner_id}/revisions/")
+    first_revision = history.json()[1]
+    assert first_revision["snapshot"]["group"] == group_a.pk
+
+    restored = client.post(
+        f"/api/admin/homepage/banners/{banner_id}/revisions/",
+        {"revision_id": first_revision["id"]},
+        content_type="application/json",
+    )
+    assert restored.status_code == 200, restored.content
+    assert HomepageBanner.objects.get(pk=banner_id).group_id == group_a.pk

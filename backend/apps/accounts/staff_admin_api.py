@@ -41,6 +41,7 @@ MANAGED_PERMISSION_MODELS = {
         "variantsizemeasurement": {"view", "add", "change"},
         "variantsizedescription": {"view", "add", "change"},
         "homepagebanner": {"view", "add", "change"},
+        "homepagebannergroup": {"view", "add", "change"},
         "homepagesection": {"view", "add", "change"},
         "storefronttheme": {"view", "change"},
     },

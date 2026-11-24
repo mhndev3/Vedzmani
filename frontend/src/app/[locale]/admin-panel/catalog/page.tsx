@@ -11,10 +11,11 @@ import CatalogTaxonomyManager from "./CatalogTaxonomyManager";
 import CreateProductWithVariantsForm from "./CreateProductWithVariantsForm";
 
 type Page<T> = { results: T[]; next: string | null; count: number };
-type Category = { id: number; name: string; slug: string; is_active: boolean; position: number };
+type ProductField = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
+type Category = { id: number; name: string; slug: string; is_active: boolean; position: number; product_fields: ProductField[] };
 type Collection = { id: number; name: string; slug: string; is_active: boolean; position: number };
 type Size = { id: number; code: string; label: string; position: number };
-type Product = { id: number; product_code: string | null; name: string; slug: string; description: string; price: string; sale_price: string | null; category: number; collections: number[]; is_active: boolean };
+type Product = { id: number; product_code: string | null; name: string; slug: string; description: string; attributes: Record<string, string>; price: string; sale_price: string | null; category: number; collections: number[]; is_active: boolean };
 type Color = { id: number; product: number; name: string; slug: string; product_code: string; hex_color: string; is_active: boolean; position: number };
 type VariantSize = { id: number; variant: number; size: number; sku: string; stock_quantity: number; is_active: boolean };
 type Adjustment = { id: number; variant_size: number; quantity_change: number; stock_after: number; reason: string; created_at: string };
@@ -63,7 +64,7 @@ export default function AdminCatalogPage() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [productFormMode, setProductFormMode] = useState<"create" | "edit" | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
@@ -71,6 +72,7 @@ export default function AdminCatalogPage() {
   const [salePrice, setSalePrice] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [collectionIds, setCollectionIds] = useState<number[]>([]);
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [colorName, setColorName] = useState("");
   const [colorSlug, setColorSlug] = useState("");
   const [hexColor, setHexColor] = useState("#000000");
@@ -145,26 +147,44 @@ export default function AdminCatalogPage() {
   const formatPrice = (value: string | number) => Number(value).toLocaleString("fa-IR") + " تومان";
 
   function resetProductForm(product?: Product) {
+    const nextCategoryId = product?.category ?? categories.find((c) => c.is_active)?.id ?? 0;
+    const nextCategory = categories.find((category) => category.id === nextCategoryId);
     setName(product?.name ?? "");
     setSlug(product?.slug ?? "");
     setDescription(product?.description ?? "");
     setPrice(product?.price ?? "");
     setSalePrice(product?.sale_price ?? "");
-    setCategoryId(String(product?.category ?? categories.find((c) => c.is_active)?.id ?? ""));
+    setCategoryId(String(nextCategoryId || ""));
     setCollectionIds(product?.collections ?? []);
-    setShowForm(true);
+    setAttributes(Object.fromEntries((nextCategory?.product_fields ?? []).map(field => [
+      field.key,
+      product?.attributes?.[field.key] ?? "",
+    ])));
+    setProductFormMode("edit");
     setError("");
   }
 
   async function saveProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true); setError(""); setNotice("");
-    const payload = { name, slug, description, price, sale_price: salePrice || null, category: Number(categoryId), collections: collectionIds };
+    if (productFormMode !== "edit" || !selected) {
+      setSaving(false);
+      setError("حالت ویرایش محصول معتبر نیست؛ برای ساخت محصول از فرم محصول جدید استفاده کنید.");
+      return;
+    }
+    const payload = {
+      name,
+      slug,
+      description: description.trim() === "//" ? "" : description,
+      attributes: Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, value.trim() === "//" ? "" : value.trim()])),
+      price,
+      sale_price: salePrice || null,
+      category: Number(categoryId),
+      collections: collectionIds,
+    };
     try {
-      const saved = selected && showForm
-        ? await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${selected.id}/`, payload)
-        : await apiRequest<Product>("POST", "/api/admin/catalog/products/", payload);
-      setShowForm(false);
+      const saved = await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${selected.id}/`, payload);
+      setProductFormMode(null);
       setNotice("اطلاعات محصول ذخیره شد.");
       await refresh();
       setSelected(saved);
@@ -278,7 +298,7 @@ export default function AdminCatalogPage() {
           <h1 className="mt-3 text-2xl font-bold sm:text-3xl">مدیریت محصولات</h1>
           <p className="mt-2 text-sm text-muted-foreground">محصول، رنگ، سایز و موجودی هر ترکیب را از یک صفحه مدیریت کنید.</p>
         </div>
-        <button type="button" className={buttonClass} onClick={() => { setSelected(null); setShowForm(true); setError(""); setNotice(""); }}>＋ محصول جدید</button>
+        <button type="button" className={buttonClass} onClick={() => { setSelected(null); setProductFormMode("create"); setError(""); setNotice(""); }}>＋ محصول جدید</button>
       </div>
 
       <CatalogTaxonomyManager />
@@ -286,33 +306,61 @@ export default function AdminCatalogPage() {
       {notice && <div role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</div>}
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</div>}
 
-      {showForm && !selected && <CreateProductWithVariantsForm
+      {productFormMode === "create" && <CreateProductWithVariantsForm
         categories={categories}
         collections={collections}
         sizes={sizes}
-        onCancel={() => setShowForm(false)}
-        onCreated={async (product) => {
-          setShowForm(false);
-          setNotice("محصول و همه رنگ‌ها و سایزهای انتخاب‌شده به‌صورت یکپارچه ساخته شدند.");
+        onCancel={() => setProductFormMode(null)}
+        onCreated={async (product, imagesUploaded) => {
+          setProductFormMode(null);
+          setNotice(imagesUploaded
+            ? "محصول، رنگ‌ها، سایزها و تصاویر انتخاب‌شده ساخته شدند."
+            : "محصول و ترکیب‌های آن ساخته شدند، اما آپلود همه تصاویر کامل نشد. از بخش تصاویر رنگ‌ها ادامه دهید.");
           const data = await refresh();
           setSelected(product);
           setImageVariantId(data?.colors.find((color) => color.product === product.id)?.id ?? null);
         }}
       />}
-      {showForm && selected && (
+      {productFormMode === "edit" && selected && (
         <form onSubmit={saveProduct} className="mb-7 rounded-2xl border border-border bg-card p-5 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold">{selected ? "ویرایش محصول" : "ثبت محصول جدید"}</h2>
-            <button type="button" className={secondaryClass} onClick={() => setShowForm(false)}>انصراف</button>
+            <button type="button" className={secondaryClass} onClick={() => setProductFormMode(null)}>انصراف</button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm">نام محصول<input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} /></label>
             <label className="text-sm">شناسه انگلیسی (Slug)<input required value={slug} onChange={(e) => setSlug(e.target.value)} dir="ltr" className={inputClass} /></label>
-            <label className="text-sm">دسته‌بندی<select required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}><option value="">انتخاب دسته‌بندی</option>{categories.filter((c) => c.is_active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            <label className="text-sm">دسته‌بندی<select required value={categoryId} onChange={(event) => {
+              const nextId = Number(event.target.value);
+              setCategoryId(event.target.value);
+              const nextCategory = categories.find(item => item.id === nextId);
+              setAttributes(old => Object.fromEntries((nextCategory?.product_fields ?? []).map(field => [field.key, old[field.key] ?? ""])));
+            }} className={inputClass}><option value="">انتخاب دسته‌بندی</option>{categories.filter((c) => c.is_active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             <label className="text-sm">قیمت اصلی (تومان)<input required type="number" min="1" step="1" value={price} onChange={(e) => setPrice(e.target.value)} className={inputClass} dir="ltr" /></label>
             <label className="text-sm">قیمت با تخفیف (اختیاری)<input type="number" min="1" step="1" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className={inputClass} dir="ltr" /></label>
             <label className="text-sm sm:col-span-2 lg:col-span-1">توضیحات<textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={inputClass} /></label>
           </div>
+          {(categories.find(item => item.id === Number(categoryId))?.product_fields ?? []).length > 0 && (
+            <section className="mt-5 rounded-xl border border-border p-4">
+              <h3 className="font-semibold">مشخصات اختصاصی این دسته‌بندی</h3>
+              <p className="mt-1 text-xs text-muted-foreground">فقط فیلدهای تعریف‌شده برای دسته‌بندی انتخاب‌شده نمایش داده می‌شوند.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(categories.find(item => item.id === Number(categoryId))?.product_fields ?? []).map(definition => (
+                  <label key={definition.key} className="text-sm">
+                    {definition.label}{definition.unit ? ` (${definition.unit})` : ""}{definition.required ? " *" : ""}
+                    <input
+                      type={definition.type === "number" ? "number" : "text"}
+                      step={definition.type === "number" ? "any" : undefined}
+                      required={definition.required}
+                      value={attributes[definition.key] ?? ""}
+                      onChange={event => setAttributes(old => ({ ...old, [definition.key]: event.target.value }))}
+                      className={inputClass}
+                    />
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
           <div className="mt-4">
             <p className="mb-2 text-sm">مجموعه‌ها</p>
             <div className="flex flex-wrap gap-2">{collections.filter((c) => c.is_active).map((c) => <label key={c.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"><input type="checkbox" checked={collectionIds.includes(c.id)} onChange={(e) => setCollectionIds((old) => e.target.checked ? [...old, c.id] : old.filter((id) => id !== c.id))} />{c.name}</label>)}</div>
@@ -327,7 +375,7 @@ export default function AdminCatalogPage() {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجو با نام یا کد محصول…" className={inputClass + " mb-4"} />
           {loading ? <p className="py-8 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : visibleProducts.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">محصولی پیدا نشد.</p> : (
             <div className="max-h-[70vh] space-y-2 overflow-y-auto">
-              {visibleProducts.map((product) => <button key={product.id} type="button" onClick={() => { setSelected(product); setShowForm(false); setVariantId(null); setError(""); }} className={"w-full rounded-xl border p-3 text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
+              {visibleProducts.map((product) => <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setError(""); }} className={"w-full rounded-xl border p-3 text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
                 <span className="flex items-center justify-between gap-2"><strong className="text-sm">{product.name}</strong><span className={"shrink-0 rounded-full px-2 py-1 text-[11px] " + (product.is_active ? "bg-muted text-foreground" : "bg-destructive/10 text-destructive")}>{product.is_active ? "منتشر" : "پیش‌نویس"}</span></span>
                 <span className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground"><span>کد: {product.product_code || "—"}</span><span>{formatPrice(product.sale_price || product.price)}</span></span>
               </button>)}

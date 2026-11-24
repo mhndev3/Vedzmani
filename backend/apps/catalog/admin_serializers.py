@@ -5,6 +5,7 @@ Related records are managed through their own permission-checked endpoints. Stoc
 never writable through these serializers.
 """
 from rest_framework import serializers
+from PIL import Image, UnidentifiedImageError
 
 from apps.catalog.models import (
     Category,
@@ -21,13 +22,65 @@ from apps.catalog.models import (
 )
 from apps.inventory.models import InventoryAdjustment
 from apps.inventory.services import adjust_stock
+from apps.catalog.storage import public_image_url
+from apps.catalog.product_attributes import clean_optional_marker, clean_product_attributes, validate_product_field_schema
 
 
 class CategoryAdminSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False, allow_empty_file=False, write_only=True)
+    image_url = serializers.SerializerMethodField()
+    remove_image = serializers.BooleanField(required=False, write_only=True)
+    product_fields = serializers.JSONField(required=False)
+
     class Meta:
         model = Category
-        fields = ["id", "name", "slug", "is_active", "position", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        fields = [
+            "id", "name", "slug", "image", "image_url", "remove_image", "product_fields",
+            "is_active", "position", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "image_url", "created_at", "updated_at"]
+
+    def get_image_url(self, obj):
+        return public_image_url(obj.image.name) if obj.image else None
+
+    def validate_product_fields(self, value):
+        return validate_product_field_schema(value)
+
+    def validate_image(self, value):
+        if value.size <= 0 or value.size > 8 * 1024 * 1024:
+            raise serializers.ValidationError("حجم تصویر باید بیشتر از صفر و حداکثر ۸ مگابایت باشد.")
+        try:
+            value.seek(0)
+            with Image.open(value) as image:
+                if image.format not in {"JPEG", "PNG", "WEBP"}:
+                    raise serializers.ValidationError("فرمت تصویر باید JPEG، PNG یا WebP باشد.")
+                if image.width < 1 or image.height < 1 or image.width * image.height > 40_000_000:
+                    raise serializers.ValidationError("ابعاد تصویر بیش از حد مجاز است.")
+                image.verify()
+            value.seek(0)
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            raise serializers.ValidationError("فایل تصویر معتبر یا قابل خواندن نیست.") from exc
+        return value
+
+    def validate(self, attrs):
+        if attrs.get("remove_image") and attrs.get("image"):
+            raise serializers.ValidationError({"image": "برای یک درخواست، تصویر جدید یا حذف تصویر فعلی را انتخاب کنید."})
+        return attrs
+
+    def update(self, instance, validated_data):
+        remove_image = validated_data.pop("remove_image", False)
+        old_image_name = instance.image.name if instance.image else ""
+        old_storage = instance.image.storage if instance.image else None
+        if remove_image:
+            instance.image = ""
+        updated = super().update(instance, validated_data)
+        if old_image_name and old_storage and (remove_image or updated.image.name != old_image_name):
+            old_storage.delete(old_image_name)
+        return updated
+
+    def create(self, validated_data):
+        validated_data.pop("remove_image", None)
+        return super().create(validated_data)
 
 
 class CollectionAdminSerializer(serializers.ModelSerializer):
@@ -45,13 +98,30 @@ class SizeAdminSerializer(serializers.ModelSerializer):
 
 
 class ProductAdminSerializer(serializers.ModelSerializer):
+    attributes = serializers.JSONField(required=False)
+
     class Meta:
         model = Product
         fields = [
-            "id", "product_code", "name", "slug", "description", "price", "sale_price",
+            "id", "product_code", "name", "slug", "description", "attributes", "price", "sale_price",
             "category", "collections", "is_active", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_description(self, value):
+        return clean_optional_marker(value)
+
+    def validate(self, attrs):
+        category = attrs.get("category", self.instance.category if self.instance else None)
+        attributes = attrs.get("attributes", self.instance.attributes if self.instance else {})
+        if category is not None:
+            attrs["attributes"] = clean_product_attributes(
+                category,
+                attributes,
+                reject_unknown="attributes" in attrs,
+                enforce_required=("attributes" in attrs or "category" in attrs or self.instance is None),
+            )
+        return attrs
 
 
 class ColorVariantAdminSerializer(serializers.ModelSerializer):
@@ -72,24 +142,44 @@ class VariantSizeAdminSerializer(serializers.ModelSerializer):
 
 
 class ProductSizeMeasurementAdminSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(allow_blank=True, required=True)
+    value = serializers.CharField(allow_blank=True, required=True)
+    unit = serializers.CharField(allow_blank=True, required=False)
+
     class Meta:
         model = ProductSizeMeasurement
         fields = ["id", "product", "size", "name", "value", "unit", "position"]
         read_only_fields = ["id"]
 
+    def validate(self, attrs):
+        for field in ("name", "value", "unit"):
+            if field in attrs:
+                attrs[field] = clean_optional_marker(attrs[field])
+        return attrs
+
 
 class ProductSizeDescriptionAdminSerializer(serializers.ModelSerializer):
+    description = serializers.CharField(allow_blank=True, required=False)
+
     class Meta:
         model = ProductSizeDescription
         fields = ["id", "product", "size", "description"]
         read_only_fields = ["id"]
 
+    def validate_description(self, value):
+        return clean_optional_marker(value)
+
 
 class VariantSizeDescriptionAdminSerializer(serializers.ModelSerializer):
+    description = serializers.CharField(allow_blank=True, required=False)
+
     class Meta:
         model = VariantSizeDescription
         fields = ["id", "variant_size", "description"]
         read_only_fields = ["id"]
+
+    def validate_description(self, value):
+        return clean_optional_marker(value)
 
 
 class VariantSizeMeasurementAdminSerializer(serializers.ModelSerializer):
