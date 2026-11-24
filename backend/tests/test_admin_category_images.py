@@ -3,6 +3,7 @@ from io import BytesIO
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
+from django.test.client import BOUNDARY, encode_multipart
 from PIL import Image
 from rest_framework.test import APIClient
 
@@ -17,6 +18,14 @@ def uploaded_image(name="category.png", color=(20, 80, 160)):
     buffer = BytesIO()
     Image.new("RGB", (48, 48), color).save(buffer, format="PNG")
     return SimpleUploadedFile(name, buffer.getvalue(), content_type="image/png")
+
+def multipart_patch(client, path, data):
+    return client.generic(
+        "PATCH",
+        path,
+        encode_multipart(BOUNDARY, data),
+        content_type=f"multipart/form-data; boundary={BOUNDARY}",
+    )
 
 
 @override_settings(MEDIA_ROOT="/tmp/vedzmani-test-category-images")
@@ -35,10 +44,10 @@ def test_staff_can_upload_replace_and_remove_category_image(make_staff):
     assert created.data["image_url"].endswith(first_name)
     assert category.image.storage.exists(first_name)
 
-    replaced = editor.patch(
+    replaced = multipart_patch(
+        editor,
         f"/api/admin/catalog/categories/{category.pk}/",
         {"image": uploaded_image(color=(180, 40, 60))},
-        format="multipart",
     )
     assert replaced.status_code == 200, replaced.content
     category.refresh_from_db()
@@ -47,10 +56,10 @@ def test_staff_can_upload_replace_and_remove_category_image(make_staff):
     assert category.image.storage.exists(second_name)
     assert not category.image.storage.exists(first_name)
 
-    removed = editor.patch(
+    removed = multipart_patch(
+        editor,
         f"/api/admin/catalog/categories/{category.pk}/",
         {"remove_image": "true"},
-        format="multipart",
     )
     assert removed.status_code == 200, removed.content
     category.refresh_from_db()
@@ -61,10 +70,10 @@ def test_staff_can_upload_replace_and_remove_category_image(make_staff):
 def test_category_image_upload_requires_category_change_permission(make_staff):
     category = Category.objects.create(name="لباس", slug="category-image-permission")
     viewer = client_for(make_staff("catalog.view_category"))
-    response = viewer.patch(
+    response = multipart_patch(
+        viewer,
         f"/api/admin/catalog/categories/{category.pk}/",
         {"image": uploaded_image()},
-        format="multipart",
     )
     assert response.status_code == 403
     category.refresh_from_db()
