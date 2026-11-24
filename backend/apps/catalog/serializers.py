@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from .models import Category, ColorVariant, Product, ProductSizeMeasurement, VariantImage, VariantSize
 from .storage import public_image_url
+from .product_attributes import clean_optional_marker
 
 
 class VariantImageSerializer(serializers.ModelSerializer):
@@ -44,20 +45,20 @@ class VariantSizeSerializer(serializers.ModelSerializer):
     def get_measurements(self, obj: VariantSize):
         # Exact color + size rows win; otherwise fall back to the product + size rows shared by all colors.
         own = list(obj.measurements.all())
-        if own:
-            return ProductSizeMeasurementSerializer(own, many=True).data
-        measurements_by_size = self.context.get("product_measurements_by_size", {})
-        return ProductSizeMeasurementSerializer(
-            measurements_by_size.get(obj.size_id, []), many=True
-        ).data
+        rows = own if own else self.context.get("product_measurements_by_size", {}).get(obj.size_id, [])
+        visible = [
+            item for item in rows
+            if clean_optional_marker(item.name) and clean_optional_marker(item.value)
+        ]
+        return ProductSizeMeasurementSerializer(visible, many=True).data
 
     def get_size_description(self, obj: VariantSize) -> str:
         # Exact color + size wins; otherwise fall back to the product + size description.
         specific = getattr(obj, "description", None)
-        if specific and specific.description.strip():
-            return specific.description
+        if specific and clean_optional_marker(specific.description):
+            return clean_optional_marker(specific.description)
         descriptions_by_size = self.context.get("product_size_descriptions_by_size", {})
-        return descriptions_by_size.get(obj.size_id, "")
+        return clean_optional_marker(descriptions_by_size.get(obj.size_id, ""))
 
 
 class ColorVariantSerializer(serializers.ModelSerializer):
@@ -73,17 +74,29 @@ class ColorVariantSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ["name", "slug"]
+        fields = ["name", "slug", "product_fields"]
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     colors = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    attributes = serializers.SerializerMethodField()
     code = serializers.CharField(source="product_code", read_only=True, allow_null=True)
+
+    def get_description(self, obj: Product):
+        return clean_optional_marker(obj.description)
+
+    def get_attributes(self, obj: Product):
+        return {
+            key: value
+            for key, value in (obj.attributes or {}).items()
+            if clean_optional_marker(value) != ""
+        }
 
     class Meta:
         model = Product
-        fields = ["id", "name", "slug", "code", "description", "price", "sale_price", "category", "colors"]
+        fields = ["id", "name", "slug", "code", "description", "attributes", "price", "sale_price", "category", "colors"]
 
     def get_colors(self, obj: Product):
         measurements_by_size = {}
