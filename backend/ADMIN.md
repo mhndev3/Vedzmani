@@ -3,15 +3,12 @@
 Django Admin remains registered for internal maintenance and automated tests, but it is **not a public product interface**. Nginx returns 404 for public `/admin/` paths. Store managers sign in through the storefront phone + password form and use the Persian custom workspace at `/{locale}/admin-panel`; its `/api/admin/` endpoints enforce staff permissions server-side. Do not direct store managers to Django Admin.
 
 ## Logging in
-Staff sign in with **phone + password** at `/admin/login/`. The login form does **not** normalize the phone yet:
-type the canonical form `+989XXXXXXXXX`. Customers are OTP-only (unusable password) and can never enter the admin
-unless explicitly given `is_staff` and a password.
 
-**A session created by the customer OTP flow never opens the admin** (Agent 6). `apps/accounts/admin_site.py`
-refuses sessions flagged by `/api/auth/otp/verify/`, even for `is_staff` phones, so an SMS code alone cannot reach
-`/admin/`. Succeeding at `/admin/login/` (password) lifts the restriction for that session; a later OTP login on the
-same session closes it again. Staff accounts without a password (shown as "Not set (OTP login only)" in the user
-admin) therefore cannot use the admin until a password is set.
+Store managers sign in at the storefront's normal `/{locale}/sign-in` page with their pre-authorized phone number and password. The password-login API creates a staff session directly and does not send SMS OTP. Customer password login remains protected by the SMS OTP second factor.
+
+The custom Persian workspace is `/{locale}/admin-panel`. After a successful staff login, the storefront redirects there automatically. Public requests to `/admin/` and `/admin/login/` are blocked by Nginx with 404; never give store managers Django Admin URLs.
+
+An OTP-only customer session is still flagged and cannot become a staff session. Staff status is determined by the backend account permissions, never by a phone number or frontend flag.
 
 ## What exists
 | Area | Notes |
