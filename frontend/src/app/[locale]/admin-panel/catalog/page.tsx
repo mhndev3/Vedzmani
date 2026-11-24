@@ -63,7 +63,7 @@ export default function AdminCatalogPage() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [productFormMode, setProductFormMode] = useState<"create" | "edit" | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
@@ -152,19 +152,22 @@ export default function AdminCatalogPage() {
     setSalePrice(product?.sale_price ?? "");
     setCategoryId(String(product?.category ?? categories.find((c) => c.is_active)?.id ?? ""));
     setCollectionIds(product?.collections ?? []);
-    setShowForm(true);
+    setProductFormMode("edit");
     setError("");
   }
 
   async function saveProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true); setError(""); setNotice("");
+    if (productFormMode !== "edit" || !selected) {
+      setSaving(false);
+      setError("حالت ویرایش محصول معتبر نیست؛ برای ساخت محصول از فرم محصول جدید استفاده کنید.");
+      return;
+    }
     const payload = { name, slug, description, price, sale_price: salePrice || null, category: Number(categoryId), collections: collectionIds };
     try {
-      const saved = selected && showForm
-        ? await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${selected.id}/`, payload)
-        : await apiRequest<Product>("POST", "/api/admin/catalog/products/", payload);
-      setShowForm(false);
+      const saved = await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${selected.id}/`, payload);
+      setProductFormMode(null);
       setNotice("اطلاعات محصول ذخیره شد.");
       await refresh();
       setSelected(saved);
@@ -278,7 +281,7 @@ export default function AdminCatalogPage() {
           <h1 className="mt-3 text-2xl font-bold sm:text-3xl">مدیریت محصولات</h1>
           <p className="mt-2 text-sm text-muted-foreground">محصول، رنگ، سایز و موجودی هر ترکیب را از یک صفحه مدیریت کنید.</p>
         </div>
-        <button type="button" className={buttonClass} onClick={() => { setSelected(null); setShowForm(true); setError(""); setNotice(""); }}>＋ محصول جدید</button>
+        <button type="button" className={buttonClass} onClick={() => { setSelected(null); setProductFormMode("create"); setError(""); setNotice(""); }}>＋ محصول جدید</button>
       </div>
 
       <CatalogTaxonomyManager />
@@ -286,24 +289,26 @@ export default function AdminCatalogPage() {
       {notice && <div role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</div>}
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</div>}
 
-      {showForm && !selected && <CreateProductWithVariantsForm
+      {productFormMode === "create" && <CreateProductWithVariantsForm
         categories={categories}
         collections={collections}
         sizes={sizes}
-        onCancel={() => setShowForm(false)}
-        onCreated={async (product) => {
-          setShowForm(false);
-          setNotice("محصول و همه رنگ‌ها و سایزهای انتخاب‌شده به‌صورت یکپارچه ساخته شدند.");
+        onCancel={() => setProductFormMode(null)}
+        onCreated={async (product, imagesUploaded) => {
+          setProductFormMode(null);
+          setNotice(imagesUploaded
+            ? "محصول، رنگ‌ها، سایزها و تصاویر انتخاب‌شده ساخته شدند."
+            : "محصول و ترکیب‌های آن ساخته شدند، اما آپلود همه تصاویر کامل نشد. از بخش تصاویر رنگ‌ها ادامه دهید.");
           const data = await refresh();
           setSelected(product);
           setImageVariantId(data?.colors.find((color) => color.product === product.id)?.id ?? null);
         }}
       />}
-      {showForm && selected && (
+      {productFormMode === "edit" && selected && (
         <form onSubmit={saveProduct} className="mb-7 rounded-2xl border border-border bg-card p-5 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold">{selected ? "ویرایش محصول" : "ثبت محصول جدید"}</h2>
-            <button type="button" className={secondaryClass} onClick={() => setShowForm(false)}>انصراف</button>
+            <button type="button" className={secondaryClass} onClick={() => setProductFormMode(null)}>انصراف</button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm">نام محصول<input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} /></label>
@@ -327,7 +332,7 @@ export default function AdminCatalogPage() {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجو با نام یا کد محصول…" className={inputClass + " mb-4"} />
           {loading ? <p className="py-8 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : visibleProducts.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">محصولی پیدا نشد.</p> : (
             <div className="max-h-[70vh] space-y-2 overflow-y-auto">
-              {visibleProducts.map((product) => <button key={product.id} type="button" onClick={() => { setSelected(product); setShowForm(false); setVariantId(null); setError(""); }} className={"w-full rounded-xl border p-3 text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
+              {visibleProducts.map((product) => <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setError(""); }} className={"w-full rounded-xl border p-3 text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
                 <span className="flex items-center justify-between gap-2"><strong className="text-sm">{product.name}</strong><span className={"shrink-0 rounded-full px-2 py-1 text-[11px] " + (product.is_active ? "bg-muted text-foreground" : "bg-destructive/10 text-destructive")}>{product.is_active ? "منتشر" : "پیش‌نویس"}</span></span>
                 <span className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground"><span>کد: {product.product_code || "—"}</span><span>{formatPrice(product.sale_price || product.price)}</span></span>
               </button>)}
