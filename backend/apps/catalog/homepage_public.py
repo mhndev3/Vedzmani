@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from .filters import build_variant_queryset
 from .models import HomepageSection
 from .serializers import VariantProductListSerializer
+from .storage import public_image_url
 
 
 class HomepageSectionsPublicView(APIView):
@@ -33,10 +34,17 @@ class HomepageSectionsPublicView(APIView):
                 for category in categories:
                     variants = build_variant_queryset({}).filter(product__category=category)
                     product = VariantProductListSerializer(variants[:1], many=True, context={"request": request}).data
+                    category_image = None
+                    if category.image:
+                        category_image = {
+                            "url": public_image_url(category.image.name),
+                            "thumbnail_url": public_image_url(category.image.name),
+                            "alt_text": category.name,
+                        }
                     row["categories"].append({
                         "name": category.name,
                         "slug": category.slug,
-                        "image": product[0]["image"] if product else None,
+                        "image": category_image or (product[0]["image"] if product else None),
                     })
             elif section.section_type == HomepageSection.TYPE_PRODUCTS:
                 product_ids = section.products.filter(is_active=True, category__is_active=True).values_list("id", flat=True)
