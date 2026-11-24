@@ -356,7 +356,7 @@ export default function AdminHomepageBannersPage() {
             <select required value={draft.group || ""} onChange={event => {
               const groupId = Number(event.target.value);
               set("group", groupId);
-              if (editingId === null) set("position", banners.filter(banner => banner.group === groupId).length);
+              set("position", banners.filter(banner => banner.group === groupId && banner.id !== editingId).length);
             }} className={field}>
               <option value="">انتخاب گروه</option>
               {groups.filter(group => group.is_active).map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
@@ -398,14 +398,14 @@ export default function AdminHomepageBannersPage() {
       </section>
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="mb-4 font-bold">بنرهای ثبت‌شده <span className="text-xs font-normal text-muted-foreground">({banners.length.toLocaleString("fa-IR")})</span></h2>
-        {loading ? <p className="py-10 text-center text-sm text-muted-foreground">در حال دریافت…</p> : banners.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">هنوز بنری ثبت نشده است.</p> : <div className="space-y-4">{banners.map((banner, index) => <article key={banner.id} className="rounded-xl border border-border p-4">
+        {loading ? <p className="py-10 text-center text-sm text-muted-foreground">در حال دریافت…</p> : banners.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">هنوز بنری ثبت نشده است.</p> : <div className="space-y-4">{banners.map((banner) => <article key={banner.id} className="rounded-xl border border-border p-4">
           <div className="relative mb-3 aspect-[2048/746] overflow-hidden rounded-lg bg-muted">
             {/* Admin preview uses the same-origin media URL returned by the API. */}
             <Image src={banner.desktop_image_url} alt={banner.alt_text} fill sizes="(max-width: 768px) 100vw, 720px" unoptimized className="object-cover" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h3 className="font-semibold">{banner.title || `بنر شماره ${banner.id}`}</h3><p className="mt-1 text-xs text-muted-foreground">{banner.status === "published" ? "منتشرشده" : "پیش‌نویس"} · ترتیب {banner.position + 1}{banner.mobile_image_url ? " · تصویر موبایل دارد" : ""}</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(banner,-1)} className={secondary}>↑</button><button type="button" disabled={saving || index===banners.length-1} onClick={() => void move(banner,1)} className={secondary}>↓</button><button type="button" disabled={saving} onClick={() => edit(banner)} className={secondary}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(banner)} className={secondary}>{historyFor === banner.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void togglePublish(banner)} className={primary}>{banner.status === "published" ? "پیش‌نویس" : "انتشار"}</button></div>
+            <div><h3 className="font-semibold">{banner.title || `بنر شماره ${banner.id}`}</h3><p className="mt-1 text-xs text-muted-foreground">{groupNameFor(banner.group)} · {banner.status === "published" ? "منتشرشده" : "پیش‌نویس"} · ترتیب {banner.position + 1}{banner.mobile_image_url ? " · تصویر موبایل دارد" : ""}</p></div>
+            <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || banners.filter(item => item.group === banner.group).sort((a, b) => a.position - b.position || a.id - b.id)[0]?.id === banner.id} onClick={() => void move(banner,-1)} className={secondary}>↑</button><button type="button" disabled={saving || banners.filter(item => item.group === banner.group).sort((a, b) => a.position - b.position || a.id - b.id).slice(-1)[0]?.id === banner.id} onClick={() => void move(banner,1)} className={secondary}>↓</button><button type="button" disabled={saving} onClick={() => edit(banner)} className={secondary}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(banner)} className={secondary}>{historyFor === banner.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void togglePublish(banner)} className={primary}>{banner.status === "published" ? "پیش‌نویس" : "انتشار"}</button></div>
           </div>
         {historyFor === banner.id && <div className="mt-4 border-t border-border pt-4">
              <h4 className="text-sm font-semibold">تاریخچه نسخه‌ها</h4>
