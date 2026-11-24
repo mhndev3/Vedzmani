@@ -2,7 +2,8 @@ import "server-only";
 import { emptyState, getProducts, type CatalogImage, type ProductCardData } from "./catalog";
 import { apiGet } from "./api";
 
-export type HomepageCategory = { name: string; slug: string; image: CatalogImage | null };
+export type HomepageCategoryImage = { url: string; thumbnail_url?: string; alt_text?: string; width?: number; height?: number };
+export type HomepageCategory = { name: string; slug: string; image: HomepageCategoryImage | null };
 export type HomepageSection = {
   id: number; title: string; eyebrow: string; section_type: "categories" | "products" | "newest_products";
   show_view_all: boolean; view_all_url: string;
@@ -51,14 +52,25 @@ export async function getHomepageContent(): Promise<HomepageContent> {
   }
 
   try {
+    let catalogCategories: HomepageCategory[] = [];
+    try {
+      const filters = await apiGet<{ categories: HomepageCategory[] }>("/api/catalog/filters/", {
+        cache: "force-cache",
+        next: { revalidate: 30 },
+      });
+      catalogCategories = filters.categories;
+    } catch {
+      // Category images are optional; keep the product-image fallback below.
+    }
     const page = await getProducts(emptyState, { cache: "force-cache", next: { revalidate: 30 } });
     const products = page.results;
+    const categoryBySlug = new Map(catalogCategories.map((category) => [category.slug, category]));
     return {
       banners,
       sections: [],
       categories: HOME_CATEGORIES.map((category) => ({
         ...category,
-        image: products.find((product) => product.category.slug === category.slug)?.image ?? null,
+        image: categoryBySlug.get(category.slug)?.image ?? products.find((product) => product.category.slug === category.slug)?.image ?? null,
       })),
       newestProducts: products.slice(0, 7),
     };
