@@ -21,6 +21,7 @@ class HomepageSectionsPublicView(APIView):
         for section in sections:
             row = {
                 "id": section.pk,
+                "position": section.position,
                 "title": section.title,
                 "eyebrow": section.eyebrow,
                 "section_type": section.section_type,
