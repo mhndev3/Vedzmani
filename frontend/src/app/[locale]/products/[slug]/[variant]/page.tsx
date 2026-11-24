@@ -97,6 +97,12 @@ export default async function VariantProductPage({ params }: Props) {
     (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.position - b.position,
   );
   const inStock = color.sizes.some((size) => size.in_stock);
+  const visibleAttributes = (product.category.product_fields ?? [])
+    .map((field) => ({
+      ...field,
+      value: String(product.attributes?.[field.key] ?? "").trim(),
+    }))
+    .filter((field) => field.value && field.value !== "//");
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -203,6 +209,20 @@ export default async function VariantProductPage({ params }: Props) {
               <h2 className="text-sm font-semibold">{t.product.sizes}</h2>
               <p className="mt-2 text-sm text-muted-foreground">{t.product.noSizes}</p>
             </div>
+          )}
+
+          {visibleAttributes.length > 0 && (
+            <section className="mt-8 border-t border-border pt-6">
+              <h2 className="text-sm font-semibold">مشخصات محصول</h2>
+              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                {visibleAttributes.map((field) => (
+                  <div key={field.key} className="rounded-lg bg-muted/40 px-3 py-2">
+                    <dt className="text-xs text-muted-foreground">{field.label}</dt>
+                    <dd className="mt-1 text-sm font-medium">{field.value}{field.unit ? ` ${field.unit}` : ""}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           )}
 
           {product.description.trim() && (
