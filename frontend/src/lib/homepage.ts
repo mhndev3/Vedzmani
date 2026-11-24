@@ -90,6 +90,7 @@ export async function getHomepageContent(): Promise<HomepageContent> {
       sections: [],
       categories: HOME_CATEGORIES.map((category) => ({
         ...category,
+        id: categoryBySlug.get(category.slug)?.id,
         image: categoryBySlug.get(category.slug)?.image ?? products.find((product) => product.category.slug === category.slug)?.image ?? null,
       })),
       newestProducts: products.slice(0, 7),
