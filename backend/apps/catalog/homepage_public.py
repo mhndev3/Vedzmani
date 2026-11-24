@@ -28,9 +28,9 @@ class HomepageSectionsPublicView(APIView):
                 "show_view_all": section.show_view_all,
                 "view_all_url": section.view_all_url,
                 "categories": [],
-                "category_ids": list(section.categories.order_by("position", "id").values_list("id", flat=True)),
+                "category_ids": list(section.categories.filter(is_active=True).order_by("position", "id").values_list("id", flat=True)),
                 "products": [],
-                "product_ids": list(section.products.order_by("id").values_list("id", flat=True)),
+                "product_ids": list(section.products.filter(is_active=True, category__is_active=True).order_by("id").values_list("id", flat=True)),
             }
             if section.section_type == HomepageSection.TYPE_CATEGORIES:
                 categories = section.categories.filter(is_active=True).order_by("position", "id")[:section.item_limit]
