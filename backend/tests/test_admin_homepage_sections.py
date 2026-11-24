@@ -1,7 +1,7 @@
 import pytest
 from django.utils import timezone
 
-from apps.catalog.models import Category, HomepageSection, Product
+from apps.catalog.models import Category, HomepageSection, HomepageSectionRevision, Product
 from tests.conftest import client_for
 
 pytestmark = pytest.mark.django_db
