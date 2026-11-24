@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { apiRequest, BrowserApiError } from "@/lib/browser-api";
+import Image from "next/image";
+import { apiRequest, apiMultipartRequest, BrowserApiError } from "@/lib/browser-api";
 
 type CatalogGroup = "categories" | "collections";
-type Entry = { id: number; name: string; slug: string; is_active: boolean; position: number };
+type Entry = { id: number; name: string; slug: string; is_active: boolean; position: number; image_url?: string | null };
 type Page<T> = { results: T[]; next: string | null };
 
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
@@ -51,6 +52,10 @@ export default function AdminTaxonomyPage() {
   const [editing, setEditing] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const previewObjectUrl = useRef<string | null>(null);
 
   const endpoint = group === "categories" ? "/api/admin/catalog/categories/" : "/api/admin/catalog/collections/";
   const entries = group === "categories" ? categories : collections;
@@ -102,12 +107,29 @@ export default function AdminTaxonomyPage() {
   }, [entries, search]);
 
   function resetForm(entry?: Entry) {
+    if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
+    previewObjectUrl.current = null;
     setEditing(entry?.id ?? null);
     setName(entry?.name ?? "");
     setSlug(entry?.slug ?? "");
+    setImageFile(null);
+    setImagePreview(group === "categories" ? entry?.image_url ?? null : null);
+    setRemoveImage(false);
     setError("");
     setNotice("");
   }
+
+  function chooseCategoryImage(file: File | null) {
+    if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
+    previewObjectUrl.current = file ? URL.createObjectURL(file) : null;
+    setImageFile(file);
+    setImagePreview(file ? previewObjectUrl.current : null);
+    setRemoveImage(false);
+  }
+
+  useEffect(() => () => {
+    if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
+  }, []);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -116,13 +138,20 @@ export default function AdminTaxonomyPage() {
     setNotice("");
     try {
       const payload = { name: name.trim(), slug: slug.trim(), position: editing === null ? entries.length : entries.find((entry) => entry.id === editing)?.position ?? 0 };
-      if (editing === null) {
+      const method = editing === null ? "POST" : "PATCH";
+      const url = editing === null ? endpoint : endpoint + editing + "/";
+      if (group === "categories" && (imageFile || removeImage)) {
+        const form = new FormData();
+        Object.entries({ ...payload, ...(editing === null ? { is_active: true } : {}) }).forEach(([key, value]) => form.set(key, String(value)));
+        if (imageFile) form.set("image", imageFile);
+        if (removeImage) form.set("remove_image", "true");
+        await apiMultipartRequest<Entry>(method, url, form);
+      } else if (editing === null) {
         await apiRequest<Entry>("POST", endpoint, { ...payload, is_active: true });
-        setNotice(group === "categories" ? "دسته‌بندی جدید ساخته شد." : "مجموعه جدید ساخته شد.");
       } else {
         await apiRequest<Entry>("PATCH", endpoint + editing + "/", payload);
-        setNotice("تغییرات ذخیره شد.");
       }
+      setNotice(group === "categories" ? (editing === null ? "دسته‌بندی جدید ساخته شد." : "تغییرات دسته‌بندی ذخیره شد.") : (editing === null ? "مجموعه جدید ساخته شد." : "تغییرات مجموعه ذخیره شد."));
       resetForm();
       await refresh();
     } catch (e) {
@@ -195,6 +224,38 @@ export default function AdminTaxonomyPage() {
             <label className="block text-sm">شناسه انگلیسی (Slug)
               <input required maxLength={120} pattern="[A-Za-z0-9_-]+" dir="ltr" value={slug} onChange={(event) => setSlug(event.target.value)} className={inputClass} />
             </label>
+            {group === "categories" && (
+              <div className="space-y-2">
+                <label className="block text-sm">تصویر دسته‌بندی (اختیاری)
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={saving}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] ?? null;
+                      if (file && file.size > 8 * 1024 * 1024) {
+                        setError("حجم تصویر نباید بیشتر از ۸ مگابایت باشد.");
+                        event.currentTarget.value = "";
+                        return;
+                      }
+                      chooseCategoryImage(file);
+                    }}
+                    className={inputClass}
+                  />
+                </label>
+                {imagePreview && (
+                  <div className="flex items-center gap-3 rounded-xl border border-border p-3">
+                    <Image src={imagePreview} alt={name || "پیش‌نمایش تصویر دسته‌بندی"} width={88} height={88} unoptimized className="size-22 rounded-lg object-cover" />
+                    <div className="min-w-0 flex-1 text-xs text-muted-foreground">
+                      <p className="font-medium text-foreground">{imageFile ? imageFile.name : "تصویر فعلی دسته‌بندی"}</p>
+                      <p className="mt-1">تصویر در کارت دسته‌بندی صفحه اصلی نمایش داده می‌شود.</p>
+                    </div>
+                    {editing !== null && !imageFile && <button type="button" className={secondaryClass} disabled={saving} onClick={() => { setImagePreview(null); setRemoveImage(true); }}>حذف تصویر</button>}
+                    {imageFile && <button type="button" className={secondaryClass} disabled={saving} onClick={() => chooseCategoryImage(null)}>لغو انتخاب</button>}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <button type="submit" disabled={saving || !name.trim() || !slug.trim()} className={primaryClass}>{saving ? "در حال ذخیره…" : editing === null ? "ایجاد" : "ذخیره تغییرات"}</button>
               {editing !== null && <button type="button" disabled={saving} className={secondaryClass} onClick={() => resetForm()}>انصراف</button>}
@@ -216,12 +277,19 @@ export default function AdminTaxonomyPage() {
                   const index = entries.slice().sort((a, b) => a.position - b.position || a.id - b.id).findIndex((item) => item.id === entry.id);
                   return (
                     <article key={entry.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
-                      <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-3">
+                        {group === "categories" && (
+                          entry.image_url
+                            ? <Image src={entry.image_url} alt="" width={56} height={56} unoptimized className="size-14 shrink-0 rounded-xl border border-border object-cover" />
+                            : <div className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-border text-xs text-muted-foreground">بدون تصویر</div>
+                        )}
+                        <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-semibold">{entry.name}</h3>
                           <span className={entry.is_active ? "rounded-full bg-muted px-2 py-1 text-[10px]" : "rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground"}>{entry.is_active ? "فعال" : "غیرفعال"}</span>
                         </div>
                         <p dir="ltr" className="mt-1 text-left text-xs text-muted-foreground">{entry.slug} · {entry.position}</p>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         <button type="button" className={secondaryClass} disabled={saving || index === 0} onClick={() => void move(entry, -1)} aria-label="انتقال به بالا">↑</button>
