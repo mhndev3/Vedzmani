@@ -10,6 +10,7 @@ from django.views.decorators.cache import never_cache
 from .models import Category, Collection, ColorVariant, Favorite, Product, ProductSizeMeasurement, Size, VariantImage, VariantSize
 from .filters import CatalogQuerySerializer, active_colors_queryset, build_product_queryset, build_variant_queryset
 from .pagination import CatalogPagination
+from .storage import public_image_url
 from .serializers import ProductDetailSerializer, ProductListSerializer, VariantProductListSerializer
 
 
@@ -97,7 +98,7 @@ class FilterOptionsView(APIView):
             Category.objects.filter(is_active=True)
             .filter(Exists(published_products.filter(category=OuterRef("pk"))))
             .order_by("position", "name", "id")
-            .values("name", "slug")
+            .values("name", "slug", "image")
         )
         collection_products = Product.collections.through.objects.filter(
             product__is_active=True,
@@ -134,7 +135,18 @@ class FilterOptionsView(APIView):
         )
         return Response(
             {
-                "categories": list(categories),
+                "categories": [
+                    {
+                        "name": category["name"],
+                        "slug": category["slug"],
+                        "image": {
+                            "url": public_image_url(category["image"]),
+                            "thumbnail_url": public_image_url(category["image"]),
+                            "alt_text": category["name"],
+                        } if category["image"] else None,
+                    }
+                    for category in categories
+                ],
                 "collections": list(collections),
                 "colors": list(colors),
                 "sizes": list(sizes),
