@@ -96,6 +96,14 @@ def test_color_variant_and_size_are_created_without_direct_stock_write(make_staf
     color_data = color.json()
     assert color_data["product_code"].isdigit()
 
+    auto_slug = client.post(
+        "/api/admin/catalog/colors/",
+        {"product": product.pk, "name": "سبز", "hex_color": "#228B22"},
+        content_type="application/json",
+    )
+    assert auto_slug.status_code == 201, auto_slug.content
+    assert auto_slug.json()["slug"].startswith("color-")
+
     size_response = client.post(
         "/api/admin/catalog/variant-sizes/",
         {"variant": color_data["id"], "size": size.pk, "sku": "KNIT-SKY-M", "stock_quantity": 99},
