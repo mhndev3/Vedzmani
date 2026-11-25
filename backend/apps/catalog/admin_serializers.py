@@ -161,6 +161,9 @@ class ColorVariantAdminSerializer(serializers.ModelSerializer):
             "is_active", "position", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "product_code", "created_at", "updated_at"]
+        # The model's unique (product, slug) constraint otherwise makes DRF
+        # mark slug required even though create() generates it automatically.
+        validators = []
 
     def create(self, validated_data):
         if not validated_data.get("slug"):
