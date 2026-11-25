@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { apiRequest, apiMultipartRequest, BrowserApiError } from "@/lib/browser-api";
+import SizeVocabularyManager from "./SizeVocabularyManager";
 
 type CatalogGroup = "categories" | "collections";
 type ProductField = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
@@ -265,7 +266,7 @@ export default function AdminTaxonomyPage() {
     <main dir="rtl" className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
       <div className="mb-7">
         <Link href={`/${locale}/admin-panel`} className="text-sm text-muted-foreground hover:text-foreground">← بازگشت به پنل مدیریت</Link>
-        <h1 className="mt-3 text-2xl font-bold sm:text-3xl">مدیریت دسته‌بندی‌ها و مجموعه‌ها</h1>
+        <h1 className="mt-3 text-2xl font-bold sm:text-3xl">مدیریت دسته‌بندی‌ها، مجموعه‌ها و سایزها</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">ساختار کاتالوگ را مدیریت کنید. غیرفعال‌سازی به‌جای حذف انجام می‌شود تا ارتباط محصولات و سوابق حفظ شود.</p>
       </div>
 
@@ -301,9 +302,12 @@ export default function AdminTaxonomyPage() {
                 {categoryPlacement === "homepage" && <label className="block text-sm">جایگاه در صفحه اصلی (۱ یعنی اولین کارت)<input required type="number" min="1" max="100" value={homepagePosition} onChange={event => setHomepagePosition(event.target.value)} className={inputClass} dir="ltr" /><span className="mt-1 block text-xs text-muted-foreground">پنج دسته فعلی حفظ می‌شوند؛ جایگاه این مورد را برای افزودن آن به فهرست تعیین کنید.</span></label>}
               </section>
               <section className="space-y-3 rounded-xl border border-border p-3">
-                <div>
-                  <h3 className="text-sm font-semibold">سایزهای مجاز این دسته‌بندی</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">فقط سایزهای انتخاب‌شده هنگام ساخت محصول در این دسته‌بندی نمایش داده می‌شوند.</p>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-semibold">سایزهای مجاز این دسته‌بندی</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">فقط سایزهای انتخاب‌شده هنگام ساخت محصول در این دسته‌بندی نمایش داده می‌شوند.</p>
+                  </div>
+                  <Link href="#size-vocabulary" className="text-xs font-medium text-primary underline underline-offset-4">مدیریت فهرست سایزها</Link>
                 </div>
                 {sizes.length === 0 ? <p className="text-xs text-muted-foreground">ابتدا از فهرست سایزها گزینه تعریف کنید.</p> : (
                   <div className="flex flex-wrap gap-2">
@@ -429,6 +433,10 @@ export default function AdminTaxonomyPage() {
                 })}
               </div>}
         </section>
+      </div>
+
+      <div id="size-vocabulary" className="mt-6 scroll-mt-6">
+        <SizeVocabularyManager sizes={sizes} onSaved={async () => { await refresh(); }} />
       </div>
     </main>
   );

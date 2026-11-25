@@ -118,10 +118,19 @@ class CollectionAdminSerializer(serializers.ModelSerializer):
 
 
 class SizeAdminSerializer(serializers.ModelSerializer):
+    # Store managers enter the visible label; the internal API code is generated
+    # when omitted so Persian size labels do not require a technical identifier.
+    code = serializers.SlugField(max_length=20, required=False, allow_blank=True)
+
     class Meta:
         model = Size
         fields = ["id", "code", "label", "position"]
         read_only_fields = ["id"]
+
+    def create(self, validated_data):
+        if not validated_data.get("code"):
+            validated_data["code"] = f"size-{uuid4().hex[:12]}"
+        return super().create(validated_data)
 
 
 class ProductAdminSerializer(serializers.ModelSerializer):
