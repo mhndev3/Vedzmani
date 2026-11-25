@@ -28,7 +28,7 @@ function errorMessage(error: unknown) {
     return "برای ساخت محصول، رنگ و سایز مجوز کافی ندارید.";
   }
   if (error instanceof BrowserApiError && error.status === 400) {
-    return "اطلاعات محصول معتبر نیست یا نامک، رنگ یا سایز تکراری است. موارد مشخص‌شده را بررسی کنید.";
+    return "بعضی اطلاعات محصول معتبر نیست یا رنگ و سایز تکراری انتخاب شده است. موارد فرم را بررسی کنید.";
   }
   if (error instanceof BrowserApiError && error.status === 0) return "ارتباط با سرور برقرار نشد.";
   return "ساخت محصول انجام نشد. اطلاعات را بررسی کنید و دوباره تلاش کنید.";
