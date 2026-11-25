@@ -148,6 +148,44 @@ export default function ProductMeasurementManager({
     }, "اندازه مشترک ویرایش شد.");
   }
 
+  async function moveSharedMeasurement(sizeId: number, index: number, delta: number) {
+    const rows = measurements
+      .filter((item) => item.size === sizeId)
+      .sort((a, b) => a.position - b.position || a.id - b.id);
+    const target = index + delta;
+    if (target < 0 || target >= rows.length) return;
+    const reordered = [...rows];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest("POST", "/api/admin/catalog/product-measurements/reorder/", {
+        product: productId, size: sizeId, measurement_ids: reordered.map((item) => item.id),
+      });
+      await refresh();
+      setNotice("ترتیب اندازه‌های مشترک ذخیره شد.");
+    } catch (e) { setError(errorText(e)); }
+    finally { setSaving(false); }
+  }
+
+  async function moveVariantMeasurement(variantSizeId: number, index: number, delta: number) {
+    const rows = variantMeasurements
+      .filter((item) => item.variant_size === variantSizeId)
+      .sort((a, b) => a.position - b.position || a.id - b.id);
+    const target = index + delta;
+    if (target < 0 || target >= rows.length) return;
+    const reordered = [...rows];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setSaving(true); setError(""); setNotice("");
+    try {
+      await apiRequest("POST", "/api/admin/catalog/variant-size-measurements/reorder/", {
+        variant_size: variantSizeId, measurement_ids: reordered.map((item) => item.id),
+      });
+      await refresh();
+      setNotice("ترتیب اندازه‌های اختصاصی ذخیره شد.");
+    } catch (e) { setError(errorText(e)); }
+    finally { setSaving(false); }
+  }
+
   async function saveDescription(sizeId: number) {
     const existing = descriptions.find((item) => item.size === sizeId);
     const description = descriptionDrafts[sizeId] ?? "";
@@ -215,15 +253,19 @@ export default function ProductMeasurementManager({
     {loading ? <p className="py-6 text-sm text-muted-foreground">در حال دریافت اندازه‌ها…</p> : <>
       <div className="mt-4 grid gap-4">
         {activeSizes.map((size) => {
-          const rows = measurements.filter((item) => item.size === size.id);
+          const rows = measurements.filter((item) => item.size === size.id).sort((a, b) => a.position - b.position || a.id - b.id);
           return <div key={size.id} className="rounded-xl border border-border p-4">
             <h4 className="font-semibold">{size.label} <span className="text-xs font-normal text-muted-foreground">· اندازه مشترک همه رنگ‌ها</span></h4>
             <div className="mt-3 space-y-3">
-              {rows.map((item) => <div key={item.id} className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-[1fr_1fr_120px_auto]">
+              {rows.map((item, index) => <div key={item.id} className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-[1fr_1fr_120px_auto]">
                 <label className="text-xs">عنوان اندازه<input className={inputClass} value={item.name} onChange={(e) => setMeasurements((old) => old.map((row) => row.id === item.id ? { ...row, name: e.target.value } : row))} /></label>
                 <label className="text-xs">مقدار<input className={inputClass} value={item.value} onChange={(e) => setMeasurements((old) => old.map((row) => row.id === item.id ? { ...row, value: e.target.value } : row))} /></label>
                 <label className="text-xs">واحد<input className={inputClass} value={item.unit} onChange={(e) => setMeasurements((old) => old.map((row) => row.id === item.id ? { ...row, unit: e.target.value } : row))} /></label>
-                <div className="flex items-end"><button type="button" disabled={saving} className={secondaryClass} onClick={() => void saveShared(item)}>ذخیره</button></div>
+                <div className="flex items-end gap-1">
+                  <button type="button" aria-label={`انتقال ${item.name} به بالا`} title="انتقال به بالا" disabled={saving || index === 0} className={secondaryClass} onClick={() => void moveSharedMeasurement(size.id, index, -1)}>↑</button>
+                  <button type="button" aria-label={`انتقال ${item.name} به پایین`} title="انتقال به پایین" disabled={saving || index === rows.length - 1} className={secondaryClass} onClick={() => void moveSharedMeasurement(size.id, index, 1)}>↓</button>
+                  <button type="button" disabled={saving} className={secondaryClass} onClick={() => void saveShared(item)}>ذخیره</button>
+                </div>
               </div>)}
               {rows.length === 0 && <p className="text-xs text-muted-foreground">هنوز اندازه مشترکی برای این سایز ثبت نشده است.</p>}
             </div>
@@ -246,15 +288,19 @@ export default function ProductMeasurementManager({
         <p className="mt-1 text-xs text-muted-foreground">برای مواردی که اندازه یک رنگ با جدول مشترک فرق دارد، مقدار اختصاصی ثبت کنید.</p>
         <div className="mt-3 space-y-3">
           {variantSizes.map((variantSize) => {
-            const rows = variantMeasurements.filter((item) => item.variant_size === variantSize.id);
+            const rows = variantMeasurements.filter((item) => item.variant_size === variantSize.id).sort((a, b) => a.position - b.position || a.id - b.id);
             return <div key={variantSize.id} className="rounded-xl border border-border p-3">
               <h5 className="text-sm font-semibold">{colors.find((color) => color.id === variantSize.variant)?.name ?? "رنگ"} · {labelForSize(variantSize.size)}</h5>
               <div className="mt-2 space-y-2">
-                {rows.map((item) => <div key={item.id} className="grid gap-2 sm:grid-cols-[1fr_1fr_120px_auto]">
+                {rows.map((item, index) => <div key={item.id} className="grid gap-2 sm:grid-cols-[1fr_1fr_120px_auto]">
                   <input aria-label="عنوان اندازه اختصاصی" className={inputClass} value={item.name} onChange={(e) => setVariantMeasurements((old) => old.map((row) => row.id === item.id ? { ...row, name: e.target.value } : row))} />
                   <input aria-label="مقدار اندازه اختصاصی" className={inputClass} value={item.value} onChange={(e) => setVariantMeasurements((old) => old.map((row) => row.id === item.id ? { ...row, value: e.target.value } : row))} />
                   <input aria-label="واحد اندازه اختصاصی" className={inputClass} value={item.unit} onChange={(e) => setVariantMeasurements((old) => old.map((row) => row.id === item.id ? { ...row, unit: e.target.value } : row))} />
-                  <button type="button" disabled={saving} className={secondaryClass} onClick={() => void saveVariantMeasurement(item)}>ذخیره</button>
+                  <div className="flex items-end gap-1">
+                    <button type="button" aria-label={`انتقال ${item.name} به بالا`} title="انتقال به بالا" disabled={saving || index === 0} className={secondaryClass} onClick={() => void moveVariantMeasurement(variantSize.id, index, -1)}>↑</button>
+                    <button type="button" aria-label={`انتقال ${item.name} به پایین`} title="انتقال به پایین" disabled={saving || index === rows.length - 1} className={secondaryClass} onClick={() => void moveVariantMeasurement(variantSize.id, index, 1)}>↓</button>
+                    <button type="button" disabled={saving} className={secondaryClass} onClick={() => void saveVariantMeasurement(item)}>ذخیره</button>
+                  </div>
                 </div>)}
                 <form onSubmit={(e) => void addVariantMeasurement(e, variantSize)} className="grid gap-2 sm:grid-cols-[1fr_1fr_120px_auto]">
                   <input className={inputClass} value={newVariantName[variantSize.id] ?? ""} onChange={(e) => setNewVariantName((old) => ({ ...old, [variantSize.id]: e.target.value }))} placeholder="عنوان اندازه اختصاصی" aria-label="عنوان اندازه جدید" required />

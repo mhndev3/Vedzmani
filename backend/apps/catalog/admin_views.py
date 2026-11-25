@@ -4,6 +4,7 @@ The public catalog endpoints remain unchanged. Every endpoint requires both an a
 relevant Django model permission. Deactivation is used instead of hard deletion; stock changes are routed through
 the audited inventory service.
 """
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, mixins, status, viewsets
@@ -65,6 +66,53 @@ class StaffDjangoModelPermissions(DjangoModelPermissions):
         return bool(user and user.is_authenticated and user.is_staff and super().has_permission(request, view))
 
 
+class MeasurementReorderPermissions(StaffDjangoModelPermissions):
+    """Custom POST reorder actions mutate existing rows, so they require change, not add permission."""
+
+    def has_permission(self, request, view):
+        if getattr(view, "action", None) != "reorder":
+            return super().has_permission(request, view)
+        user = request.user
+        queryset = getattr(view, "queryset", None)
+        model = getattr(queryset, "model", None)
+        if not user or not user.is_authenticated or not user.is_staff or model is None:
+            return False
+        opts = model._meta
+        return user.has_perm(f"{opts.app_label}.change_{opts.model_name}")
+
+
+def _reorder_measurement_rows(queryset, ordered_ids):
+    """Reorder one complete parent-scoped set without violating its unique position constraint."""
+    with transaction.atomic():
+        rows = list(queryset.select_for_update().order_by("position", "id"))
+        current_ids = {row.pk for row in rows}
+        if len(ordered_ids) != len(current_ids) or set(ordered_ids) != current_ids:
+            raise ValidationError({
+                "measurement_ids": "فهرست باید شامل تمام اندازه‌های همین گروه، بدون تکرار باشد."
+            })
+        if not rows:
+            return []
+
+        model = queryset.model
+        offset = max(row.position for row in rows) + len(rows) + 1
+        # Move every row out of the destination range first, avoiding transient unique collisions.
+        for row in rows:
+            model.objects.filter(pk=row.pk).update(position=row.position + offset)
+        for position, row_id in enumerate(ordered_ids):
+            model.objects.filter(pk=row_id).update(position=position)
+        return list(queryset.order_by("position", "id"))
+
+
+def _validated_measurement_ids(value):
+    if not isinstance(value, list) or not all(
+        isinstance(item, int) and not isinstance(item, bool) and item > 0 for item in value
+    ):
+        raise ValidationError({"measurement_ids": "شناسه اندازه‌ها باید فهرستی از اعداد صحیح مثبت باشد."})
+    if len(value) != len(set(value)):
+        raise ValidationError({"measurement_ids": "شناسه تکراری در فهرست اندازه‌ها مجاز نیست."})
+    return value
+
+
 class StaffModelPermissionViewSet(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,
@@ -112,6 +160,22 @@ class VariantSizeAdminViewSet(StaffModelPermissionViewSet):
 class ProductSizeMeasurementAdminViewSet(StaffModelPermissionViewSet):
     queryset = ProductSizeMeasurement.objects.select_related("product", "size")
     serializer_class = ProductSizeMeasurementAdminSerializer
+    permission_classes = [MeasurementReorderPermissions]
+
+    @action(detail=False, methods=["post"], url_path="reorder")
+    def reorder(self, request):
+        product_id = request.data.get("product")
+        size_id = request.data.get("size")
+        if not str(product_id or "").isdigit() or int(product_id) < 1:
+            raise ValidationError({"product": "شناسه محصول معتبر نیست."})
+        if not str(size_id or "").isdigit() or int(size_id) < 1:
+            raise ValidationError({"size": "شناسه سایز معتبر نیست."})
+        ordered_ids = _validated_measurement_ids(request.data.get("measurement_ids"))
+        rows = _reorder_measurement_rows(
+            ProductSizeMeasurement.objects.filter(product_id=int(product_id), size_id=int(size_id)),
+            ordered_ids,
+        )
+        return Response(self.get_serializer(rows, many=True).data)
 
 
 class ProductSizeDescriptionAdminViewSet(StaffModelPermissionViewSet):
@@ -127,6 +191,19 @@ class VariantSizeDescriptionAdminViewSet(StaffModelPermissionViewSet):
 class VariantSizeMeasurementAdminViewSet(StaffModelPermissionViewSet):
     queryset = VariantSizeMeasurement.objects.select_related("variant_size__variant__product", "variant_size__size")
     serializer_class = VariantSizeMeasurementAdminSerializer
+    permission_classes = [MeasurementReorderPermissions]
+
+    @action(detail=False, methods=["post"], url_path="reorder")
+    def reorder(self, request):
+        variant_size_id = request.data.get("variant_size")
+        if not str(variant_size_id or "").isdigit() or int(variant_size_id) < 1:
+            raise ValidationError({"variant_size": "شناسه ترکیب رنگ و سایز معتبر نیست."})
+        ordered_ids = _validated_measurement_ids(request.data.get("measurement_ids"))
+        rows = _reorder_measurement_rows(
+            VariantSizeMeasurement.objects.filter(variant_size_id=int(variant_size_id)),
+            ordered_ids,
+        )
+        return Response(self.get_serializer(rows, many=True).data)
 
 
 class VariantImageAdminPermissions(StaffDjangoModelPermissions):

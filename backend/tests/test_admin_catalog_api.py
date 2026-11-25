@@ -278,6 +278,85 @@ def test_non_staff_user_with_model_permission_is_still_denied():
     assert client.get("/api/admin/catalog/products/").status_code == 403
 
 
+def test_measurement_rows_can_be_reordered_with_change_permission_only(make_staff, make_variant_size):
+    variant_size = make_variant_size()
+    product = variant_size.variant.product
+
+    shared_first = ProductSizeMeasurement.objects.create(
+        product=product, size=variant_size.size, name="عرض سینه", value="50", position=0
+    )
+    shared_second = ProductSizeMeasurement.objects.create(
+        product=product, size=variant_size.size, name="قد لباس", value="60", position=1
+    )
+    specific_first = VariantSizeMeasurement.objects.create(
+        variant_size=variant_size, name="دور کمر", value="45", position=0
+    )
+    specific_second = VariantSizeMeasurement.objects.create(
+        variant_size=variant_size, name="قد آستین", value="55", position=1
+    )
+
+    editor = client_for(make_staff(
+        "catalog.change_productsizemeasurement",
+        "catalog.change_variantsizemeasurement",
+    ))
+    shared = editor.post(
+        "/api/admin/catalog/product-measurements/reorder/",
+        {
+            "product": product.pk,
+            "size": variant_size.size_id,
+            "measurement_ids": [shared_second.pk, shared_first.pk],
+        },
+        content_type="application/json",
+    )
+    assert shared.status_code == 200, shared.content
+    assert list(
+        ProductSizeMeasurement.objects.filter(product=product, size=variant_size.size)
+        .order_by("position").values_list("id", flat=True)
+    ) == [shared_second.pk, shared_first.pk]
+
+    specific = editor.post(
+        "/api/admin/catalog/variant-size-measurements/reorder/",
+        {
+            "variant_size": variant_size.pk,
+            "measurement_ids": [specific_second.pk, specific_first.pk],
+        },
+        content_type="application/json",
+    )
+    assert specific.status_code == 200, specific.content
+    assert list(
+        VariantSizeMeasurement.objects.filter(variant_size=variant_size)
+        .order_by("position").values_list("id", flat=True)
+    ) == [specific_second.pk, specific_first.pk]
+
+    # Partial lists cannot silently hide or discard existing rows.
+    invalid = editor.post(
+        "/api/admin/catalog/product-measurements/reorder/",
+        {
+            "product": product.pk,
+            "size": variant_size.size_id,
+            "measurement_ids": [shared_first.pk],
+        },
+        content_type="application/json",
+    )
+    assert invalid.status_code == 400
+    assert list(
+        ProductSizeMeasurement.objects.filter(product=product, size=variant_size.size)
+        .order_by("position").values_list("id", flat=True)
+    ) == [shared_second.pk, shared_first.pk]
+
+    viewer = client_for(make_staff("catalog.view_productsizemeasurement"))
+    denied = viewer.post(
+        "/api/admin/catalog/product-measurements/reorder/",
+        {
+            "product": product.pk,
+            "size": variant_size.size_id,
+            "measurement_ids": [shared_first.pk, shared_second.pk],
+        },
+        content_type="application/json",
+    )
+    assert denied.status_code == 403
+
+
 def test_measurement_editor_requires_view_and_change_permissions(make_staff, make_variant_size):
     row = make_variant_size()
     measurement = ProductSizeMeasurement.objects.create(
