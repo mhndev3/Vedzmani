@@ -77,6 +77,51 @@ def test_product_create_update_and_read_only_color_summary(make_staff):
     assert Product.objects.get(pk=product_id).name == "بافت پایه جدید"
 
 
+def test_product_edit_rejects_invalid_discount_for_effective_price(make_staff):
+    category = Category.objects.create(name="لباس", slug="clothing")
+    product = Product.objects.create(
+        category=category,
+        name="بافت",
+        slug="basic-knit",
+        price=Decimal("1250000"),
+        sale_price=Decimal("1100000"),
+    )
+    client = client_for(make_staff("catalog.view_product", "catalog.change_product"))
+    url = f"/api/admin/catalog/products/{product.pk}/"
+
+    invalid_discount = client.patch(
+        url, {"sale_price": "1250000"}, content_type="application/json"
+    )
+    assert invalid_discount.status_code == 400
+    product.refresh_from_db()
+    assert product.price == Decimal("1250000")
+    assert product.sale_price == Decimal("1100000")
+
+    invalid_base_price = client.patch(
+        url, {"price": "1000000"}, content_type="application/json"
+    )
+    assert invalid_base_price.status_code == 400
+    product.refresh_from_db()
+    assert product.price == Decimal("1250000")
+    assert product.sale_price == Decimal("1100000")
+
+    cleared_discount = client.patch(
+        url, {"sale_price": None}, content_type="application/json"
+    )
+    assert cleared_discount.status_code == 200, cleared_discount.content
+    product.refresh_from_db()
+    assert product.sale_price is None
+
+    valid_discount = client.patch(
+        url, {"price": "1300000", "sale_price": "1200000"},
+        content_type="application/json",
+    )
+    assert valid_discount.status_code == 200, valid_discount.content
+    product.refresh_from_db()
+    assert product.price == Decimal("1300000")
+    assert product.sale_price == Decimal("1200000")
+
+
 def test_color_variant_and_size_are_created_without_direct_stock_write(make_staff):
     category = Category.objects.create(name="لباس", slug="clothing")
     size = Size.objects.create(code="m", label="متوسط")

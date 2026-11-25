@@ -148,6 +148,15 @@ class ProductAdminSerializer(serializers.ModelSerializer):
                 reject_unknown="attributes" in attrs,
                 enforce_required=("attributes" in attrs or "category" in attrs or self.instance is None),
             )
+
+        # Validate the final effective values, not only fields included in a PATCH.
+        # Otherwise changing the base price could silently leave a discount at or above it.
+        price = attrs.get("price", self.instance.price if self.instance else None)
+        sale_price = attrs.get("sale_price", self.instance.sale_price if self.instance else None)
+        if sale_price is not None and price is not None and sale_price >= price:
+            raise serializers.ValidationError({
+                "sale_price": "قیمت با تخفیف باید کمتر از قیمت اصلی باشد."
+            })
         return attrs
 
 
