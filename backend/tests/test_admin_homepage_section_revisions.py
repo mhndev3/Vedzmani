@@ -17,6 +17,7 @@ def test_homepage_section_revisions_capture_updates_and_support_rollback(make_st
         "/api/admin/homepage/sections/",
         {
             "title": "جدیدترین‌ها",
+            "section_label": "پیشنهادهای روز",
             "eyebrow": "ویترین",
             "section_type": "newest_products",
             "status": "draft",
@@ -46,6 +47,7 @@ def test_homepage_section_revisions_capture_updates_and_support_rollback(make_st
     original = history[1]
     assert original["action"] == HomepageSectionRevision.ACTION_CREATED
     assert original["snapshot"]["title"] == "جدیدترین‌ها"
+    assert original["snapshot"]["section_label"] == "پیشنهادهای روز"
 
     restored = client.post(
         f"/api/admin/homepage/sections/{section_id}/revisions/",
@@ -54,6 +56,7 @@ def test_homepage_section_revisions_capture_updates_and_support_rollback(make_st
     )
     assert restored.status_code == 200, restored.content
     assert restored.json()["title"] == "جدیدترین‌ها"
+    assert restored.json()["section_label"] == "پیشنهادهای روز"
     section = HomepageSection.objects.get(pk=section_id)
     assert section.title == "جدیدترین‌ها"
     assert section.revisions.count() == 3

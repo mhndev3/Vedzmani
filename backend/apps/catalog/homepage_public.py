@@ -23,6 +23,7 @@ class HomepageSectionsPublicView(APIView):
                 "id": section.pk,
                 "position": section.position,
                 "title": section.title,
+                "section_label": section.section_label,
                 "eyebrow": section.eyebrow,
                 "section_type": section.section_type,
                 "show_view_all": section.show_view_all,

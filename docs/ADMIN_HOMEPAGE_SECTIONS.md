@@ -1,13 +1,14 @@
 # Homepage section management API
 
-This phase adds persistent homepage section configuration without changing public storefront rendering.
+This workflow adds persistent homepage section configuration and appends published sections after the existing storefront content.
 
-- Section types: category grid, explicitly selected products, newest products.
+- A free-form staff-defined section label plus a safe content layout: category grid, explicitly selected products, or newest products.
 - Draft/published status, display order, title/eyebrow, item limit, optional view-all link.
 - Category and product selections are relational, not arbitrary JSON.
 - Only active categories and active products from active categories can be selected.
 - Category sections require categories and cannot include products; product sections require products and cannot include categories; newest-product sections do not accept manual selections.
 - Item limit is constrained to 1–24.
+- Published custom sections are appended after the existing category grid and newest-products shelf; they never replace the original homepage content.
 
 ## Staff API
 Mounted at `/api/admin/homepage/sections/`.

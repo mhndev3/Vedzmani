@@ -38,7 +38,7 @@ class CategoryAdminSerializer(serializers.ModelSerializer):
         model = Category
         fields = [
             "id", "name", "slug", "image", "image_url", "remove_image", "product_fields",
-            "sizes", "size_ids", "is_active", "position", "created_at", "updated_at",
+            "sizes", "size_ids", "is_active", "position", "is_homepage_featured", "homepage_position", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "image_url", "created_at", "updated_at"]
 

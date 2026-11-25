@@ -40,6 +40,8 @@ class Category(models.Model):
     slug = models.SlugField(max_length=120, unique=True)
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField(default=0)
+    is_homepage_featured = models.BooleanField(default=False)
+    homepage_position = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -377,6 +379,7 @@ class HomepageSection(models.Model):
     STATUS_CHOICES = [(STATUS_DRAFT, "Draft"), (STATUS_PUBLISHED, "Published")]
 
     title = models.CharField(max_length=120)
+    section_label = models.CharField(max_length=80, blank=True, default="")
     eyebrow = models.CharField(max_length=120, blank=True)
     section_type = models.CharField(max_length=24, choices=TYPE_CHOICES)
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_DRAFT)

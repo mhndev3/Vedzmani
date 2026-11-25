@@ -74,6 +74,30 @@ def test_staff_can_create_product_with_multiple_colors_and_sizes_atomically(make
     assert sum(len(color["sizes"]) for color in response.json()["colors"]) == 4
 
 
+def test_bulk_product_creation_generates_internal_skus_when_staff_does_not_provide_them(make_staff):
+    category = Category.objects.create(name="اکسسوری", slug="bulk-create-auto-sku-accessories")
+    size = Size.objects.create(code="auto-sku-one", label="تک سایز")
+    client = client_for(make_staff(*create_permissions()))
+    response = client.post(
+        "/api/admin/catalog/products/create-with-variants/",
+        {
+            "name": "کیف روزمره", "slug": "admin-bulk-auto-sku-bag", "price": "450000",
+            "category": category.pk,
+            "colors": [
+                {"name": "قهوه‌ای", "slug": "brown", "sizes": [{"size": size.pk}]},
+                {"name": "مشکی", "slug": "black", "sizes": [{"size": size.pk}]},
+            ],
+        },
+        content_type="application/json",
+    )
+    assert response.status_code == 201, response.content
+    rows = list(VariantSize.objects.filter(variant__product__slug="admin-bulk-auto-sku-bag").order_by("id"))
+    assert len(rows) == 2
+    assert len({row.sku for row in rows}) == 2
+    assert all(row.sku.startswith("VZ-") for row in rows)
+    assert all(row.stock_quantity == 0 for row in rows)
+
+
 def test_bulk_product_creation_requires_all_model_add_permissions(make_staff):
     category = Category.objects.create(name="لباس", slug="bulk-create-clothes-permission")
     size = Size.objects.create(code="bulk-invalid-m", label="Medium")

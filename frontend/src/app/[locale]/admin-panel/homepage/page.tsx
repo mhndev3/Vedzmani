@@ -9,7 +9,7 @@ type SectionType = "categories" | "products" | "newest_products";
 type SectionStatus = "draft" | "published";
 type Entry = { id: number; name: string; slug?: string; is_active: boolean; category?: number };
 type Section = {
-  id: number; title: string; eyebrow: string; section_type: SectionType; status: SectionStatus;
+  id: number; title: string; section_label: string; eyebrow: string; section_type: SectionType; status: SectionStatus;
   position: number; item_limit: number; show_view_all: boolean; view_all_url: string;
   categories: number[]; products: number[];
 };
@@ -39,7 +39,7 @@ function errorText(error: unknown): string {
   return "ذخیره اطلاعات انجام نشد. ورودی‌ها و انتخاب‌ها را بررسی کنید.";
 }
 const blank = (): Omit<Section, "id"> => ({
-  title: "", eyebrow: "", section_type: "newest_products", status: "draft",
+  title: "", section_label: "", eyebrow: "", section_type: "newest_products", status: "draft",
   position: 0, item_limit: 8, show_view_all: true, view_all_url: "/products",
   categories: [], products: [],
 });
@@ -223,7 +223,7 @@ export default function AdminHomepagePage() {
     <div className="mb-7">
       <Link href={`/${locale}/admin-panel`} className="text-sm text-muted-foreground hover:text-foreground">← بازگشت به پنل مدیریت</Link>
       <h1 className="mt-3 text-2xl font-bold sm:text-3xl">مدیریت صفحه اصلی</h1>
-      <p className="mt-2 text-sm leading-7 text-muted-foreground">بخش‌های دسته‌بندی، محصولات منتخب و جدیدترین محصولات را بسازید. پیش‌نویس‌ها در فروشگاه نمایش داده نمی‌شوند و انتشار هر بخش مستقل است.</p>
+      <p className="mt-2 text-sm leading-7 text-muted-foreground">بخش‌های تازه به صفحه فعلی اضافه می‌شوند و زیر دسته‌بندی‌ها و «جدیدترین‌ها» قرار می‌گیرند؛ ساخت بخش جدید، بخش‌های قبلی را حذف یا جایگزین نمی‌کند.</p>
     </div>
     {notice && <p role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</p>}
     {error && <p role="alert" className="mb-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</p>}
@@ -232,10 +232,11 @@ export default function AdminHomepagePage() {
         <div className="flex items-center justify-between gap-3"><h2 className="font-bold">{editingId === null ? "ساخت بخش جدید" : "ویرایش بخش"}</h2><button type="button" className={secondaryClass} onClick={newSection}>بخش جدید</button></div>
         <form onSubmit={save} className="mt-4 space-y-4">
           <label className="block text-sm">عنوان بخش<input required maxLength={120} value={draft.title} onChange={e => update("title", e.target.value)} className={inputClass} /></label>
+          <label className="block text-sm">نوع یا برچسب دلخواه بخش (متن آزاد)<input maxLength={80} value={draft.section_label} onChange={e => update("section_label", e.target.value)} className={inputClass} placeholder="مثلاً پیشنهاد ویژه، اکسسوری، تخفیف‌ها" /></label>
           <label className="block text-sm">متن کوچک بالای عنوان (اختیاری)<input maxLength={120} value={draft.eyebrow} onChange={e => update("eyebrow", e.target.value)} className={inputClass} /></label>
-          <label className="block text-sm">نوع بخش<select value={draft.section_type} onChange={e => changeType(e.target.value as SectionType)} className={inputClass}>
-            <option value="categories">دسته‌بندی‌های منتخب</option><option value="products">محصولات منتخب</option><option value="newest_products">جدیدترین محصولات</option>
-          </select></label>
+          <label className="block text-sm">چیدمان محتوا<select value={draft.section_type} onChange={e => changeType(e.target.value as SectionType)} className={inputClass}>
+            <option value="categories">شبکه دسته‌بندی‌ها</option><option value="products">محصولات انتخابی</option><option value="newest_products">جدیدترین محصولات</option>
+          </select><span className="mt-1 block text-xs text-muted-foreground">نام بخش آزاد است؛ چیدمان محتوا از قالب‌های پشتیبانی‌شده انتخاب می‌شود تا صفحه فروشگاه خراب نشود.</span></label>
           {draft.section_type === "categories" && <fieldset className="rounded-xl border border-border p-3"><legend className="px-1 text-sm font-medium">انتخاب دسته‌بندی‌ها</legend><div className="max-h-48 space-y-2 overflow-y-auto">{categories.map(c => <label key={c.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.categories.includes(c.id)} onChange={() => toggleId("categories", c.id)} />{c.name}</label>)}</div></fieldset>}
           {(draft.section_type === "products" || draft.section_type === "newest_products") && (
             <fieldset className="rounded-xl border border-border p-3">
@@ -266,12 +267,12 @@ export default function AdminHomepagePage() {
           {draft.show_view_all && <label className="block text-sm">مسیر داخلی لینک<input value={draft.view_all_url} onChange={e => update("view_all_url", e.target.value)} dir="ltr" placeholder="/products" className={inputClass} /><span className="mt-1 block text-xs text-muted-foreground">فقط مسیر داخلی مانند /products یا /categories/knitwear</span></label>}
           <div className="flex flex-wrap gap-2"><button type="submit" disabled={saving || !draft.title.trim()} className={primaryClass}>{saving ? "در حال ذخیره…" : editingId === null ? "ساخت بخش" : "ذخیره تغییرات"}</button><button type="button" disabled={saving} className={secondaryClass} onClick={() => setPreview(v => !v)}>{preview ? "بستن پیش‌نمایش" : "پیش‌نمایش تنظیمات"}</button></div>
         </form>
-        {preview && <div className="mt-5 rounded-xl border border-dashed border-primary/40 p-4"><p className="text-xs text-muted-foreground">پیش‌نمایش تنظیمات، بدون انتشار در فروشگاه</p>{draft.eyebrow && <p className="mt-3 text-xs text-muted-foreground">{draft.eyebrow}</p>}<h3 className="mt-1 text-lg font-bold">{draft.title || "عنوان بخش"}</h3><p className="mt-2 text-sm text-muted-foreground">{draft.section_type === "categories" ? `${draft.categories.length} دسته‌بندی انتخاب شده` : draft.section_type === "products" ? `${draft.products.length} محصول انتخاب شده` : "جدیدترین محصولات فعال"} · نمایش {draft.item_limit} مورد</p></div>}
+        {preview && <div className="mt-5 rounded-xl border border-dashed border-primary/40 p-4"><p className="text-xs text-muted-foreground">پیش‌نمایش تنظیمات، بدون انتشار در فروشگاه</p>{(draft.section_label || draft.eyebrow) && <p className="mt-3 text-xs text-muted-foreground">{draft.section_label || draft.eyebrow}</p>}<h3 className="mt-1 text-lg font-bold">{draft.title || "عنوان بخش"}</h3><p className="mt-2 text-sm text-muted-foreground">{draft.section_type === "categories" ? `${draft.categories.length} دسته‌بندی انتخاب شده` : draft.section_type === "products" ? `${draft.products.length} محصول انتخاب شده` : "جدیدترین محصولات فعال"} · نمایش {draft.item_limit} مورد</p></div>}
       </section>
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="mb-4 flex items-center justify-between gap-3"><h2 className="font-bold">بخش‌های تعریف‌شده</h2><span className="text-xs text-muted-foreground">{sections.length.toLocaleString("fa-IR")} بخش</span></div>
         {loading ? <p className="py-10 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : sections.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">هنوز بخشی ساخته نشده است.</p> : <div className="space-y-3">{sections.map((s,index) => <article key={s.id} className="rounded-xl border border-border p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{s.title}</h3><span className={s.status === "published" ? "rounded-full bg-primary/10 px-2 py-1 text-xs" : "rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"}>{s.status === "published" ? "منتشرشده" : "پیش‌نویس"}</span></div><p className="mt-2 text-xs text-muted-foreground">{s.section_type === "categories" ? "دسته‌بندی‌ها" : s.section_type === "products" ? "محصولات منتخب" : "جدیدترین محصولات"} · {s.item_limit} مورد · ترتیب {s.position + 1}</p></div>
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{s.title}</h3><span className={s.status === "published" ? "rounded-full bg-primary/10 px-2 py-1 text-xs" : "rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"}>{s.status === "published" ? "منتشرشده" : "پیش‌نویس"}</span></div><p className="mt-2 text-xs text-muted-foreground">{s.section_label || (s.section_type === "categories" ? "دسته‌بندی‌ها" : s.section_type === "products" ? "محصولات منتخب" : "جدیدترین محصولات")} · {s.item_limit} مورد · ترتیب {s.position + 1} پس از بخش‌های اصلی</p></div>
             <div className="flex flex-wrap gap-2"><button type="button" disabled={saving || index===0} onClick={() => void move(s,-1)} className={secondaryClass}>↑</button><button type="button" disabled={saving || index===sections.length-1} onClick={() => void move(s,1)} className={secondaryClass}>↓</button><button type="button" disabled={saving} onClick={() => editSection(s)} className={secondaryClass}>ویرایش</button><button type="button" disabled={saving} onClick={() => void openHistory(s)} className={secondaryClass}>{historyFor === s.id ? "بستن تاریخچه" : "تاریخچه نسخه‌ها"}</button><button type="button" disabled={saving} onClick={() => void publish(s)} className={primaryClass}>{s.status === "published" ? "تبدیل به پیش‌نویس" : "انتشار"}</button><button type="button" disabled={saving} onClick={() => void removeSection(s)} className={secondaryClass}>حذف بخش</button></div>
           </div>
           {historyFor === s.id && <div className="mt-4 border-t border-border pt-4">
