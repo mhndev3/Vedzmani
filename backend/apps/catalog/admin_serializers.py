@@ -194,6 +194,22 @@ class VariantSizeAdminSerializer(serializers.ModelSerializer):
         model = VariantSize
         fields = ["id", "variant", "size", "sku", "stock_quantity", "is_active", "created_at", "updated_at"]
         read_only_fields = ["id", "stock_quantity", "created_at", "updated_at"]
+        extra_kwargs = {"sku": {"required": False, "allow_blank": True}}
+
+    def create(self, validated_data):
+        if not validated_data.get("sku", "").strip():
+            variant = validated_data["variant"]
+            size = validated_data["size"]
+            base_sku = f"VZ-{variant.product_id}-{variant.pk}-{size.pk}"
+            sku = base_sku
+            suffix = 1
+            while VariantSize.objects.filter(sku=sku).exists():
+                sku = f"{base_sku}-{suffix}"
+                suffix += 1
+            validated_data["sku"] = sku
+        else:
+            validated_data["sku"] = validated_data["sku"].strip()
+        return super().create(validated_data)
 
 
 class ProductSizeMeasurementAdminSerializer(serializers.ModelSerializer):
