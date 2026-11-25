@@ -77,7 +77,6 @@ export default function AdminCatalogPage() {
   const [variantId, setVariantId] = useState<number | null>(null);
   const [imageVariantId, setImageVariantId] = useState<number | null>(null);
   const [sizeId, setSizeId] = useState("");
-  const [sku, setSku] = useState("");
   const [stockChanges, setStockChanges] = useState<Record<number, string>>({});
   const [skuDrafts, setSkuDrafts] = useState<Record<number, string>>({});
   const [colorPositions, setColorPositions] = useState<Record<number, string>>({});
@@ -277,10 +276,10 @@ export default function AdminCatalogPage() {
     if (!variantId) return;
     setSaving(true); setError(""); setNotice("");
     try {
-      const created = await apiRequest<VariantSize>("POST", "/api/admin/catalog/variant-sizes/", { variant: variantId, size: Number(sizeId), sku, is_active: true });
-      setSizeId(""); setSku("");
+      const created = await apiRequest<VariantSize>("POST", "/api/admin/catalog/variant-sizes/", { variant: variantId, size: Number(sizeId), is_active: true });
+      setSizeId("");
       setVariantId(created.variant);
-      setNotice("سایز به رنگ اضافه شد. برای ثبت موجودی اولیه از فرم گردش موجودی استفاده کنید.");
+      setNotice(`سایز اضافه شد. شناسه داخلی به‌صورت خودکار ساخته شد (${created.sku}). برای ثبت موجودی از فرم گردش موجودی استفاده کنید.`);
       await refresh();
     } catch (e) { setError(errorMessage(e)); }
     finally { setSaving(false); }
@@ -428,10 +427,9 @@ export default function AdminCatalogPage() {
                       </div>
                     </div>
                     {variantId === color.id && <div className="mt-4 border-t border-border pt-4">
-                      <form onSubmit={addVariantSize} className="grid gap-3 sm:grid-cols-3">
+                      <form onSubmit={addVariantSize} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                         <label className="text-sm">سایز<select required value={sizeId} onChange={(e) => setSizeId(e.target.value)} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((s) => categories.find((category) => category.id === selected.category)?.sizes.includes(s.id) && !variantSizes.some((vs) => vs.variant === color.id && vs.size === s.id)).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
-                        <label className="text-sm">SKU<input required value={sku} onChange={(e) => setSku(e.target.value)} className={inputClass} dir="ltr" /></label>
-                        <div className="flex items-end"><button disabled={saving} className={buttonClass}>افزودن سایز</button></div>
+                        <div className="flex items-end"><button disabled={saving || !sizeId} className={buttonClass}>افزودن سایز</button></div>
                       </form>
                       <div className="mt-4 space-y-3">
                         {variantSizes.filter((vs) => vs.variant === color.id).map((item) => {
