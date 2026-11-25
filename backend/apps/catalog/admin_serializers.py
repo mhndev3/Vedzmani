@@ -4,6 +4,8 @@ All write paths deliberately expose model fields rather than accepting arbitrary
 Related records are managed through their own permission-checked endpoints. Stock and image storage keys are
 never writable through these serializers.
 """
+from uuid import uuid4
+
 from rest_framework import serializers
 from PIL import Image, UnidentifiedImageError
 
@@ -150,6 +152,8 @@ class ProductAdminSerializer(serializers.ModelSerializer):
 
 
 class ColorVariantAdminSerializer(serializers.ModelSerializer):
+    slug = serializers.SlugField(max_length=80, required=False, allow_blank=True)
+
     class Meta:
         model = ColorVariant
         fields = [
@@ -157,6 +161,14 @@ class ColorVariantAdminSerializer(serializers.ModelSerializer):
             "is_active", "position", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "product_code", "created_at", "updated_at"]
+        # The model's unique (product, slug) constraint otherwise makes DRF
+        # mark slug required even though create() generates it automatically.
+        validators = []
+
+    def create(self, validated_data):
+        if not validated_data.get("slug"):
+            validated_data["slug"] = f"color-{uuid4().hex[:16]}"
+        return super().create(validated_data)
 
 
 class VariantSizeAdminSerializer(serializers.ModelSerializer):
