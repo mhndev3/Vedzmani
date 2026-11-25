@@ -117,7 +117,7 @@ export default function SizeVocabularyManager({
           <button type="submit" disabled={saving || !label.trim()} className={primaryClass}>
             {saving ? "در حال ذخیره…" : editingId === null ? "افزودن سایز" : "ذخیره سایز"}
           </button>
-          {editingId !== null && <button type="button" disabled={saving} onClick={resetForm} className={secondaryClass}>لغو</button>}
+          {editingId !== null && <button type="button" disabled={saving} onClick={() => resetForm()} className={secondaryClass}>لغو</button>}
         </div>
       </form>
 
