@@ -400,6 +400,29 @@ def test_catalog_taxonomy_create_update_and_safe_deactivation(make_staff):
     assert size_update.status_code == 200, size_update.content
     size.refresh_from_db()
     assert size.label == "XXL"
+
+    # A store manager can create a size with only its customer-facing label.
+    # The backend generates its internal code and later label edits preserve it.
+    generated_response = client.post(
+        "/api/admin/catalog/sizes/",
+        {"label": "دو ایکس لارج پلاس", "position": 5},
+        content_type="application/json",
+    )
+    assert generated_response.status_code == 201, generated_response.content
+    generated_size = Size.objects.get(pk=generated_response.json()["id"])
+    generated_code = generated_size.code
+    assert generated_code.startswith("size-")
+    assert len(generated_code) <= 20
+    generated_update = client.patch(
+        f"/api/admin/catalog/sizes/{generated_size.pk}/",
+        {"label": "XXL Plus"},
+        content_type="application/json",
+    )
+    assert generated_update.status_code == 200, generated_update.content
+    generated_size.refresh_from_db()
+    assert generated_size.code == generated_code
+    assert generated_size.label == "XXL Plus"
+
     assert client.delete(f"/api/admin/catalog/sizes/{size.pk}/").status_code == 405
     assert Size.objects.filter(pk=size.pk).exists()
 
