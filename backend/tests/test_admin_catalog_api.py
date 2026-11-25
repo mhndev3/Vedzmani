@@ -444,25 +444,33 @@ def test_taxonomy_ordering_is_atomic_and_requires_change_permission(make_staff):
     collection_second = Collection.objects.create(name="زمستان", slug="winter", position=1)
 
     editor = client_for(make_staff("catalog.change_category", "catalog.change_collection"))
+    category_ids = list(Category.objects.order_by("position", "id").values_list("id", flat=True))
+    category_first_index = category_ids.index(category_first.pk)
+    category_second_index = category_ids.index(category_second.pk)
+    category_ids[category_first_index], category_ids[category_second_index] = (
+        category_ids[category_second_index], category_ids[category_first_index]
+    )
     category_response = editor.post(
         "/api/admin/catalog/categories/reorder/",
-        {"entry_ids": [category_second.pk, category_first.pk]},
+        {"entry_ids": category_ids},
         content_type="application/json",
     )
     assert category_response.status_code == 200, category_response.content
-    assert list(Category.objects.order_by("position", "id").values_list("id", flat=True)) == [
-        category_second.pk, category_first.pk
-    ]
+    assert list(Category.objects.order_by("position", "id").values_list("id", flat=True)) == category_ids
 
+    collection_ids = list(Collection.objects.order_by("position", "id").values_list("id", flat=True))
+    collection_first_index = collection_ids.index(collection_first.pk)
+    collection_second_index = collection_ids.index(collection_second.pk)
+    collection_ids[collection_first_index], collection_ids[collection_second_index] = (
+        collection_ids[collection_second_index], collection_ids[collection_first_index]
+    )
     collection_response = editor.post(
         "/api/admin/catalog/collections/reorder/",
-        {"entry_ids": [collection_second.pk, collection_first.pk]},
+        {"entry_ids": collection_ids},
         content_type="application/json",
     )
     assert collection_response.status_code == 200, collection_response.content
-    assert list(Collection.objects.order_by("position", "id").values_list("id", flat=True)) == [
-        collection_second.pk, collection_first.pk
-    ]
+    assert list(Collection.objects.order_by("position", "id").values_list("id", flat=True)) == collection_ids
 
     invalid = editor.post(
         "/api/admin/catalog/categories/reorder/",
@@ -470,9 +478,7 @@ def test_taxonomy_ordering_is_atomic_and_requires_change_permission(make_staff):
         content_type="application/json",
     )
     assert invalid.status_code == 400
-    assert list(Category.objects.order_by("position", "id").values_list("id", flat=True)) == [
-        category_second.pk, category_first.pk
-    ]
+    assert list(Category.objects.order_by("position", "id").values_list("id", flat=True)) == category_ids
 
     viewer = client_for(make_staff("catalog.view_category"))
     denied = viewer.post(
