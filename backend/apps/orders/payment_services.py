@@ -3,8 +3,8 @@ import uuid
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
-from django.db import transaction
-from django.db.models import F
+from django.db import IntegrityError, transaction
+from django.db.models import F, Q
 from django.utils import timezone
 from apps.catalog.models import VariantSize
 from .models import Order, SepPaymentAttempt
@@ -185,6 +185,20 @@ def process_sep_callback(*, res_num, ref_num):
                             order.save(update_fields=["payment_status", "status", "updated_at"])
                             outcome = "paid"
     except SepUnavailable:
+        # The atomic block rolled back the tentative RefNum write. Preserve the
+        # callback reference so a scheduled Verify retry can reconcile this attempt.
+        # Do not overwrite a different reference already attached to this attempt.
+        try:
+            SepPaymentAttempt.objects.filter(
+                res_num=res_num,
+                status=SepPaymentAttempt.PENDING,
+            ).filter(
+                Q(ref_num__isnull=True) | Q(ref_num="") | Q(ref_num=ref_num)
+            ).update(ref_num=ref_num)
+        except IntegrityError:
+            # A provider RefNum is unique. If another attempt already owns it,
+            # leave both records unchanged rather than risk reversing the wrong charge.
+            pass
         return "pending"
     except Exception:
         if verified_ref or reverse_needed:
