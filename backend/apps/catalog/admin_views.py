@@ -147,8 +147,8 @@ def _reorder_taxonomy_rows(queryset, ordered_ids):
 def _validated_taxonomy_ids(value):
     if not isinstance(value, list) or not all(isinstance(item, int) and not isinstance(item, bool) and item > 0 for item in value):
         raise ValidationError({"entry_ids": "شناسه‌ها باید فهرستی از اعداد صحیح مثبت باشند."})
-    if len(value) != len(set(value)):
-        raise ValidationError({"entry_ids": "شناسه تکراری در فهرست مجاز نیست."})
+    # Completeness and duplicate checks are performed together against the
+    # locked parent-scoped queryset in _reorder_taxonomy_rows.
     return value
 
 class StaffModelPermissionViewSet(
