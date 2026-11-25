@@ -489,6 +489,56 @@ def test_taxonomy_ordering_is_atomic_and_requires_change_permission(make_staff):
     assert denied.status_code == 403
 
 
+def test_color_variant_ordering_is_atomic_and_scoped_to_one_product(make_staff):
+    category = Category.objects.create(name="لباس", slug="color-order-category")
+    first_product = Product.objects.create(
+        category=category, name="محصول اول", slug="color-order-first", price=1000
+    )
+    second_product = Product.objects.create(
+        category=category, name="محصول دوم", slug="color-order-second", price=1000
+    )
+    first = ColorVariant.objects.create(
+        product=first_product, name="مشکی", slug="black", position=0
+    )
+    second = ColorVariant.objects.create(
+        product=first_product, name="سفید", slug="white", position=1
+    )
+    unrelated = ColorVariant.objects.create(
+        product=second_product, name="آبی", slug="blue", position=0
+    )
+
+    editor = client_for(make_staff("catalog.change_colorvariant"))
+    response = editor.post(
+        "/api/admin/catalog/colors/reorder/",
+        {"product": first_product.pk, "entry_ids": [second.pk, first.pk]},
+        content_type="application/json",
+    )
+    assert response.status_code == 200, response.content
+    assert list(
+        ColorVariant.objects.filter(product=first_product).order_by("position", "id").values_list("id", flat=True)
+    ) == [second.pk, first.pk]
+    unrelated.refresh_from_db()
+    assert unrelated.position == 0
+
+    incomplete = editor.post(
+        "/api/admin/catalog/colors/reorder/",
+        {"product": first_product.pk, "entry_ids": [first.pk]},
+        content_type="application/json",
+    )
+    assert incomplete.status_code == 400
+    assert list(
+        ColorVariant.objects.filter(product=first_product).order_by("position", "id").values_list("id", flat=True)
+    ) == [second.pk, first.pk]
+
+    viewer = client_for(make_staff("catalog.view_colorvariant"))
+    denied = viewer.post(
+        "/api/admin/catalog/colors/reorder/",
+        {"product": first_product.pk, "entry_ids": [first.pk, second.pk]},
+        content_type="application/json",
+    )
+    assert denied.status_code == 403
+
+
 def test_catalog_taxonomy_create_update_and_safe_deactivation(make_staff):
     client = client_for(make_staff(
         "catalog.add_category", "catalog.view_category", "catalog.change_category",
