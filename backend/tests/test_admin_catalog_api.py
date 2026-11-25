@@ -567,6 +567,17 @@ def test_variant_size_description_requires_view_and_change_permissions(make_staf
     description.refresh_from_db()
     assert description.description == "توضیح اختصاصی ویرایش‌شده"
 
+    # An empty override removes the color/size-specific text so the public serializer
+    # can fall back to the shared product/size description.
+    cleared = editor.patch(
+        f"/api/admin/catalog/variant-size-descriptions/{description.pk}/",
+        {"description": ""},
+        content_type="application/json",
+    )
+    assert cleared.status_code == 200, cleared.content
+    description.refresh_from_db()
+    assert description.description == ""
+
 
 def test_category_creation_preserves_existing_categories_and_size_assignments(make_staff):
     sizes = [
