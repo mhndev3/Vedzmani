@@ -1,6 +1,6 @@
 # Homepage section management API
 
-This phase adds persistent homepage section configuration without changing public storefront rendering.
+This workflow adds persistent homepage section configuration and appends published sections after the existing storefront content.
 
 - A free-form staff-defined section label plus a safe content layout: category grid, explicitly selected products, or newest products.
 - Draft/published status, display order, title/eyebrow, item limit, optional view-all link.
