@@ -1,8 +1,10 @@
 from decimal import Decimal
+from io import StringIO
 import threading
 from unittest.mock import patch
 from urllib.parse import urlencode
 import pytest
+from django.core.management import call_command
 from django.test import Client, override_settings
 from django.db import connection
 from django.contrib.auth import get_user_model
@@ -290,7 +292,7 @@ def test_short_sep_callback_accepts_provider_form_post_and_returns_customer_to_r
 
 @override_settings(
     SEP_TERMINAL_ID="15958957",
-    SEP_TOKEN_URL="https://sep.shaparak.ir/OnlinePG/OnlinePG",
+    SEP_TOKEN_URL="https://sep.shaparak.ir/onlinepg/onlinepg",
 )
 def test_sep_token_request_uses_documented_action_key_and_value():
     payload = {
@@ -311,4 +313,49 @@ def test_sep_token_request_uses_documented_action_key_and_value():
         )
 
     assert token == "sep-token"
-    post.assert_called_once_with("https://sep.shaparak.ir/OnlinePG/OnlinePG", payload)
+    post.assert_called_once_with("https://sep.shaparak.ir/onlinepg/onlinepg", payload)
+
+
+@override_settings(SEP_TERMINAL_ID="15958957")
+def test_retry_sep_reversals_dry_run_never_calls_provider(make_variant_size):
+    order, _ = make_order(make_variant_size)
+    attempt = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-dry-reverse", ref_num="ref-dry-reverse",
+        shipping_amount_toman=0, amount_rial=10000, token="t",
+        status=SepPaymentAttempt.REVERSAL_PENDING,
+    )
+    output = StringIO()
+    with patch("apps.orders.management.commands.retry_sep_reversals.SepClient.reverse") as reverse:
+        call_command("retry_sep_reversals", stdout=output, min_age_minutes=0)
+    reverse.assert_not_called()
+    attempt.refresh_from_db()
+    assert attempt.status == SepPaymentAttempt.REVERSAL_PENDING
+    assert "DRY RUN" in output.getvalue()
+
+
+@override_settings(SEP_TERMINAL_ID="15958957")
+def test_retry_sep_reversals_executes_and_persists_only_confirmed_reversals(make_variant_size):
+    order, _ = make_order(make_variant_size)
+    confirmed = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-reverse-ok", ref_num="ref-reverse-ok",
+        shipping_amount_toman=0, amount_rial=10000, token="t",
+        status=SepPaymentAttempt.REVERSAL_PENDING,
+    )
+    unconfirmed = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-reverse-fail", ref_num="ref-reverse-fail",
+        shipping_amount_toman=0, amount_rial=10000, token="t",
+        status=SepPaymentAttempt.OUT_OF_STOCK,
+    )
+    with patch(
+        "apps.orders.management.commands.retry_sep_reversals.SepClient.reverse",
+        side_effect=[
+            {"Success": True, "ResultCode": 0},
+            {"Success": False, "ResultCode": 9},
+        ],
+    ) as reverse:
+        call_command("retry_sep_reversals", "--execute", min_age_minutes=0, stdout=StringIO())
+    assert reverse.call_count == 2
+    confirmed.refresh_from_db()
+    unconfirmed.refresh_from_db()
+    assert confirmed.status == SepPaymentAttempt.REVERSED
+    assert unconfirmed.status == SepPaymentAttempt.OUT_OF_STOCK
