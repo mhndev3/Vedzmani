@@ -718,6 +718,60 @@ def test_color_variant_position_can_be_updated_and_negative_values_are_rejected(
     first.refresh_from_db()
     assert first.position == 10
 
+
+
+def test_existing_color_and_variant_size_associations_cannot_be_reassigned(make_staff, make_variant_size):
+    row = make_variant_size(stock=7)
+    original_variant = row.variant
+    original_product = original_variant.product
+    other_product = Product.objects.create(
+        category=original_product.category,
+        name="محصول دیگر",
+        slug="variant-association-other-product",
+        price=Decimal("1000"),
+    )
+    other_variant = ColorVariant.objects.create(
+        product=other_product,
+        name="رنگ دیگر",
+        slug="variant-association-other-color",
+    )
+    other_size = Size.objects.create(
+        code="association-other-size",
+        label="سایز دیگر",
+    )
+    editor = client_for(make_staff(
+        "catalog.view_colorvariant", "catalog.change_colorvariant",
+        "catalog.view_variantsize", "catalog.change_variantsize",
+    ))
+
+    moved_color = editor.patch(
+        f"/api/admin/catalog/colors/{original_variant.pk}/",
+        {"product": other_product.pk},
+        content_type="application/json",
+    )
+    assert moved_color.status_code == 400, moved_color.content
+
+    moved_variant = editor.patch(
+        f"/api/admin/catalog/variant-sizes/{row.pk}/",
+        {"variant": other_variant.pk},
+        content_type="application/json",
+    )
+    assert moved_variant.status_code == 400, moved_variant.content
+
+    changed_size = editor.patch(
+        f"/api/admin/catalog/variant-sizes/{row.pk}/",
+        {"size": other_size.pk},
+        content_type="application/json",
+    )
+    assert changed_size.status_code == 400, changed_size.content
+
+    original_variant.refresh_from_db()
+    row.refresh_from_db()
+    assert original_variant.product_id == original_product.pk
+    assert row.variant_id == original_variant.pk
+    assert row.size_id != other_size.pk
+    assert row.stock_quantity == 7
+
 def test_variant_size_description_requires_view_and_change_permissions(make_staff, make_variant_size):
     row = make_variant_size()
     description = VariantSizeDescription.objects.create(
