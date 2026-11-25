@@ -160,3 +160,32 @@ def test_bulk_product_creation_rejects_duplicate_skus_without_partial_records(ma
     assert not Product.objects.filter(slug="admin-bulk-duplicate-sku").exists()
     assert not ColorVariant.objects.filter(product__slug="admin-bulk-duplicate-sku").exists()
     assert not VariantSize.objects.filter(variant__product__slug="admin-bulk-duplicate-sku").exists()
+
+
+def test_bulk_product_creation_generates_product_and_color_slugs_for_staff(make_staff):
+    category = Category.objects.create(name="لباس", slug="bulk-create-generated-slugs")
+    size = Size.objects.create(code="generated-slug-one", label="تک سایز")
+    client = client_for(make_staff(*create_permissions()))
+
+    response = client.post(
+        "/api/admin/catalog/products/create-with-variants/",
+        {
+            "name": "پیراهن ساده",
+            "price": "390000",
+            "category": category.pk,
+            "colors": [
+                {"name": "آبی", "sizes": [{"size": size.pk}]},
+                {"name": "مشکی", "sizes": [{"size": size.pk}]},
+            ],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201, response.content
+    payload = response.json()
+    assert payload["slug"].startswith("product-")
+    assert len(payload["slug"]) <= 220
+    assert [color["slug"].startswith("color-") for color in payload["colors"]] == [True, True]
+    product = Product.objects.get(pk=payload["id"])
+    assert product.slug == payload["slug"]
+    assert len(set(product.color_variants.values_list("slug", flat=True))) == 2
