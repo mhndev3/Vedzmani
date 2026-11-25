@@ -5,7 +5,7 @@ import { apiGet } from "./api";
 export type HomepageCategoryImage = { url: string; thumbnail_url?: string; alt_text?: string; width?: number; height?: number };
 export type HomepageCategory = { id?: number; name: string; slug: string; image: HomepageCategoryImage | null };
 export type HomepageSection = {
-  id: number; position: number; title: string; eyebrow: string; section_type: "categories" | "products" | "newest_products";
+  id: number; position: number; title: string; section_label: string; eyebrow: string; section_type: "categories" | "products" | "newest_products";
   show_view_all: boolean; view_all_url: string;
   category_ids: number[]; product_ids: number[];
   categories: HomepageCategory[]; products: ProductCardData[];
