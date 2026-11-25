@@ -92,6 +92,8 @@ export async function getHomepageContent(): Promise<HomepageContent> {
       sections,
       categories: featuredCategories.map((category) => ({
         ...category,
+        // Preserve the storefront's established labels for its original five category cards.
+        name: HOME_CATEGORIES.find((item) => item.slug === category.slug)?.name ?? category.name,
         image: category.image
           ?? categoryBySlug.get(category.slug)?.image
           ?? products.find((product) => product.category.slug === category.slug)?.image
