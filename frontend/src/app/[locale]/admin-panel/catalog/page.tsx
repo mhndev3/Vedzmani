@@ -223,6 +223,7 @@ export default function AdminCatalogPage() {
   }
 
   async function toggleColor(color: Color) {
+    if (color.is_active && !window.confirm("این رنگ از فروشگاه غیرفعال شود؟ تصاویر، سایزها، موجودی و سوابق آن حذف نمی‌شوند و قابل بازگردانی هستند.")) return;
     setSaving(true); setError(""); setNotice("");
     try {
       await apiRequest<Color>("PATCH", `/api/admin/catalog/colors/${color.id}/`, { is_active: !color.is_active });
@@ -261,6 +262,7 @@ export default function AdminCatalogPage() {
   }
 
   async function toggleVariantSize(item: VariantSize) {
+    if (item.is_active && !window.confirm(`ترکیب این رنگ و سایز غیرفعال شود؟ موجودی فعلی (${item.stock_quantity}) و سوابق آن حفظ می‌شوند و با فعال‌سازی دوباره قابل استفاده خواهند بود.`)) return;
     setSaving(true); setError(""); setNotice("");
     try {
       await apiRequest<VariantSize>("PATCH", `/api/admin/catalog/variant-sizes/${item.id}/`, { is_active: !item.is_active });
