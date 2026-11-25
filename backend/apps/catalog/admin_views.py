@@ -113,6 +113,44 @@ def _validated_measurement_ids(value):
     return value
 
 
+class TaxonomyReorderPermissions(StaffDjangoModelPermissions):
+    """Taxonomy reorder actions mutate existing rows and require change permission."""
+
+    def has_permission(self, request, view):
+        if getattr(view, "action", None) != "reorder":
+            return super().has_permission(request, view)
+        user = request.user
+        model = getattr(getattr(view, "queryset", None), "model", None)
+        if not user or not user.is_authenticated or not user.is_staff or model is None:
+            return False
+        return user.has_perm(f"{model._meta.app_label}.change_{model._meta.model_name}")
+
+
+def _reorder_taxonomy_rows(queryset, ordered_ids):
+    """Atomically apply a complete ordering for categories or collections."""
+    with transaction.atomic():
+        rows = list(queryset.select_for_update().order_by("position", "id"))
+        current_ids = {row.pk for row in rows}
+        if len(ordered_ids) != len(current_ids) or set(ordered_ids) != current_ids:
+            raise ValidationError({"entry_ids": "فهرست باید شامل تمام موارد همین گروه، بدون تکرار باشد."})
+        if not rows:
+            return []
+        model = queryset.model
+        offset = max(row.position for row in rows) + len(rows) + 1
+        for row in rows:
+            model.objects.filter(pk=row.pk).update(position=row.position + offset)
+        for position, row_id in enumerate(ordered_ids):
+            model.objects.filter(pk=row_id).update(position=position)
+        return list(queryset.order_by("position", "id"))
+
+
+def _validated_taxonomy_ids(value):
+    if not isinstance(value, list) or not all(isinstance(item, int) and not isinstance(item, bool) and item > 0 for item in value):
+        raise ValidationError({"entry_ids": "شناسه‌ها باید فهرستی از اعداد صحیح مثبت باشند."})
+    # Completeness and duplicate checks are performed together against the
+    # locked parent-scoped queryset in _reorder_taxonomy_rows.
+    return value
+
 class StaffModelPermissionViewSet(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,
@@ -135,11 +173,25 @@ class CategoryAdminViewSet(StaffModelPermissionViewSet):
     queryset = Category.objects.all()
     serializer_class = CategoryAdminSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    permission_classes = [TaxonomyReorderPermissions]
+
+    @action(detail=False, methods=["post"], url_path="reorder")
+    def reorder(self, request):
+        ordered_ids = _validated_taxonomy_ids(request.data.get("entry_ids"))
+        rows = _reorder_taxonomy_rows(Category.objects.all(), ordered_ids)
+        return Response(self.get_serializer(rows, many=True).data)
 
 
 class CollectionAdminViewSet(StaffModelPermissionViewSet):
     queryset = Collection.objects.all()
     serializer_class = CollectionAdminSerializer
+    permission_classes = [TaxonomyReorderPermissions]
+
+    @action(detail=False, methods=["post"], url_path="reorder")
+    def reorder(self, request):
+        ordered_ids = _validated_taxonomy_ids(request.data.get("entry_ids"))
+        rows = _reorder_taxonomy_rows(Collection.objects.all(), ordered_ids)
+        return Response(self.get_serializer(rows, many=True).data)
 
 
 class SizeAdminViewSet(StaffModelPermissionViewSet):
