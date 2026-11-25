@@ -25,7 +25,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       )) : (
         <HomepageHeroSlider banners={content.banners} locale={locale} />
       )}
-      {content.sections.length > 0 ? content.sections.map((section) => (
+      <HomeCategoryGrid locale={locale} categories={content.categories} />
+      <NewestProductsCarousel
+        locale={locale}
+        t={t}
+        products={content.newestProducts}
+        emptyText={t.home.emptySection}
+        title={t.home.sections.newestProducts}
+      />
+      {content.sections.map((section) => (
         section.section_type === "categories" ? (
           <AdminStorefrontSection key={section.id} section={{
             id: section.id,
@@ -38,7 +46,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             category_ids: section.category_ids,
             product_ids: section.product_ids,
           }}>
-            <HomeCategoryGrid sectionId={`home-categories-${section.id}`} locale={locale} categories={section.categories} title={section.title} eyebrow={section.eyebrow} />
+            <HomeCategoryGrid
+              sectionId={`home-categories-${section.id}`}
+              locale={locale}
+              categories={section.categories}
+              title={section.title}
+              eyebrow={section.eyebrow || section.section_label}
+            />
           </AdminStorefrontSection>
         ) : (
           <AdminStorefrontSection key={section.id} section={{
@@ -52,25 +66,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             category_ids: section.category_ids,
             product_ids: section.product_ids,
           }}>
-          <NewestProductsCarousel
-            sectionId={`home-newest-products-${section.id}`}
-            locale={locale}
-            t={t}
-            products={section.products}
-            emptyText={t.home.emptySection}
-            title={section.title}
-            eyebrow={section.eyebrow}
-            viewAllHref={section.show_view_all && section.view_all_url ? (section.view_all_url.startsWith(`/${locale}/`) ? section.view_all_url : `/${locale}${section.view_all_url}`) : undefined}
-            showViewAll={section.show_view_all}
-          />
+            <NewestProductsCarousel
+              sectionId={`home-newest-products-${section.id}`}
+              locale={locale}
+              t={t}
+              products={section.products}
+              emptyText={t.home.emptySection}
+              title={section.title}
+              eyebrow={section.eyebrow || section.section_label}
+              viewAllHref={section.show_view_all && section.view_all_url ? (section.view_all_url.startsWith(`/${locale}/`) ? section.view_all_url : `/${locale}${section.view_all_url}`) : undefined}
+              showViewAll={section.show_view_all}
+            />
           </AdminStorefrontSection>
         )
-      )) : (
-        <>
-          <HomeCategoryGrid locale={locale} categories={content.categories} />
-          <NewestProductsCarousel locale={locale} t={t} products={content.newestProducts} emptyText={t.home.emptySection} title={t.home.sections.newestProducts} />
-        </>
-      )}
+      ))}
     </AdminStorefrontMode>
   );
 }

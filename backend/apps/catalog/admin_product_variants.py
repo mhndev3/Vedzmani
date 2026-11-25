@@ -13,10 +13,14 @@ from .product_attributes import clean_optional_marker, clean_product_attributes
 
 class ProductVariantSizeInputSerializer(serializers.Serializer):
     size = serializers.PrimaryKeyRelatedField(queryset=Size.objects.all())
+    # SKU is an internal identifier; staff should not have to invent one in the product form.
     sku = serializers.CharField(
         max_length=64,
         trim_whitespace=True,
         validators=[UniqueValidator(queryset=VariantSize.objects.all())],
+        required=False,
+        allow_blank=True,
+        default="",
     )
 
 
@@ -62,9 +66,10 @@ class ProductWithVariantsInputSerializer(serializers.Serializer):
             raise serializers.ValidationError({"colors": "شناسه انگلیسی رنگ‌ها نباید تکراری باشد."})
 
         submitted_skus = [
-            size["sku"]
+            size["sku"].strip()
             for color in colors
             for size in color["sizes"]
+            if size.get("sku", "").strip()
         ]
         if len(submitted_skus) != len(set(submitted_skus)):
             raise serializers.ValidationError({"colors": "SKUها باید در کل محصول یکتا باشند."})
@@ -90,11 +95,15 @@ class ProductWithVariantsInputSerializer(serializers.Serializer):
                 **color_data,
             )
             for size_data in sizes_data:
-                VariantSize.objects.create(
-                    variant=color,
-                    size=size_data["size"],
-                    sku=size_data["sku"],
-                )
+                sku = size_data.get("sku", "").strip()
+                if not sku:
+                    base_sku = f"VZ-{product.pk}-{color.pk}-{size_data['size'].pk}"
+                    sku = base_sku
+                    suffix = 1
+                    while VariantSize.objects.filter(sku=sku).exists():
+                        sku = f"{base_sku}-{suffix}"
+                        suffix += 1
+                VariantSize.objects.create(variant=color, size=size_data["size"], sku=sku)
         return product
 
     def to_representation(self, instance):

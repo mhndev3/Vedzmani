@@ -8,7 +8,7 @@ import { apiRequest, apiMultipartRequest, BrowserApiError } from "@/lib/browser-
 
 type CatalogGroup = "categories" | "collections";
 type ProductField = { key: string; label: string; type: "text" | "number"; unit: string; required: boolean };
-type Entry = { id: number; name: string; slug: string; is_active: boolean; position: number; image_url?: string | null; product_fields?: ProductField[]; sizes?: number[] };
+type Entry = { id: number; name: string; slug: string; is_active: boolean; position: number; image_url?: string | null; product_fields?: ProductField[]; sizes?: number[]; is_homepage_featured?: boolean; homepage_position?: number };
 type Size = { id: number; code: string; label: string; position: number };
 type Page<T> = { results: T[]; next: string | null };
 
@@ -48,6 +48,8 @@ export default function AdminTaxonomyPage() {
   const [collections, setCollections] = useState<Entry[]>([]);
   const [sizes, setSizes] = useState<Size[]>([]);
   const [selectedSizeIds, setSelectedSizeIds] = useState<number[]>([]);
+  const [categoryPlacement, setCategoryPlacement] = useState<"catalog" | "homepage">("catalog");
+  const [homepagePosition, setHomepagePosition] = useState("6");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -127,17 +129,19 @@ export default function AdminTaxonomyPage() {
       .filter((entry) => !term || entry.name.toLocaleLowerCase().includes(term) || entry.slug.toLocaleLowerCase().includes(term));
   }, [entries, search]);
 
-  function resetForm(entry?: Entry) {
+  function resetForm(entry?: Entry, targetGroup: CatalogGroup = group) {
     if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
     previewObjectUrl.current = null;
     setEditing(entry?.id ?? null);
     setName(entry?.name ?? "");
     setSlug(entry?.slug ?? "");
     setImageFile(null);
-    setImagePreview(group === "categories" ? entry?.image_url ?? null : null);
+    setImagePreview(targetGroup === "categories" ? entry?.image_url ?? null : null);
     setRemoveImage(false);
-    setProductFields(group === "categories" ? entry?.product_fields ?? [] : []);
-    setSelectedSizeIds(group === "categories" ? entry?.sizes ?? [] : []);
+    setProductFields(targetGroup === "categories" ? entry?.product_fields ?? [] : []);
+    setSelectedSizeIds(targetGroup === "categories" ? entry?.sizes ?? [] : []);
+    setCategoryPlacement(entry?.is_homepage_featured ? "homepage" : "catalog");
+    setHomepagePosition(String((entry?.homepage_position ?? 5) + 1));
     setError("");
     setNotice("");
   }
@@ -188,7 +192,12 @@ export default function AdminTaxonomyPage() {
         name: name.trim(),
         slug: slug.trim(),
         position: editing === null ? entries.length : entries.find((entry) => entry.id === editing)?.position ?? 0,
-        ...(group === "categories" ? { product_fields: productFields, size_ids: selectedSizeIds } : {}),
+        ...(group === "categories" ? {
+          product_fields: productFields,
+          size_ids: selectedSizeIds,
+          is_homepage_featured: categoryPlacement === "homepage",
+          homepage_position: Math.max(0, Number(homepagePosition) - 1),
+        } : {}),
       };
       const method = editing === null ? "POST" : "PATCH";
       const url = editing === null ? endpoint : endpoint + editing + "/";
@@ -261,8 +270,8 @@ export default function AdminTaxonomyPage() {
       </div>
 
       <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="نوع گروه کاتالوگ">
-        <button type="button" role="tab" aria-selected={group === "categories"} className={group === "categories" ? primaryClass : secondaryClass} onClick={() => { setGroup("categories"); resetForm(); setSearch(""); }}>دسته‌بندی‌ها</button>
-        <button type="button" role="tab" aria-selected={group === "collections"} className={group === "collections" ? primaryClass : secondaryClass} onClick={() => { setGroup("collections"); resetForm(); setSearch(""); }}>مجموعه‌ها</button>
+        <button type="button" role="tab" aria-selected={group === "categories"} className={group === "categories" ? primaryClass : secondaryClass} onClick={() => { setGroup("categories"); resetForm(undefined, "categories"); setSearch(""); }}>دسته‌بندی‌ها</button>
+        <button type="button" role="tab" aria-selected={group === "collections"} className={group === "collections" ? primaryClass : secondaryClass} onClick={() => { setGroup("collections"); resetForm(undefined, "collections"); setSearch(""); }}>مجموعه‌ها</button>
       </div>
 
       {notice && <p role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</p>}
@@ -280,6 +289,17 @@ export default function AdminTaxonomyPage() {
             </label>
             {group === "categories" && (
               <div className="space-y-3">
+              <section className="space-y-3 rounded-xl border border-border p-3">
+                <div>
+                  <h3 className="text-sm font-semibold">محل نمایش دسته‌بندی</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">دسته‌بندی فروشگاه برای ساختار محصولات است؛ گزینه صفحه اصلی آن را به کارت‌های فعلی صفحه اصلی اضافه می‌کند و چیزی را جایگزین نمی‌کند.</p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex items-center gap-2 rounded-lg border border-border p-3 text-sm"><input type="radio" name="category-placement" checked={categoryPlacement === "catalog"} onChange={() => setCategoryPlacement("catalog")} />دسته‌بندی اصلی فروشگاه</label>
+                  <label className="flex items-center gap-2 rounded-lg border border-border p-3 text-sm"><input type="radio" name="category-placement" checked={categoryPlacement === "homepage"} onChange={() => setCategoryPlacement("homepage")} />دسته‌بندی صفحه اصلی</label>
+                </div>
+                {categoryPlacement === "homepage" && <label className="block text-sm">جایگاه در صفحه اصلی (۱ یعنی اولین کارت)<input required type="number" min="1" max="100" value={homepagePosition} onChange={event => setHomepagePosition(event.target.value)} className={inputClass} dir="ltr" /><span className="mt-1 block text-xs text-muted-foreground">پنج دسته فعلی حفظ می‌شوند؛ جایگاه این مورد را برای افزودن آن به فهرست تعیین کنید.</span></label>}
+              </section>
               <section className="space-y-3 rounded-xl border border-border p-3">
                 <div>
                   <h3 className="text-sm font-semibold">سایزهای مجاز این دسته‌بندی</h3>
@@ -393,6 +413,7 @@ export default function AdminTaxonomyPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-semibold">{entry.name}</h3>
                           <span className={entry.is_active ? "rounded-full bg-muted px-2 py-1 text-[10px]" : "rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground"}>{entry.is_active ? "فعال" : "غیرفعال"}</span>
+                          {group === "categories" && <span className="rounded-full border border-border px-2 py-1 text-[10px]">{entry.is_homepage_featured ? "صفحه اصلی · " + (Number(entry.homepage_position ?? 0) + 1) : "فروشگاه"}</span>}
                         </div>
                         <p dir="ltr" className="mt-1 text-left text-xs text-muted-foreground">{entry.slug} · {entry.position}</p>
                         </div>

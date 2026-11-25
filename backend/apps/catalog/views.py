@@ -72,7 +72,7 @@ class ProductListView(ListAPIView):
 class FilterOptionsView(APIView):
     """Public filter vocabulary for the storefront: only values that exist on published products.
 
-    Fixed cost: 4 queries (categories, collections, colors, sizes), no per-product work.
+    Fixed cost: 5 queries (catalog categories, homepage categories, collections, colors, sizes), no per-product work.
     """
 
     authentication_classes: list = []
@@ -98,6 +98,11 @@ class FilterOptionsView(APIView):
             Category.objects.filter(is_active=True)
             .filter(Exists(published_products.filter(category=OuterRef("pk"))))
             .order_by("position", "name", "id")
+            .values("id", "name", "slug", "image")
+        )
+        homepage_categories = (
+            Category.objects.filter(is_active=True, is_homepage_featured=True)
+            .order_by("homepage_position", "id")
             .values("id", "name", "slug", "image")
         )
         collection_products = Product.collections.through.objects.filter(
@@ -147,6 +152,19 @@ class FilterOptionsView(APIView):
                         } if category["image"] else None,
                     }
                     for category in categories
+                ],
+                "homepage_categories": [
+                    {
+                        "id": category["id"],
+                        "name": category["name"],
+                        "slug": category["slug"],
+                        "image": {
+                            "url": public_image_url(category["image"]),
+                            "thumbnail_url": public_image_url(category["image"]),
+                            "alt_text": category["name"],
+                        } if category["image"] else None,
+                    }
+                    for category in homepage_categories
                 ],
                 "collections": list(collections),
                 "colors": list(colors),

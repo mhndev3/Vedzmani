@@ -16,13 +16,14 @@ def test_homepage_section_crud_and_publish_timestamp(make_staff):
     category = Category.objects.create(name="لباس", slug="clothing")
     client = client_for(make_staff("catalog.add_homepagesection", "catalog.view_homepagesection", "catalog.change_homepagesection"))
     response = client.post("/api/admin/homepage/sections/", {
-        "title": "دسته‌بندی‌های فروشگاه", "eyebrow": "انتخاب بر اساس سلیقه",
+        "title": "دسته‌بندی‌های فروشگاه", "section_label": "پیشنهادهای ویترین", "eyebrow": "انتخاب بر اساس سلیقه",
         "section_type": "categories", "status": "draft", "position": 0,
         "item_limit": 6, "categories": [category.pk], "products": [],
     }, content_type="application/json")
     assert response.status_code == 201, response.content
     section_id = response.json()["id"]
     assert response.json()["status"] == "draft"
+    assert response.json()["section_label"] == "پیشنهادهای ویترین"
     assert response.json()["categories"] == [category.pk]
     published = client.patch(f"/api/admin/homepage/sections/{section_id}/", {"status": "published"}, content_type="application/json")
     assert published.status_code == 200, published.content

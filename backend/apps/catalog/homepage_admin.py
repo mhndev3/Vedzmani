@@ -16,7 +16,7 @@ class HomepageSectionAdminSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HomepageSection
-        fields = ["id", "title", "eyebrow", "section_type", "status", "position", "item_limit", "show_view_all", "view_all_url", "categories", "products", "created_at", "updated_at", "published_at"]
+        fields = ["id", "title", "section_label", "eyebrow", "section_type", "status", "position", "item_limit", "show_view_all", "view_all_url", "categories", "products", "created_at", "updated_at", "published_at"]
         read_only_fields = ["id", "created_at", "updated_at", "published_at"]
 
     def validate_view_all_url(self, value):
@@ -77,6 +77,7 @@ class HomepageSectionRevisionSerializer(serializers.ModelSerializer):
 def section_snapshot(section):
     return {
         "title": section.title,
+        "section_label": section.section_label,
         "eyebrow": section.eyebrow,
         "section_type": section.section_type,
         "status": section.status,

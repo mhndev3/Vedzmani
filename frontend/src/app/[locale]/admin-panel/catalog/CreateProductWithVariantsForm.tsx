@@ -15,7 +15,7 @@ type Product = {
 };
 type ColorDraft = {
   key: number; name: string; slug: string; hex_color: string;
-  sizes: { size: number; sku: string }[];
+  sizes: { size: number }[];
   imageFiles: File[];
 };
 
@@ -28,7 +28,7 @@ function errorMessage(error: unknown) {
     return "برای ساخت محصول، رنگ و سایز مجوز کافی ندارید.";
   }
   if (error instanceof BrowserApiError && error.status === 400) {
-    return "اطلاعات محصول معتبر نیست یا نامک و SKU تکراری است. موارد مشخص‌شده را بررسی کنید.";
+    return "اطلاعات محصول معتبر نیست یا نامک، رنگ یا سایز تکراری است. موارد مشخص‌شده را بررسی کنید.";
   }
   if (error instanceof BrowserApiError && error.status === 0) return "ارتباط با سرور برقرار نشد.";
   return "ساخت محصول انجام نشد. اطلاعات را بررسی کنید و دوباره تلاش کنید.";
@@ -74,7 +74,7 @@ export default function CreateProductWithVariantsForm({
       return {
         ...color,
         sizes: checked
-          ? [...color.sizes, { size: sizeId, sku: "" }]
+          ? [...color.sizes, { size: sizeId }]
           : color.sizes.filter(item => item.size !== sizeId),
       };
     }));
@@ -101,12 +101,6 @@ export default function CreateProductWithVariantsForm({
       : color));
   }
 
-  function updateSku(colorIndex: number, sizeId: number, sku: string) {
-    setColors(current => current.map((color, i) => i === colorIndex
-      ? { ...color, sizes: color.sizes.map(item => item.size === sizeId ? { ...item, sku } : item) }
-      : color));
-  }
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -118,11 +112,6 @@ export default function CreateProductWithVariantsForm({
       setError("برای هر رنگ، نام و شناسه انگلیسی و دست‌کم یک سایز انتخاب کنید.");
       return;
     }
-    if (colors.some(color => color.sizes.some(item => !item.sku.trim()))) {
-      setError("برای تمام ترکیب‌های رنگ و سایز، SKU جداگانه وارد کنید.");
-      return;
-    }
-
     setSaving(true);
     try {
       const product = await apiRequest<Product>("POST", "/api/admin/catalog/products/create-with-variants/", {
@@ -138,7 +127,7 @@ export default function CreateProductWithVariantsForm({
           name: color.name.trim(),
           slug: color.slug.trim(),
           hex_color: color.hex_color,
-          sizes: color.sizes.map(item => ({ size: item.size, sku: item.sku.trim() })),
+          sizes: color.sizes.map(item => ({ size: item.size })),
         })),
       });
 
@@ -172,7 +161,7 @@ export default function CreateProductWithVariantsForm({
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">ساخت محصول با رنگ‌ها و سایزها</h2>
-          <p className="mt-1 text-xs leading-6 text-muted-foreground">محصول، رنگ‌ها و SKU سایزها در یک تراکنش ساخته می‌شوند. موجودی اولیه همه ترکیب‌ها صفر می‌ماند.</p>
+          <p className="mt-1 text-xs leading-6 text-muted-foreground">محصول، رنگ‌ها و سایزها یکجا ساخته می‌شوند. کدهای داخلی خودکار تولید می‌شوند و موجودی اولیه صفر می‌ماند.</p>
         </div>
         <button type="button" className={secondary} onClick={onCancel}>انصراف</button>
       </div>
@@ -241,7 +230,7 @@ export default function CreateProductWithVariantsForm({
                 <label className="text-sm">کد رنگ<input type="color" value={color.hex_color} onChange={event => updateColor(index, { hex_color: event.target.value })} className={field + " h-11 p-1"} dir="ltr" /></label>
               </div>
               <div className="mt-4">
-                <p className="mb-2 text-sm font-medium">سایزهای این رنگ و SKU</p>
+                <p className="mb-2 text-sm font-medium">سایزهای این رنگ</p>
                 {!selectedCategory ? <p className="text-xs text-muted-foreground">ابتدا دسته‌بندی محصول را انتخاب کنید تا سایزهای همان دسته‌بندی نمایش داده شوند.</p> :
                   categorySizes.length === 0 ? <p className="text-xs text-muted-foreground">برای این دسته‌بندی هنوز سایزی تعریف نشده است؛ از مدیریت دسته‌بندی‌ها سایزهای مجاز را انتخاب کنید.</p> :
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -249,7 +238,7 @@ export default function CreateProductWithVariantsForm({
                       const selectedSize = color.sizes.find(item => item.size === size.id);
                       return <div key={size.id} className="rounded-lg border border-border p-3">
                         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(selectedSize)} onChange={event => toggleSize(index, size.id, event.target.checked)} />{size.label}</label>
-                        {selectedSize && <label className="mt-2 block text-xs">SKU<input required maxLength={64} value={selectedSize.sku} onChange={event => updateSku(index, size.id, event.target.value)} className={field} dir="ltr" placeholder="مثلاً KNIT-BLUE-M" /></label>}
+
                       </div>;
                     })}
                   </div>}
