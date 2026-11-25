@@ -44,10 +44,10 @@ export default function SizeVocabularyManager({
     setNotice("");
   }
 
-  function resetForm() {
+  function resetForm(nextPosition?: number) {
     setEditingId(null);
     setLabel("");
-    setPosition(String(sizes.reduce((highest, size) => Math.max(highest, size.position), -1) + 1));
+    setPosition(String(nextPosition ?? (sizes.reduce((highest, size) => Math.max(highest, size.position), -1) + 1)));
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -74,7 +74,11 @@ export default function SizeVocabularyManager({
         await apiRequest<Size>("PATCH", `/api/admin/catalog/sizes/${editingId}/`, payload);
         setNotice("مشخصات سایز ذخیره شد.");
       }
-      resetForm();
+      const nextPosition = Math.max(
+        normalizedPosition,
+        sizes.reduce((highest, size) => Math.max(highest, size.position), -1),
+      ) + 1;
+      resetForm(nextPosition);
       await onSaved();
     } catch (e) {
       setError(errorMessage(e));
