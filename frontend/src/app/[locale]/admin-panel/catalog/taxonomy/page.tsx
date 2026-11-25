@@ -245,14 +245,16 @@ export default function AdminTaxonomyPage() {
     const index = ordered.findIndex((item) => item.id === entry.id);
     const target = index + delta;
     if (target < 0 || target >= ordered.length) return;
-    const other = ordered[target];
+    const reordered = [...ordered];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
     setSaving(true);
     setError("");
     setNotice("");
     try {
-      await apiRequest<Entry>("PATCH", endpoint + entry.id + "/", { position: other.position });
-      await apiRequest<Entry>("PATCH", endpoint + other.id + "/", { position: entry.position });
-      setNotice("ترتیب نمایش به‌روزرسانی شد.");
+      await apiRequest<Entry[]>("POST", endpoint + "reorder/", {
+        entry_ids: reordered.map((item) => item.id),
+      });
+      setNotice("ترتیب نمایش به‌صورت یکپارچه ذخیره شد.");
       await refresh();
     } catch (e) {
       setError(errorMessage(e));
