@@ -79,7 +79,6 @@ export default function AdminCatalogPage() {
   const [sizeId, setSizeId] = useState("");
   const [stockChanges, setStockChanges] = useState<Record<number, string>>({});
   const [skuDrafts, setSkuDrafts] = useState<Record<number, string>>({});
-  const [colorPositions, setColorPositions] = useState<Record<number, string>>({});
   const [stockReasons, setStockReasons] = useState<Record<number, string>>({});
 
   const loadCatalog = useCallback(async () => {
@@ -139,7 +138,7 @@ export default function AdminCatalogPage() {
     return products.filter((p) => !term || p.name.toLocaleLowerCase().includes(term) || String(p.product_code ?? "").includes(term));
   }, [products, search]);
 
-  const selectedColors = selected ? colors.filter((color) => color.product === selected.id) : [];
+  const selectedColors = selected ? colors.filter((color) => color.product === selected.id).sort((a, b) => a.position - b.position || a.id - b.id) : [];
   const selectedCategory = selected ? categories.find((category) => category.id === selected.category) : undefined;
   const editableSizeIds = new Set([
     ...(selectedCategory?.sizes ?? []),
@@ -245,19 +244,25 @@ export default function AdminCatalogPage() {
     finally { setSaving(false); }
   }
 
-  async function saveColorPosition(color: Color) {
-    const raw = colorPositions[color.id] ?? String(color.position);
-    const position = Number(raw);
-    if (!Number.isInteger(position) || position < 0) { setError("ترتیب رنگ باید عدد صحیح و صفر یا بیشتر باشد."); return; }
-    if (position === color.position) return;
+  async function moveColor(color: Color, delta: number) {
+    if (!selected) return;
+    const ordered = [...selectedColors];
+    const index = ordered.findIndex((item) => item.id === color.id);
+    const target = index + delta;
+    if (target < 0 || target >= ordered.length) return;
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
     setSaving(true); setError(""); setNotice("");
     try {
-      await apiRequest<Color>("PATCH", `/api/admin/catalog/colors/${color.id}/`, { position });
-      setColorPositions((old) => { const next = { ...old }; delete next[color.id]; return next; });
-      setNotice("ترتیب نمایش رنگ ذخیره شد.");
+      await apiRequest<Color[]>("POST", "/api/admin/catalog/colors/reorder/", {
+        product: selected.id,
+        entry_ids: ordered.map((item) => item.id),
+      });
+      setNotice("ترتیب رنگ‌های این محصول به‌صورت یکپارچه ذخیره شد.");
       await refresh();
-    } catch (e) { setError(errorMessage(e)); }
-    finally { setSaving(false); }
+    } catch (e) {
+      setError(errorMessage(e));
+      await refresh();
+    } finally { setSaving(false); }
   }
 
   async function toggleVariantSize(item: VariantSize) {
@@ -418,8 +423,8 @@ export default function AdminCatalogPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <button type="button" onClick={() => setVariantId(color.id)} className="flex items-center gap-3 text-right"><span className="size-8 rounded-full border border-border" style={{ backgroundColor: color.hex_color || "#ddd" }} /><span><strong className="block text-sm">{color.name}</strong><span className="text-xs text-muted-foreground">کد کارت: {color.product_code}</span></span></button>
                       <div className="flex flex-wrap items-center gap-2">
-                        <label className="flex items-center gap-2 text-xs text-muted-foreground">ترتیب<input aria-label={`ترتیب رنگ ${color.name}`} type="number" min="0" step="1" value={colorPositions[color.id] ?? String(color.position)} onChange={(e) => setColorPositions((old) => ({ ...old, [color.id]: e.target.value }))} className={inputClass + " w-20"} dir="ltr" /></label>
-                        <button type="button" disabled={saving || Number(colorPositions[color.id] ?? color.position) === color.position} className={secondaryClass} onClick={() => void saveColorPosition(color)}>ذخیره ترتیب</button>
+                        <button type="button" aria-label={`انتقال رنگ ${color.name} به بالا`} disabled={saving || selectedColors[0]?.id === color.id} className={secondaryClass} onClick={() => void moveColor(color, -1)}>↑</button>
+                        <button type="button" aria-label={`انتقال رنگ ${color.name} به پایین`} disabled={saving || selectedColors[selectedColors.length - 1]?.id === color.id} className={secondaryClass} onClick={() => void moveColor(color, 1)}>↓</button>
                         <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(color.id); setColorName(color.name); setHexColor(color.hex_color || "#000000"); }}>ویرایش رنگ</button>
                         <button type="button" className={imageVariantId === color.id ? buttonClass : secondaryClass} onClick={() => setImageVariantId(imageVariantId === color.id ? null : color.id)}>{imageVariantId === color.id ? "بستن تصاویر" : "مدیریت تصاویر"}</button>
                         <button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleColor(color)}>{color.is_active ? "غیرفعال‌سازی" : "فعال‌سازی"}</button>
