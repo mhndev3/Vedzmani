@@ -127,7 +127,9 @@ export default function ProductMeasurementManager({
     const size = Number((event.currentTarget.elements.namedItem("size") as HTMLInputElement).value);
     const draft = sharedDrafts[size];
     if (!draft?.name.trim() || !draft.value.trim()) return;
-    const position = measurements.filter((item) => item.size === size).length;
+    const position = measurements
+      .filter((item) => item.size === size)
+      .reduce((max, item) => Math.max(max, item.position), -1) + 1;
     await runSave(async () => {
       await apiRequest("POST", "/api/admin/catalog/product-measurements/", {
         product: productId, size, name: draft.name.trim(), value: draft.value.trim(), unit: draft.unit.trim(), position,
@@ -138,7 +140,11 @@ export default function ProductMeasurementManager({
 
   async function saveShared(item: Measurement) {
     await runSave(async () => {
-      await apiRequest("PATCH", `/api/admin/catalog/product-measurements/${item.id}/`, item);
+      await apiRequest("PATCH", `/api/admin/catalog/product-measurements/${item.id}/`, {
+        name: item.name,
+        value: item.value,
+        unit: item.unit,
+      });
     }, "اندازه مشترک ویرایش شد.");
   }
 
@@ -157,7 +163,7 @@ export default function ProductMeasurementManager({
   async function saveVariantDescription(variantSize: VariantSize) {
     const existing = variantSizeDescriptions.find((item) => item.variant_size === variantSize.id);
     const description = (variantDescriptionDrafts[variantSize.id] ?? "").trim();
-    if (!description) return;
+    if (!existing && !description) return;
     await runSave(async () => {
       if (existing) {
         await apiRequest("PATCH", `/api/admin/catalog/variant-size-descriptions/${existing.id}/`, { description });
@@ -167,7 +173,9 @@ export default function ProductMeasurementManager({
           description,
         });
       }
-    }, "توضیحات اختصاصی این ترکیب رنگ و سایز ذخیره شد.");
+    }, existing && !description
+      ? "توضیح اختصاصی پاک شد؛ توضیح مشترک این سایز در صورت وجود نمایش داده می‌شود."
+      : "توضیحات اختصاصی این ترکیب رنگ و سایز ذخیره شد.");
   }
 
   async function addVariantMeasurement(event: FormEvent<HTMLFormElement>, variantSize: VariantSize) {
@@ -175,7 +183,9 @@ export default function ProductMeasurementManager({
     const name = newVariantName[variantSize.id]?.trim() ?? "";
     const value = newVariantValue[variantSize.id]?.trim() ?? "";
     if (!name || !value) return;
-    const position = variantMeasurements.filter((item) => item.variant_size === variantSize.id).length;
+    const position = variantMeasurements
+      .filter((item) => item.variant_size === variantSize.id)
+      .reduce((max, item) => Math.max(max, item.position), -1) + 1;
     await runSave(async () => {
       await apiRequest("POST", "/api/admin/catalog/variant-size-measurements/", {
         variant_size: variantSize.id, name, value, unit: (newVariantUnit[variantSize.id] ?? "سانتی‌متر").trim(), position,
@@ -187,7 +197,11 @@ export default function ProductMeasurementManager({
 
   async function saveVariantMeasurement(item: VariantMeasurement) {
     await runSave(async () => {
-      await apiRequest("PATCH", `/api/admin/catalog/variant-size-measurements/${item.id}/`, item);
+      await apiRequest("PATCH", `/api/admin/catalog/variant-size-measurements/${item.id}/`, {
+        name: item.name,
+        value: item.value,
+        unit: item.unit,
+      });
     }, "اندازه اختصاصی ویرایش شد.");
   }
 
@@ -253,7 +267,11 @@ export default function ProductMeasurementManager({
                 <label className="mt-3 block text-xs">توضیحات اختصاصی این ترکیب رنگ و سایز
                   <textarea rows={2} className={inputClass} value={variantDescriptionDrafts[variantSize.id] ?? ""} onChange={(e) => setVariantDescriptionDrafts((old) => ({ ...old, [variantSize.id]: e.target.value }))} placeholder="مثلاً تفاوت فیت یا اندازه در این رنگ و سایز…" />
                 </label>
-                <button type="button" disabled={saving || !(variantDescriptionDrafts[variantSize.id] ?? "").trim()} className={secondaryClass + " mt-2"} onClick={() => void saveVariantDescription(variantSize)}>ذخیره توضیحات ترکیب</button>
+                <button type="button" disabled={saving || (!(variantDescriptionDrafts[variantSize.id] ?? "").trim() && !variantSizeDescriptions.some((item) => item.variant_size === variantSize.id))} className={secondaryClass + " mt-2"} onClick={() => void saveVariantDescription(variantSize)}>
+                  {(variantDescriptionDrafts[variantSize.id] ?? "").trim() || !variantSizeDescriptions.some((item) => item.variant_size === variantSize.id)
+                    ? "ذخیره توضیحات ترکیب"
+                    : "پاک‌کردن توضیح اختصاصی و بازگشت به توضیح مشترک"}
+                </button>
               </> : <p className="mt-3 text-xs text-muted-foreground">برای نمایش و مدیریت این توضیحات، مجوز مشاهده توضیحات اختصاصی ترکیب رنگ و سایز لازم است.</p>}
             </div>;
           })}
