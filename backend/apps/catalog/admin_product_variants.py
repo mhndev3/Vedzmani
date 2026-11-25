@@ -1,4 +1,6 @@
 """Atomic staff workflow for creating a product with its colors and size SKUs."""
+from uuid import uuid4
+
 from django.db import IntegrityError, transaction
 from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
@@ -26,7 +28,7 @@ class ProductVariantSizeInputSerializer(serializers.Serializer):
 
 class ProductColorInputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=60, trim_whitespace=True)
-    slug = serializers.SlugField(max_length=80)
+    slug = serializers.SlugField(max_length=80, required=False, allow_blank=True, default="")
     hex_color = serializers.RegexField(
         regex=r"^#[0-9A-Fa-f]{6}$", required=False, allow_blank=True, default=""
     )
@@ -35,10 +37,7 @@ class ProductColorInputSerializer(serializers.Serializer):
 
 class ProductWithVariantsInputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200, trim_whitespace=True)
-    slug = serializers.SlugField(
-        max_length=220,
-        validators=[UniqueValidator(queryset=Product.objects.all())],
-    )
+    slug = serializers.SlugField(max_length=220, required=False, allow_blank=True, default="")
     description = serializers.CharField(required=False, allow_blank=True, default="")
     attributes = serializers.JSONField(required=False, default=dict)
     price = serializers.DecimalField(max_digits=14, decimal_places=0, min_value=1)
@@ -56,11 +55,16 @@ class ProductWithVariantsInputSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs["attributes"] = clean_product_attributes(attrs["category"], attrs.get("attributes", {}))
+        if not attrs.get("slug"):
+            attrs["slug"] = f"product-{uuid4().hex[:16]}"
         sale_price = attrs.get("sale_price")
         if sale_price is not None and sale_price >= attrs["price"]:
             raise serializers.ValidationError({"sale_price": "قیمت با تخفیف باید کمتر از قیمت اصلی باشد."})
 
         colors = attrs["colors"]
+        for color in colors:
+            if not color.get("slug"):
+                color["slug"] = f"color-{uuid4().hex[:16]}"
         color_slugs = [color["slug"] for color in colors]
         if len(color_slugs) != len(set(color_slugs)):
             raise serializers.ValidationError({"colors": "شناسه انگلیسی رنگ‌ها نباید تکراری باشد."})

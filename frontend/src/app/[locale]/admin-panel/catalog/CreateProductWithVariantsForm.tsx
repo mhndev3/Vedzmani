@@ -14,7 +14,7 @@ type Product = {
   colors: { id: number; name: string; slug: string }[];
 };
 type ColorDraft = {
-  key: number; name: string; slug: string; hex_color: string;
+  key: number; name: string; hex_color: string;
   sizes: { size: number }[];
   imageFiles: File[];
 };
@@ -28,7 +28,7 @@ function errorMessage(error: unknown) {
     return "برای ساخت محصول، رنگ و سایز مجوز کافی ندارید.";
   }
   if (error instanceof BrowserApiError && error.status === 400) {
-    return "اطلاعات محصول معتبر نیست یا نامک، رنگ یا سایز تکراری است. موارد مشخص‌شده را بررسی کنید.";
+    return "بعضی اطلاعات محصول معتبر نیست یا رنگ و سایز تکراری انتخاب شده است. موارد فرم را بررسی کنید.";
   }
   if (error instanceof BrowserApiError && error.status === 0) return "ارتباط با سرور برقرار نشد.";
   return "ساخت محصول انجام نشد. اطلاعات را بررسی کنید و دوباره تلاش کنید.";
@@ -48,7 +48,6 @@ export default function CreateProductWithVariantsForm({
   onCreated: (product: Product, imagesUploaded: boolean) => Promise<void>;
 }) {
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [salePrice, setSalePrice] = useState("");
@@ -56,7 +55,7 @@ export default function CreateProductWithVariantsForm({
   const [collectionIds, setCollectionIds] = useState<number[]>([]);
   const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [colors, setColors] = useState<ColorDraft[]>([
-    { key: 1, name: "", slug: "", hex_color: "#000000", sizes: [], imageFiles: [] },
+    { key: 1, name: "", hex_color: "#000000", sizes: [], imageFiles: [] },
   ]);
   const [nextKey, setNextKey] = useState(2);
   const [saving, setSaving] = useState(false);
@@ -108,15 +107,14 @@ export default function CreateProductWithVariantsForm({
       setError("دسته‌بندی محصول را انتخاب کنید.");
       return;
     }
-    if (colors.length === 0 || colors.some(color => !color.name.trim() || !color.slug.trim() || color.sizes.length === 0)) {
-      setError("برای هر رنگ، نام و شناسه انگلیسی و دست‌کم یک سایز انتخاب کنید.");
+    if (colors.length === 0 || colors.some(color => !color.name.trim() || color.sizes.length === 0)) {
+      setError("برای هر رنگ، نام و دست‌کم یک سایز انتخاب کنید.");
       return;
     }
     setSaving(true);
     try {
       const product = await apiRequest<Product>("POST", "/api/admin/catalog/products/create-with-variants/", {
         name: name.trim(),
-        slug: slug.trim(),
         description,
         price,
         sale_price: salePrice || null,
@@ -125,7 +123,6 @@ export default function CreateProductWithVariantsForm({
         attributes: Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, value.trim() === "//" ? "" : value.trim()])),
         colors: colors.map(color => ({
           name: color.name.trim(),
-          slug: color.slug.trim(),
           hex_color: color.hex_color,
           sizes: color.sizes.map(item => ({ size: item.size })),
         })),
@@ -168,7 +165,6 @@ export default function CreateProductWithVariantsForm({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <label className="text-sm">نام محصول<input required maxLength={200} value={name} onChange={event => setName(event.target.value)} className={field} /></label>
-        <label className="text-sm">شناسه انگلیسی (Slug)<input required maxLength={220} value={slug} onChange={event => setSlug(event.target.value)} dir="ltr" className={field} /></label>
         <label className="text-sm">دسته‌بندی<select required value={categoryId} onChange={event => {
           const nextId = Number(event.target.value);
           setCategoryId(event.target.value);
@@ -218,7 +214,7 @@ export default function CreateProductWithVariantsForm({
       <section className="mt-6 border-t border-border pt-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div><h3 className="font-bold">رنگ‌های محصول</h3><p className="mt-1 text-xs text-muted-foreground">برای هر رنگ یک کارت مستقل با کد عددی خودکار ساخته می‌شود.</p></div>
-          <button type="button" className={secondary} onClick={() => { setColors(current => [...current, { key: nextKey, name: "", slug: "", hex_color: "#000000", sizes: [], imageFiles: [] }]); setNextKey(value => value + 1); }}>＋ افزودن رنگ</button>
+          <button type="button" className={secondary} onClick={() => { setColors(current => [...current, { key: nextKey, name: "", hex_color: "#000000", sizes: [], imageFiles: [] }]); setNextKey(value => value + 1); }}>＋ افزودن رنگ</button>
         </div>
         <div className="space-y-4">
           {colors.map((color, index) => (
@@ -226,7 +222,6 @@ export default function CreateProductWithVariantsForm({
               <div className="mb-3 flex items-center justify-between gap-2"><h4 className="text-sm font-semibold">رنگ {index + 1}</h4>{colors.length > 1 && <button type="button" className={secondary} onClick={() => setColors(current => current.filter(item => item.key !== color.key))}>حذف رنگ</button>}</div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <label className="text-sm">نام رنگ<input required maxLength={60} value={color.name} onChange={event => updateColor(index, { name: event.target.value })} className={field} placeholder="مثلاً آبی آسمانی" /></label>
-                <label className="text-sm">شناسه انگلیسی رنگ<input required maxLength={80} value={color.slug} onChange={event => updateColor(index, { slug: event.target.value })} className={field} dir="ltr" placeholder="sky-blue" /></label>
                 <label className="text-sm">کد رنگ<input type="color" value={color.hex_color} onChange={event => updateColor(index, { hex_color: event.target.value })} className={field + " h-11 p-1"} dir="ltr" /></label>
               </div>
               <div className="mt-4">
