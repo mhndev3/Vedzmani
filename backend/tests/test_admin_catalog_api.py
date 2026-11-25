@@ -436,6 +436,53 @@ def test_inventory_history_can_be_filtered_to_one_variant_size_and_shows_actor(m
 
 
 
+
+def test_taxonomy_ordering_is_atomic_and_requires_change_permission(make_staff):
+    category_first = Category.objects.create(name="اول", slug="first", position=0)
+    category_second = Category.objects.create(name="دوم", slug="second", position=1)
+    collection_first = Collection.objects.create(name="تابستان", slug="summer", position=0)
+    collection_second = Collection.objects.create(name="زمستان", slug="winter", position=1)
+
+    editor = client_for(make_staff("catalog.change_category", "catalog.change_collection"))
+    category_response = editor.post(
+        "/api/admin/catalog/categories/reorder/",
+        {"entry_ids": [category_second.pk, category_first.pk]},
+        content_type="application/json",
+    )
+    assert category_response.status_code == 200, category_response.content
+    assert list(Category.objects.order_by("position", "id").values_list("id", flat=True)) == [
+        category_second.pk, category_first.pk
+    ]
+
+    collection_response = editor.post(
+        "/api/admin/catalog/collections/reorder/",
+        {"entry_ids": [collection_second.pk, collection_first.pk]},
+        content_type="application/json",
+    )
+    assert collection_response.status_code == 200, collection_response.content
+    assert list(Collection.objects.order_by("position", "id").values_list("id", flat=True)) == [
+        collection_second.pk, collection_first.pk
+    ]
+
+    invalid = editor.post(
+        "/api/admin/catalog/categories/reorder/",
+        {"entry_ids": [category_first.pk]},
+        content_type="application/json",
+    )
+    assert invalid.status_code == 400
+    assert list(Category.objects.order_by("position", "id").values_list("id", flat=True)) == [
+        category_second.pk, category_first.pk
+    ]
+
+    viewer = client_for(make_staff("catalog.view_category"))
+    denied = viewer.post(
+        "/api/admin/catalog/categories/reorder/",
+        {"entry_ids": [category_first.pk, category_second.pk]},
+        content_type="application/json",
+    )
+    assert denied.status_code == 403
+
+
 def test_catalog_taxonomy_create_update_and_safe_deactivation(make_staff):
     client = client_for(make_staff(
         "catalog.add_category", "catalog.view_category", "catalog.change_category",
