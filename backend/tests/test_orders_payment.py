@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from apps.catalog.models import VariantSize
 from apps.orders.models import Order, OrderItem, SepPaymentAttempt
 from apps.orders.payment_services import initiate_sep_payment, process_sep_callback
-from apps.orders.sep import SepClient
+from apps.orders.sep import SepClient, SepUnavailable
 from tests.conftest import DELIVERY, new_phone
 
 pytestmark = pytest.mark.django_db
@@ -359,3 +359,68 @@ def test_retry_sep_reversals_executes_and_persists_only_confirmed_reversals(make
     unconfirmed.refresh_from_db()
     assert confirmed.status == SepPaymentAttempt.REVERSED
     assert unconfirmed.status == SepPaymentAttempt.OUT_OF_STOCK
+
+
+@override_settings(SEP_TERMINAL_ID="12345")
+def test_sep_verify_timeout_persists_refnum_for_scheduled_retry(make_variant_size):
+    order, vs = make_order(make_variant_size, stock=2)
+    attempt = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-verify-timeout", shipping_amount_toman=0,
+        amount_rial=10000, token="t", status=SepPaymentAttempt.PENDING,
+    )
+
+    with patch(
+        "apps.orders.payment_services.SepClient.verify",
+        side_effect=SepUnavailable("SEP did not return a response."),
+    ):
+        assert process_sep_callback(res_num=attempt.res_num, ref_num="ref-verify-timeout") == "pending"
+
+    attempt.refresh_from_db()
+    order.refresh_from_db()
+    vs.refresh_from_db()
+    assert attempt.status == SepPaymentAttempt.PENDING
+    assert attempt.ref_num == "ref-verify-timeout"
+    assert order.payment_status == Order.UNPAID
+    assert vs.stock_quantity == 2
+
+
+@override_settings(SEP_TERMINAL_ID="12345")
+def test_retry_sep_verifications_dry_run_never_calls_provider(make_variant_size):
+    order, _ = make_order(make_variant_size)
+    attempt = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-verify-dry-run", ref_num="ref-verify-dry-run",
+        shipping_amount_toman=0, amount_rial=10000, token="t",
+        status=SepPaymentAttempt.PENDING,
+    )
+    output = StringIO()
+    with patch("apps.orders.management.commands.retry_sep_verifications.process_sep_callback") as process:
+        call_command("retry_sep_verifications", stdout=output, min_age_minutes=0)
+    process.assert_not_called()
+    attempt.refresh_from_db()
+    assert attempt.status == SepPaymentAttempt.PENDING
+    assert "DRY RUN" in output.getvalue()
+
+
+@override_settings(SEP_TERMINAL_ID="12345")
+def test_retry_sep_verifications_reconciles_only_after_matching_provider_verify(make_variant_size):
+    order, vs = make_order(make_variant_size, stock=2)
+    attempt = SepPaymentAttempt.objects.create(
+        order=order, res_num="VZ-verify-retry", ref_num="ref-verify-retry",
+        shipping_amount_toman=0, amount_rial=10000, token="t",
+        status=SepPaymentAttempt.PENDING,
+    )
+    verified = {"Success": True, "ResultCode": 0, "TransactionDetail": {
+        "RefNum": "ref-verify-retry", "TerminalNumber": 12345,
+        "OrginalAmount": 10000, "AffectiveAmount": 10000, "RRN": "rrn-verify-retry",
+    }}
+    with patch("apps.orders.payment_services.SepClient.verify", return_value=verified) as verify:
+        call_command("retry_sep_verifications", "--execute", min_age_minutes=0, stdout=StringIO())
+
+    verify.assert_called_once_with("ref-verify-retry")
+    attempt.refresh_from_db()
+    order.refresh_from_db()
+    vs.refresh_from_db()
+    assert attempt.status == SepPaymentAttempt.PAID
+    assert order.payment_status == Order.PAID
+    assert order.status == Order.CONFIRMED
+    assert vs.stock_quantity == 1
