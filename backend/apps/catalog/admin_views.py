@@ -202,6 +202,19 @@ class SizeAdminViewSet(StaffModelPermissionViewSet):
 class ColorVariantAdminViewSet(StaffModelPermissionViewSet):
     queryset = ColorVariant.objects.select_related("product").prefetch_related("sizes__size")
     serializer_class = ColorVariantAdminSerializer
+    permission_classes = [TaxonomyReorderPermissions]
+
+    @action(detail=False, methods=["post"], url_path="reorder")
+    def reorder(self, request):
+        product_id = request.data.get("product")
+        if not str(product_id or "").isdigit() or int(product_id) < 1:
+            raise ValidationError({"product": "شناسه محصول معتبر نیست."})
+        ordered_ids = _validated_taxonomy_ids(request.data.get("entry_ids"))
+        rows = _reorder_taxonomy_rows(
+            ColorVariant.objects.filter(product_id=int(product_id)),
+            ordered_ids,
+        )
+        return Response(self.get_serializer(rows, many=True).data)
 
 
 class VariantSizeAdminViewSet(StaffModelPermissionViewSet):
