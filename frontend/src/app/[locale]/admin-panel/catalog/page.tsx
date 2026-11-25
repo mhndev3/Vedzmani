@@ -65,7 +65,6 @@ export default function AdminCatalogPage() {
   const [search, setSearch] = useState("");
   const [productFormMode, setProductFormMode] = useState<"create" | "edit" | null>(null);
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [salePrice, setSalePrice] = useState("");
@@ -73,7 +72,6 @@ export default function AdminCatalogPage() {
   const [collectionIds, setCollectionIds] = useState<number[]>([]);
   const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [colorName, setColorName] = useState("");
-  const [colorSlug, setColorSlug] = useState("");
   const [hexColor, setHexColor] = useState("#000000");
   const [editingColorId, setEditingColorId] = useState<number | null>(null);
   const [variantId, setVariantId] = useState<number | null>(null);
@@ -154,7 +152,6 @@ export default function AdminCatalogPage() {
     const nextCategoryId = product?.category ?? categories.find((c) => c.is_active)?.id ?? 0;
     const nextCategory = categories.find((category) => category.id === nextCategoryId);
     setName(product?.name ?? "");
-    setSlug(product?.slug ?? "");
     setDescription(product?.description ?? "");
     setPrice(product?.price ?? "");
     setSalePrice(product?.sale_price ?? "");
@@ -178,7 +175,6 @@ export default function AdminCatalogPage() {
     }
     const payload = {
       name,
-      slug,
       description: description.trim() === "//" ? "" : description,
       attributes: Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, value.trim() === "//" ? "" : value.trim()])),
       price,
@@ -201,8 +197,8 @@ export default function AdminCatalogPage() {
     if (!selected) return;
     setSaving(true); setError(""); setNotice("");
     try {
-      await apiRequest<Color>(editingColorId ? "PATCH" : "POST", editingColorId ? `/api/admin/catalog/colors/${editingColorId}/` : "/api/admin/catalog/colors/", { product: selected.id, name: colorName, slug: colorSlug, hex_color: hexColor, position: editingColorId ? (selectedColors.find((item) => item.id === editingColorId)?.position ?? selectedColors.length) : selectedColors.length, ...(editingColorId ? {} : { is_active: true }) });
-      setColorName(""); setColorSlug(""); setHexColor("#000000"); setEditingColorId(null);
+      await apiRequest<Color>(editingColorId ? "PATCH" : "POST", editingColorId ? `/api/admin/catalog/colors/${editingColorId}/` : "/api/admin/catalog/colors/", { product: selected.id, name: colorName, hex_color: hexColor, position: editingColorId ? (selectedColors.find((item) => item.id === editingColorId)?.position ?? selectedColors.length) : selectedColors.length, ...(editingColorId ? {} : { is_active: true }) });
+      setColorName(""); setHexColor("#000000"); setEditingColorId(null);
       setNotice(editingColorId ? "مشخصات رنگ ویرایش شد." : "رنگ جدید اضافه شد؛ کد کارت به‌صورت خودکار ساخته می‌شود.");
       await refresh();
     } catch (e) { setError(errorMessage(e)); }
@@ -321,7 +317,6 @@ export default function AdminCatalogPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm">نام محصول<input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} /></label>
-            <label className="text-sm">شناسه انگلیسی (Slug)<input required value={slug} onChange={(e) => setSlug(e.target.value)} dir="ltr" className={inputClass} /></label>
             <label className="text-sm">دسته‌بندی<select required value={categoryId} onChange={(event) => {
               const nextId = Number(event.target.value);
               setCategoryId(event.target.value);
@@ -397,9 +392,8 @@ export default function AdminCatalogPage() {
                 <p className="mt-1 text-xs text-muted-foreground">برای هر رنگ یک کارت مستقل ساخته می‌شود؛ کد عددی کارت را سیستم خودکار اختصاص می‌دهد.</p>
                 <form onSubmit={addColor} className="mt-4 grid gap-3 sm:grid-cols-2">
                   <label className="text-sm">نام رنگ<input required value={colorName} onChange={(e) => setColorName(e.target.value)} className={inputClass} placeholder="مثلاً آبی آسمانی" /></label>
-                  <label className="text-sm">شناسه انگلیسی رنگ<input required value={colorSlug} onChange={(e) => setColorSlug(e.target.value)} className={inputClass} dir="ltr" placeholder="sky-blue" /></label>
                   <label className="text-sm">کد رنگ<input type="color" value={hexColor} onChange={(e) => setHexColor(e.target.value)} className={inputClass + " h-11 p-1"} dir="ltr" /></label>
-                  <div className="flex items-end gap-2"><button disabled={saving} className={buttonClass}>{editingColorId ? "ذخیره رنگ" : "افزودن رنگ"}</button>{editingColorId && <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(null); setColorName(""); setColorSlug(""); setHexColor("#000000"); }}>لغو</button>}</div>
+                  <div className="flex items-end gap-2"><button disabled={saving} className={buttonClass}>{editingColorId ? "ذخیره رنگ" : "افزودن رنگ"}</button>{editingColorId && <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(null); setColorName(""); setHexColor("#000000"); }}>لغو</button>}</div>
                 </form>
                 <div className="mt-4 space-y-2">
                   {selectedColors.map((color) => <div key={color.id} className="rounded-xl border border-border p-3">
@@ -408,7 +402,7 @@ export default function AdminCatalogPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <label className="flex items-center gap-2 text-xs text-muted-foreground">ترتیب<input aria-label={`ترتیب رنگ ${color.name}`} type="number" min="0" step="1" value={colorPositions[color.id] ?? String(color.position)} onChange={(e) => setColorPositions((old) => ({ ...old, [color.id]: e.target.value }))} className={inputClass + " w-20"} dir="ltr" /></label>
                         <button type="button" disabled={saving || Number(colorPositions[color.id] ?? color.position) === color.position} className={secondaryClass} onClick={() => void saveColorPosition(color)}>ذخیره ترتیب</button>
-                        <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(color.id); setColorName(color.name); setColorSlug(color.slug); setHexColor(color.hex_color || "#000000"); }}>ویرایش رنگ</button>
+                        <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(color.id); setColorName(color.name); setHexColor(color.hex_color || "#000000"); }}>ویرایش رنگ</button>
                         <button type="button" className={imageVariantId === color.id ? buttonClass : secondaryClass} onClick={() => setImageVariantId(imageVariantId === color.id ? null : color.id)}>{imageVariantId === color.id ? "بستن تصاویر" : "مدیریت تصاویر"}</button>
                         <button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleColor(color)}>{color.is_active ? "غیرفعال‌سازی" : "فعال‌سازی"}</button>
                         <button type="button" className={variantId === color.id ? buttonClass : secondaryClass} onClick={() => setVariantId(color.id)}>مدیریت سایزها</button>
