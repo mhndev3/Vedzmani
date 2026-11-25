@@ -159,6 +159,19 @@ def test_color_variant_and_size_are_created_without_direct_stock_write(make_staf
     assert row.stock_quantity == 0
     assert size_response.json()["stock_quantity"] == 0
 
+    # Adding a size later through the admin catalog does not require a technical SKU.
+    extra_size = Size.objects.create(code="l", label="بزرگ")
+    generated = client.post(
+        "/api/admin/catalog/variant-sizes/",
+        {"variant": color_data["id"], "size": extra_size.pk, "stock_quantity": 42},
+        content_type="application/json",
+    )
+    assert generated.status_code == 201, generated.content
+    generated_row = VariantSize.objects.get(pk=generated.json()["id"])
+    assert generated_row.sku == f"VZ-{product.pk}-{color_data['id']}-{extra_size.pk}"
+    assert generated_row.stock_quantity == 0
+    assert generated.json()["stock_quantity"] == 0
+
 
 def test_inventory_api_requires_add_permission_and_records_audited_adjustment(make_staff, make_variant_size):
     row = make_variant_size(stock=3)
