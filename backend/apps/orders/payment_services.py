@@ -189,12 +189,13 @@ def process_sep_callback(*, res_num, ref_num):
         # callback reference so a scheduled Verify retry can reconcile this attempt.
         # Do not overwrite a different reference already attached to this attempt.
         try:
-            SepPaymentAttempt.objects.filter(
-                res_num=res_num,
-                status=SepPaymentAttempt.PENDING,
-            ).filter(
-                Q(ref_num__isnull=True) | Q(ref_num="") | Q(ref_num=ref_num)
-            ).update(ref_num=ref_num)
+            with transaction.atomic():
+                SepPaymentAttempt.objects.filter(
+                    res_num=res_num,
+                    status=SepPaymentAttempt.PENDING,
+                ).filter(
+                    Q(ref_num__isnull=True) | Q(ref_num="") | Q(ref_num=ref_num)
+                ).update(ref_num=ref_num)
         except IntegrityError:
             # A provider RefNum is unique. If another attempt already owns it,
             # leave both records unchanged rather than risk reversing the wrong charge.
