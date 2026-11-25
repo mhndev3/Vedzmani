@@ -142,6 +142,11 @@ export default function AdminCatalogPage() {
 
   const selectedColors = selected ? colors.filter((color) => color.product === selected.id) : [];
   const selectedCategory = selected ? categories.find((category) => category.id === selected.category) : undefined;
+  const editCategory = categories.find((category) => category.id === Number(categoryId));
+  const editFieldKeys = new Set((editCategory?.product_fields ?? []).map((field) => field.key));
+  const legacyAttributes = selected
+    ? Object.entries(selected.attributes ?? {}).filter(([key]) => !editFieldKeys.has(key))
+    : [];
   const editableSizeIds = new Set([
     ...(selectedCategory?.sizes ?? []),
     ...variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant)).map((item) => item.size),
@@ -362,6 +367,20 @@ export default function AdminCatalogPage() {
                   </label>
                 ))}
               </div>
+            </section>
+          )}
+          {legacyAttributes.length > 0 && (
+            <section className="mt-4 rounded-xl border border-border bg-muted/40 p-4">
+              <h3 className="font-semibold">مشخصات حفظ‌شده از قبل</h3>
+              <p className="mt-1 text-xs leading-6 text-muted-foreground">این موارد در دسته‌بندی انتخاب‌شده تعریف نشده‌اند. برای جلوگیری از حذف اطلاعات قدیمی، همراه محصول نگه داشته می‌شوند.</p>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                {legacyAttributes.map(([key, value]) => (
+                  <div key={key} className="rounded-lg border border-border bg-background p-3">
+                    <dt className="text-xs text-muted-foreground">{key}</dt>
+                    <dd className="mt-1 break-words text-sm">{String(value ?? "—") || "—"}</dd>
+                  </div>
+                ))}
+              </dl>
             </section>
           )}
           <div className="mt-4">
