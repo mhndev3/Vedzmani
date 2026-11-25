@@ -192,6 +192,22 @@ export default function AdminCatalogPage() {
     finally { setSaving(false); }
   }
 
+  async function toggleProductPublication() {
+    if (!selected) return;
+    const nextActive = !selected.is_active;
+    if (selected.is_active && !window.confirm("این محصول از فروشگاه خارج شود؟ اطلاعات، رنگ‌ها، تصاویر و موجودی آن حفظ می‌شوند.")) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const saved = await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${selected.id}/`, { is_active: nextActive });
+      setNotice(nextActive
+        ? "محصول منتشر شد."
+        : "محصول از فروشگاه خارج شد؛ اطلاعات، رنگ‌ها، تصاویر و موجودی حفظ شدند.");
+      await refresh();
+      setSelected(saved);
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setSaving(false); }
+  }
+
   async function addColor(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected) return;
@@ -376,7 +392,7 @@ export default function AdminCatalogPage() {
               <section className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><p className="text-xs text-muted-foreground">محصول انتخاب‌شده</p><h2 className="mt-1 text-xl font-bold">{selected.name}</h2><p className="mt-1 text-xs text-muted-foreground">کد محصول: {selected.product_code || "—"} · {formatPrice(selected.sale_price || selected.price)}</p></div>
-                  <div className="flex flex-wrap gap-2"><button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button></div>
+                  <div className="flex flex-wrap gap-2"><button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button><button type="button" disabled={saving} className={selected.is_active ? secondaryClass : buttonClass} onClick={() => void toggleProductPublication()}>{saving ? "در حال ذخیره…" : selected.is_active ? "خروج از فروشگاه" : "انتشار محصول"}</button></div>
                 </div>
               </section>
 
