@@ -142,12 +142,21 @@ class ProductAdminSerializer(serializers.ModelSerializer):
         category = attrs.get("category", self.instance.category if self.instance else None)
         attributes = attrs.get("attributes", self.instance.attributes if self.instance else {})
         if category is not None:
-            attrs["attributes"] = clean_product_attributes(
+            cleaned_attributes = clean_product_attributes(
                 category,
                 attributes,
                 reject_unknown="attributes" in attrs,
                 enforce_required=("attributes" in attrs or "category" in attrs or self.instance is None),
             )
+            if self.instance is not None:
+                # Keep values from fields that no longer belong to the selected category.
+                # The admin form only edits the active category schema, so silently dropping
+                # older keys here would destroy product information during a category change.
+                submitted_attributes = attrs.get("attributes", {})
+                for key, value in self.instance.attributes.items():
+                    if key not in cleaned_attributes and key not in submitted_attributes:
+                        cleaned_attributes[key] = value
+            attrs["attributes"] = cleaned_attributes
         return attrs
 
 
