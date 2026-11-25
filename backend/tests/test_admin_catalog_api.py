@@ -736,7 +736,7 @@ def test_existing_color_and_variant_size_associations_cannot_be_reassigned(make_
         slug="variant-association-other-color",
     )
     other_size = Size.objects.create(
-        code="association-other-size",
+        code="assoc-size2",
         label="سایز دیگر",
     )
     editor = client_for(make_staff(
