@@ -147,6 +147,7 @@ export default function AdminCatalogPage() {
     ...variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant)).map((item) => item.size),
   ]);
   const formatPrice = (value: string | number) => Number(value).toLocaleString("fa-IR") + " تومان";
+  const salePriceInvalid = salePrice.trim() !== "" && price.trim() !== "" && Number(salePrice) >= Number(price);
 
   function resetProductForm(product?: Product) {
     const nextCategoryId = product?.category ?? categories.find((c) => c.is_active)?.id ?? 0;
@@ -340,7 +341,7 @@ export default function AdminCatalogPage() {
               setAttributes(old => Object.fromEntries((nextCategory?.product_fields ?? []).map(field => [field.key, old[field.key] ?? ""])));
             }} className={inputClass}><option value="">انتخاب دسته‌بندی</option>{categories.filter((c) => c.is_active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             <label className="text-sm">قیمت اصلی (تومان)<input required type="number" min="1" step="1" value={price} onChange={(e) => setPrice(e.target.value)} className={inputClass} dir="ltr" /></label>
-            <label className="text-sm">قیمت با تخفیف (اختیاری)<input type="number" min="1" step="1" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className={inputClass} dir="ltr" /></label>
+            <label className="text-sm">قیمت با تخفیف (اختیاری)<input type="number" min="1" step="1" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className={inputClass} dir="ltr" aria-invalid={salePriceInvalid} />{salePriceInvalid && <span className="mt-1 block text-xs text-destructive">قیمت با تخفیف باید کمتر از قیمت اصلی باشد.</span>}</label>
             <label className="text-sm sm:col-span-2 lg:col-span-1">توضیحات<textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={inputClass} /></label>
           </div>
           {(categories.find(item => item.id === Number(categoryId))?.product_fields ?? []).length > 0 && (
@@ -368,7 +369,7 @@ export default function AdminCatalogPage() {
             <p className="mb-2 text-sm">مجموعه‌ها</p>
             <div className="flex flex-wrap gap-2">{collections.filter((c) => c.is_active).map((c) => <label key={c.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"><input type="checkbox" checked={collectionIds.includes(c.id)} onChange={(e) => setCollectionIds((old) => e.target.checked ? [...old, c.id] : old.filter((id) => id !== c.id))} />{c.name}</label>)}</div>
           </div>
-          <div className="mt-5 flex flex-wrap gap-2"><button disabled={saving} className={buttonClass}>{saving ? "در حال ذخیره…" : "ذخیره محصول"}</button></div>
+          <div className="mt-5 flex flex-wrap gap-2"><button disabled={saving || salePriceInvalid} className={buttonClass}>{saving ? "در حال ذخیره…" : "ذخیره محصول"}</button></div>
         </form>
       )}
 
