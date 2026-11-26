@@ -587,63 +587,38 @@ export default function AdminCatalogPage() {
         <section className="min-w-0">
           {selected ? (
             <div className="space-y-5">
-
-                const previewColor = selectedColors.find(color => color.id === selectedPreviewColorId) ?? selectedColors[0] ?? null;
-                const previewImages = previewColor
-                  ? images.filter(image => image.variant === previewColor.id && image.is_active)
-                    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.position - b.position || a.id - b.id)
-                  : [];
-                const previewSizes = previewColor
-                  ? variantSizes.filter(item => item.variant === previewColor.id && item.is_active)
-                  : [];
-                const previewImage = previewImages[0];
-                return <section className="grid gap-5 rounded-2xl border border-border bg-card p-4 sm:p-6 md:grid-cols-2">
-                  <div className="space-y-3">
-                    <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted">
-                      {previewImage ? <Image src={previewImage.url} alt={previewImage.alt_text || selected.name} fill sizes="(min-width:768px) 45vw, 100vw" className="object-contain" unoptimized /> : <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">برای این رنگ تصویری ثبت نشده است</div>}
-                    </div>
-                    {previewImages.length > 1 && <div className="grid grid-cols-4 gap-2">{previewImages.slice(1, 5).map(image => <div key={image.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted"><Image src={image.url} alt={image.alt_text || selected.name} fill sizes="100px" className="object-cover" unoptimized /></div>)}</div>}
+              <section className="grid gap-5 rounded-2xl border border-border bg-card p-4 sm:p-6 md:grid-cols-2">
+                <div className="space-y-3">
+                  <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted">
+                    {previewImage ? <Image src={previewImage.url} alt={previewImage.alt_text || selected.name} fill sizes="(min-width:768px) 45vw, 100vw" className="object-contain" unoptimized /> : <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">برای این رنگ تصویری ثبت نشده است</div>}
                   </div>
-                  <div className="flex flex-col">
-                    <p className="text-xs font-medium text-muted-foreground">پیش‌نمایش صفحه محصول</p>
-                    <h2 className="mt-2 text-2xl font-bold text-foreground">{selected.name}</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">{categories.find(category => category.id === selected.category)?.name ?? "بدون دسته‌بندی"} · کد محصول {selected.product_code || "—"}</p>
-                    <p className="mt-4 text-xl font-bold text-foreground">{formatPrice(selected.sale_price || selected.price)}</p>
-                    {selected.sale_price && <p className="mt-1 text-sm text-muted-foreground line-through">{formatPrice(selected.price)}</p>}
-                    {selected.description.trim() && <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">{selected.description}</p>}
-                    <div className="mt-6">
-                      <h3 className="text-sm font-semibold text-foreground">رنگ‌بندی</h3>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {selectedColors.map(color => <button key={color.id} type="button" onClick={() => setSelectedPreviewColorId(color.id)} aria-pressed={previewColor?.id === color.id} className={"inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm " + (previewColor?.id === color.id ? "border-primary bg-muted text-foreground" : "border-border text-muted-foreground")}>
-                          <span className="size-4 rounded-full border border-border" style={{ backgroundColor: color.hex_color || "#777" }} />{color.name}
-                        </button>)}
-                      </div>
-                    </div>
-                    <div className="mt-5">
-                      <h3 className="text-sm font-semibold text-foreground">سایزهای ثبت‌شده</h3>
-                      {previewSizes.length ? <div className="mt-3 flex flex-wrap gap-2">{previewSizes.map(item => <span key={item.id} className="rounded-lg border border-border px-3 py-2 text-sm text-foreground">{sizes.find(size => size.id === item.size)?.label ?? "سایز"} <span className="text-xs text-muted-foreground">({item.stock_quantity.toLocaleString("fa-IR")} موجود)</span></span>)}</div> : <p className="mt-2 text-sm text-muted-foreground">برای این رنگ سایزی ثبت نشده است.</p>}
-                    </div>
-                    <div className="mt-auto pt-6">
-                      <span className={"inline-flex rounded-full px-3 py-1.5 text-xs font-semibold " + (selected.is_active ? "bg-primary/10 text-foreground" : "bg-destructive/10 text-destructive")}>{selected.is_active ? "منتشرشده در فروشگاه" : "پیش‌نویس"}</span>
+                  {previewImages.length > 1 && <div className="grid grid-cols-4 gap-2">{previewImages.slice(1, 5).map(image => <div key={image.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted"><Image src={image.url} alt={image.alt_text || selected.name} fill sizes="100px" className="object-cover" unoptimized /></div>)}</div>}
+                </div>
+                <div className="flex flex-col">
+                  <p className="text-xs font-medium text-muted-foreground">پیش‌نمایش صفحه محصول</p>
+                  <h2 className="mt-2 text-2xl font-bold text-foreground">{selected.name}</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">{categories.find(category => category.id === selected.category)?.name ?? "بدون دسته‌بندی"} · کد محصول {selected.product_code || "—"}</p>
+                  <p className="mt-4 text-xl font-bold text-foreground">{formatPrice(selected.sale_price || selected.price)}</p>
+                  {selected.sale_price && <p className="mt-1 text-sm text-muted-foreground line-through">{formatPrice(selected.price)}</p>}
+                  {selected.description.trim() && <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">{selected.description}</p>}
+                  <div className="mt-6">
+                    <h3 className="text-sm font-semibold text-foreground">رنگ‌بندی</h3>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {selectedColors.map(color => <button key={color.id} type="button" onClick={() => setSelectedPreviewColorId(color.id)} aria-pressed={previewColor?.id === color.id} className={"inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm " + (previewColor?.id === color.id ? "border-primary bg-muted text-foreground" : "border-border text-muted-foreground")}>
+                        <span className="size-4 rounded-full border border-border" style={{ backgroundColor: color.hex_color || "#777" }} />{color.name}
+                      </button>)}
                     </div>
                   </div>
-                </section>;
-              </section>
-
-                <div className="mb-4 flex items-center justify-between gap-3"><button type="button" className={secondaryClass} onClick={() => setSelected(null)}>← بازگشت به فهرست محصولات</button><span className="text-xs text-muted-foreground">مدیریت محصول</span></div>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div><p className="text-xs text-muted-foreground">محصول انتخاب‌شده</p><h2 className="mt-1 text-xl font-bold">{selected.name}</h2><p className="mt-1 text-xs text-muted-foreground">کد محصول: {selected.product_code || "—"} · {formatPrice(selected.sale_price || selected.price)}</p></div>
-                  <div className="flex flex-wrap gap-2"><button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button><button type="button" disabled={saving} className={buttonClass} onClick={() => void saveWorkspace()}>{saving ? "در حال ذخیره…" : "ذخیره همه تغییرات"}</button><button type="button" disabled={saving} className={selected.is_active ? secondaryClass : buttonClass} onClick={() => void toggleProductPublication()}>{saving ? "در حال ذخیره…" : selected.is_active ? "خروج از فروشگاه" : "انتشار محصول"}</button></div>
+                  <div className="mt-5">
+                    <h3 className="text-sm font-semibold text-foreground">سایزهای ثبت‌شده</h3>
+                    {previewSizes.length ? <div className="mt-3 flex flex-wrap gap-2">{previewSizes.map(item => <span key={item.id} className="rounded-lg border border-border px-3 py-2 text-sm text-foreground">{sizes.find(size => size.id === item.size)?.label ?? "سایز"} <span className="text-xs text-muted-foreground">({item.stock_quantity.toLocaleString("fa-IR")} موجود)</span></span>)}</div> : <p className="mt-2 text-sm text-muted-foreground">برای این رنگ سایزی ثبت نشده است.</p>}
+                  </div>
+                  <div className="mt-auto pt-6">
+                    <span className={"inline-flex rounded-full px-3 py-1.5 text-xs font-semibold " + (selected.is_active ? "bg-primary/10 text-foreground" : "bg-destructive/10 text-destructive")}>{selected.is_active ? "منتشرشده در فروشگاه" : "پیش‌نویس"}</span>
+                  </div>
                 </div>
               </section>
-
-              <ProductMeasurementManager
-                productId={selected.id}
-                sizes={sizes.filter((size) => editableSizeIds.has(size.id))}
-                colors={selectedColors}
-                variantSizes={variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant))}
-              />
-
+              <div className="mb-4 flex items-center justify-between gap-3"><button type="button" className={secondaryClass} onClick={() => setSelected(null)}>← بازگشت به فهرست محصولات</button><span className="text-xs text-muted-foreground">مدیریت محصول</span></div>
               <section className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="font-bold">رنگ‌های محصول</h3>
                 <p className="mt-1 text-xs text-muted-foreground">برای هر رنگ یک کارت مستقل ساخته می‌شود؛ کد عددی کارت را سیستم خودکار اختصاص می‌دهد.</p>
