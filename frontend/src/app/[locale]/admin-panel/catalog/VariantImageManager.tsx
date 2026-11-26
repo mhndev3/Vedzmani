@@ -104,7 +104,7 @@ export default function VariantImageManager({
         if (cancelled) return;
         setImages(rows);
         const savedDraft = draftRef.current;
-        if (savedDraft?.variant === variantId && savedDraft.order.length) {
+        if (savedDraft?.variant === variantId) {
           setOrder(savedDraft.order);
         } else {
           const initialOrder = rows.map((image) => `existing:${image.id}`);
