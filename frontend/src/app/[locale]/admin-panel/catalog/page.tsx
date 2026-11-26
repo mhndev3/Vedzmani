@@ -426,7 +426,7 @@ export default function AdminCatalogPage() {
           <h1 className="mt-3 text-2xl font-bold sm:text-3xl">مدیریت محصولات</h1>
           <p className="mt-2 text-sm text-muted-foreground">محصول، رنگ، سایز و موجودی هر ترکیب را از یک صفحه مدیریت کنید.</p>
         </div>
-        <button type="button" className={buttonClass} onClick={() => { setSelected(null); setProductFormMode("create"); setError(""); setNotice(""); }}>＋ محصول جدید</button>
+        <button type="button" className={buttonClass} onClick={() => { setSelected(null); setProductFormMode("create"); setNewColorDrafts([]); setNewVariantSizeDrafts([]); setNewColorSizeSelections({}); setNewColorSizeStocks({}); setNewVariantSizeStock("0"); setEditingColorId(null); setError(""); setNotice(""); }}>＋ محصول جدید</button>
       </div>
 
       {notice && <div role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</div>}
