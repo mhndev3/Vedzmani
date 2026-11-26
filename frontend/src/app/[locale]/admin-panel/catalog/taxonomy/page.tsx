@@ -19,7 +19,7 @@ async function getAllCategories(): Promise<Category[]> {
   while (next) {
     if (visited.has(next) || visited.size >= 10000) throw new Error("Category pagination did not terminate.");
     visited.add(next);
-    const page = await apiRequest<Page<Category>>("GET", next);
+    const page: Page<Category> = await apiRequest<Page<Category>>("GET", next);
     rows.push(...page.results);
     next = page.next ? new URL(page.next, window.location.origin).pathname + new URL(page.next, window.location.origin).search : null;
   }
