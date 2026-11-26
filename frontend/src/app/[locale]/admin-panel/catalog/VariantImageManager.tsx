@@ -49,13 +49,24 @@ function message(error: unknown): string {
   return "عملیات تصویر انجام نشد؛ فرمت و حجم فایل را بررسی کنید.";
 }
 
-export default function VariantImageManager({ variantId }: { variantId: number }) {
+type ImageDraft = { variant: number; image_ids: number[]; deactivate_ids: number[] };
+
+export default function VariantImageManager({
+  variantId,
+  draftMode = false,
+  onDraftChange,
+}: {
+  variantId: number;
+  draftMode?: boolean;
+  onDraftChange?: (draft: ImageDraft) => void;
+}) {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [altText, setAltText] = useState("");
+  const [deactivateIds, setDeactivateIds] = useState<number[]>([]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -99,7 +110,7 @@ export default function VariantImageManager({ variantId }: { variantId: number }
       body.append("alt_text", altText);
       await apiUploadRequest<ImageItem>("/api/admin/catalog/images/upload/", body);
       setAltText("");
-      setNotice("تصویر اضافه شد و پردازش نسخه‌های بهینه آغاز شد.");
+      setNotice("تصویر آپلود شد. ترتیب و خارج‌کردن تصاویر با دکمه ذخیره همه تغییرات اعمال می‌شود.");
       await refresh();
     } catch (e) {
       setError(message(e));
@@ -113,6 +124,16 @@ export default function VariantImageManager({ variantId }: { variantId: number }
     if (target < 0 || target >= images.length) return;
     const reordered = [...images];
     [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    if (draftMode) {
+      setImages(reordered);
+      onDraftChange?.({
+        variant: variantId,
+        image_ids: reordered.map((image) => image.id),
+        deactivate_ids: deactivateIds,
+      });
+      setNotice("ترتیب جدید پیش‌نویس شد؛ با ذخیره همه تغییرات اعمال می‌شود.");
+      return;
+    }
     setBusy(true); setError(""); setNotice("");
     try {
       const saved = await apiRequest<ImageItem[]>("POST", "/api/admin/catalog/images/reorder/", {
@@ -129,7 +150,29 @@ export default function VariantImageManager({ variantId }: { variantId: number }
   }
 
   async function deactivate(image: ImageItem) {
-    if (!window.confirm("این تصویر از گالری محصول پنهان شود؟ فایل اصلی برای حفظ سابقه حذف نمی‌شود.")) return;
+    if (deactivateIds.includes(image.id)) {
+      const next = deactivateIds.filter((id) => id !== image.id);
+      setDeactivateIds(next);
+      onDraftChange?.({
+        variant: variantId,
+        image_ids: images.map((item) => item.id),
+        deactivate_ids: next,
+      });
+      setNotice("تصویر به پیش‌نویس گالری بازگردانده شد.");
+      return;
+    }
+    if (!window.confirm("این تصویر پس از ذخیره از گالری پنهان شود؟ فایل اصلی برای حفظ سابقه حذف نمی‌شود.")) return;
+    if (draftMode) {
+      const next = [...deactivateIds, image.id];
+      setDeactivateIds(next);
+      onDraftChange?.({
+        variant: variantId,
+        image_ids: images.map((item) => item.id),
+        deactivate_ids: next,
+      });
+      setNotice("حذف تصویر پیش‌نویس شد؛ با ذخیره همه تغییرات اعمال می‌شود.");
+      return;
+    }
     setBusy(true); setError(""); setNotice("");
     try {
       await apiRequest<ImageItem>("PATCH", `/api/admin/catalog/images/${image.id}/deactivate/`, {});
@@ -175,17 +218,18 @@ export default function VariantImageManager({ variantId }: { variantId: number }
         images.length === 0 ? <p className="py-4 text-xs text-muted-foreground">برای این رنگ هنوز تصویری ثبت نشده است.</p> :
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {images.map((image, index) => (
-              <article key={image.id} className="overflow-hidden rounded-xl border border-border">
+              <article key={image.id} className={"overflow-hidden rounded-xl border border-border " + (deactivateIds.includes(image.id) ? "opacity-60" : "")}>
                 <div className="relative aspect-[4/5] bg-muted">
                   <Image src={image.url} alt={image.alt_text || "تصویر محصول"} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover" unoptimized />
                   {image.is_primary && <span className="absolute right-2 top-2 rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold">تصویر اصلی</span>}
+                  {deactivateIds.includes(image.id) && <span className="absolute bottom-2 right-2 rounded-full bg-destructive px-2 py-1 text-[10px] font-semibold text-white">پس از ذخیره حذف می‌شود</span>}
                 </div>
                 <div className="space-y-2 p-2">
                   <p className="text-[11px] text-muted-foreground">{image.width} × {image.height}</p>
                   <div className="flex flex-wrap gap-1">
                     <button type="button" className={buttonClass} disabled={busy || index === 0} onClick={() => void move(index, -1)}>← جابه‌جایی</button>
                     <button type="button" className={buttonClass} disabled={busy || index === images.length - 1} onClick={() => void move(index, 1)}>→</button>
-                    <button type="button" className={buttonClass} disabled={busy} onClick={() => void deactivate(image)}>خارج‌کردن</button>
+                    <button type="button" className={buttonClass} disabled={busy} onClick={() => void deactivate(image)}>{deactivateIds.includes(image.id) ? "بازگردانی" : draftMode ? "حذف با ذخیره" : "خارج‌کردن"}</button>
                   </div>
                 </div>
               </article>
