@@ -155,11 +155,6 @@ export default function AdminCatalogPage() {
     return () => { cancelled = true; };
   }, [loadCatalog]);
 
-  const visibleProducts = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase();
-    return products.filter((p) => !term || p.name.toLocaleLowerCase().includes(term) || String(p.product_code ?? "").includes(term));
-  }, [products, search]);
-
   const selectedColors = selected ? colors.filter((color) => color.product === selected.id).sort((a, b) => a.position - b.position || a.id - b.id) : [];
   const activeEditCategory = categories.find((category) => category.id === Number(categoryId));
   const activeEditFieldKeys = new Set((activeEditCategory?.product_fields ?? []).map((field) => field.key));
