@@ -95,7 +95,14 @@ class ProductWorkspaceSaveView(APIView):
             permissions.append("catalog.change_variantsize")
         if any(isinstance(item, dict) and item.get("quantity_change") not in (None, "", 0, "0") for item in variant_sizes_data):
             permissions.extend(["inventory.add_inventoryadjustment", "catalog.view_variantsize"])
-        if images_data:
+        has_existing_image_changes = any(
+            isinstance(item, dict) and (
+                item.get("deactivate_ids")
+                or any(isinstance(token, str) and token.startswith("existing:") for token in item.get("order", []))
+            )
+            for item in images_data
+        )
+        if has_existing_image_changes:
             permissions.append("catalog.change_variantimage")
         has_new_images = any(
             isinstance(item, dict) and item.get("new_images")
