@@ -843,3 +843,95 @@ def test_category_creation_preserves_existing_categories_and_size_assignments(ma
     assert unchanged.status_code == 200, unchanged.content
     assert set(unchanged.json()["sizes"]) == {sizes[0].pk}
     assert Category.objects.filter(pk__in=[first.json()["id"], second.json()["id"]]).count() == 2
+
+
+def test_product_workspace_save_updates_product_color_sku_and_audited_stock_atomically(make_staff, make_variant_size):
+    row = make_variant_size(stock=4)
+    product = row.variant.product
+    actor = make_staff(
+        "catalog.change_product",
+        "catalog.change_colorvariant",
+        "catalog.change_variantsize",
+        "inventory.add_inventoryadjustment",
+        "catalog.view_variantsize",
+    )
+    client = client_for(actor)
+
+    response = client.post(
+        f"/api/admin/catalog/products/{product.pk}/workspace-save/",
+        {
+            "product": {"name": "بافت ویرایش‌شده"},
+            "colors": [{"id": row.variant_id, "name": "آبی روشن", "hex_color": "#87CEEB"}],
+            "variant_sizes": [{
+                "id": row.pk,
+                "sku": "WORKSPACE-SKU",
+                "quantity_change": 3,
+                "stock_reason": "ثبت موجودی اولیه",
+            }],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200, response.content
+    product.refresh_from_db()
+    row.refresh_from_db()
+    assert product.name == "بافت ویرایش‌شده"
+    assert row.variant.name == "آبی روشن"
+    assert row.sku == "WORKSPACE-SKU"
+    assert row.stock_quantity == 7
+    adjustment = InventoryAdjustment.objects.get()
+    assert adjustment.created_by == actor
+    assert adjustment.quantity_change == 3
+    assert adjustment.stock_after == 7
+
+
+def test_product_workspace_save_rolls_back_product_and_stock_when_adjustment_fails(make_staff, make_variant_size):
+    row = make_variant_size(stock=2)
+    product = row.variant.product
+    client = client_for(make_staff(
+        "catalog.change_product",
+        "catalog.change_variantsize",
+        "inventory.add_inventoryadjustment",
+        "catalog.view_variantsize",
+    ))
+
+    response = client.post(
+        f"/api/admin/catalog/products/{product.pk}/workspace-save/",
+        {
+            "product": {"name": "نباید ذخیره شود"},
+            "variant_sizes": [{
+                "id": row.pk,
+                "quantity_change": -3,
+                "stock_reason": "اصلاح شمارش",
+            }],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 409, response.content
+    product.refresh_from_db()
+    row.refresh_from_db()
+    assert product.name != "نباید ذخیره شود"
+    assert row.stock_quantity == 2
+    assert not InventoryAdjustment.objects.exists()
+
+
+def test_product_workspace_save_requires_permissions_for_every_submitted_section(make_staff, make_variant_size):
+    row = make_variant_size(stock=2)
+    product = row.variant.product
+    client = client_for(make_staff("catalog.change_product"))
+
+    response = client.post(
+        f"/api/admin/catalog/products/{product.pk}/workspace-save/",
+        {
+            "product": {"name": "نباید تغییر کند"},
+            "variant_sizes": [{"id": row.pk, "sku": "NO-PERMISSION"}],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+    product.refresh_from_db()
+    row.refresh_from_db()
+    assert product.name != "نباید تغییر کند"
+    assert row.sku != "NO-PERMISSION"
