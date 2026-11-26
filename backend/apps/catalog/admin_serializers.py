@@ -177,7 +177,25 @@ class ProductAdminSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ColorVariantAdminSerializer(serializers.ModelSerializer):
+class ImmutableVariantAssociationMixin:
+    immutable_association_fields = ()
+
+    def validate(self, attrs):
+        if self.instance is not None:
+            attempted = [
+                field for field in self.immutable_association_fields
+                if field in self.initial_data
+            ]
+            if attempted:
+                raise serializers.ValidationError({
+                    field: "ارتباط این رکورد پس از ساخت قابل تغییر نیست؛ ترکیب جدید بسازید و رکورد قبلی را غیرفعال کنید."
+                    for field in attempted
+                })
+        return super().validate(attrs)
+
+
+class ColorVariantAdminSerializer(ImmutableVariantAssociationMixin, serializers.ModelSerializer):
+    immutable_association_fields = ("product",)
     slug = serializers.SlugField(max_length=80, required=False, allow_blank=True)
 
     class Meta:
@@ -197,7 +215,8 @@ class ColorVariantAdminSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class VariantSizeAdminSerializer(serializers.ModelSerializer):
+class VariantSizeAdminSerializer(ImmutableVariantAssociationMixin, serializers.ModelSerializer):
+    immutable_association_fields = ("variant", "size")
     class Meta:
         model = VariantSize
         fields = ["id", "variant", "size", "sku", "stock_quantity", "is_active", "created_at", "updated_at"]
