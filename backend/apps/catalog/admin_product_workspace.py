@@ -73,13 +73,16 @@ class ProductWorkspaceSaveView(APIView):
         if new_variant_sizes_data or any(isinstance(item, dict) and item.get("sizes") for item in new_colors_data):
             permissions.append("catalog.add_variantsize")
         has_initial_stock = any(
-            isinstance(size, dict) and size.get("initial_stock", 0) not in (None, "", 0, "0")
-            for color in new_colors_data if isinstance(color, dict)
-            for size in color.get("sizes", []) if isinstance(color.get("sizes", []), list)
-        ) or any(
             isinstance(item, dict) and item.get("initial_stock", 0) not in (None, "", 0, "0")
             for item in new_variant_sizes_data
         )
+        for color_item in new_colors_data:
+            if isinstance(color_item, dict) and isinstance(color_item.get("sizes"), list):
+                has_initial_stock = has_initial_stock or any(
+                    isinstance(size_item, dict)
+                    and size_item.get("initial_stock", 0) not in (None, "", 0, "0")
+                    for size_item in color_item["sizes"]
+                )
         if has_initial_stock:
             permissions.extend(["inventory.add_inventoryadjustment", "catalog.view_variantsize"])
         self._require(request.user, *permissions)
@@ -159,7 +162,7 @@ class ProductWorkspaceSaveView(APIView):
                 saved_variant_sizes.append(created_variant_size)
 
                 initial_stock = size_item.get("initial_stock", 0)
-                if isinstance(initial_stock, bool) or not isinstance(initial_stock, int) or initial_stock < 0:
+                if isinstance(initial_stock, bool) or not isinstance(initial_stock, int) or initial_stock < 0 or initial_stock > 2147483647:
                     raise ValidationError({"new_colors": "موجودی اولیه باید عدد صحیح و نامنفی باشد."})
                 if initial_stock:
                     adjustments.append(adjust_stock(
