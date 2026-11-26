@@ -620,6 +620,16 @@ export default function AdminCatalogPage() {
               </section>
               <div className="mb-4 flex items-center justify-between gap-3"><button type="button" className={secondaryClass} onClick={() => setSelected(null)}>← بازگشت به فهرست محصولات</button><span className="text-xs text-muted-foreground">مدیریت محصول</span></div>
               <section className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div><p className="text-xs text-muted-foreground">ویرایش اطلاعات محصول</p><h2 className="mt-1 text-lg font-bold text-foreground">{selected.name}</h2><p className="mt-1 text-xs text-muted-foreground">کد محصول: {selected.product_code || "—"}</p></div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button>
+                    <button type="button" disabled={saving} className={buttonClass} onClick={() => void saveWorkspace()}>{saving ? "در حال ذخیره…" : "ذخیره همه تغییرات"}</button>
+                    <button type="button" disabled={saving} className={selected.is_active ? secondaryClass : buttonClass} onClick={() => void toggleProductPublication()}>{saving ? "در حال ذخیره…" : selected.is_active ? "خروج از فروشگاه" : "انتشار محصول"}</button>
+                  </div>
+                </div>
+              </section>
+              <section className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="font-bold">رنگ‌های محصول</h3>
                 <p className="mt-1 text-xs text-muted-foreground">برای هر رنگ یک کارت مستقل ساخته می‌شود؛ کد عددی کارت را سیستم خودکار اختصاص می‌دهد.</p>
                 <form onSubmit={editingColorId ? saveWorkspace : addColor} className="mt-4 grid gap-3 sm:grid-cols-2">
