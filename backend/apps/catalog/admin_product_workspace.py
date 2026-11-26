@@ -98,7 +98,10 @@ class ProductWorkspaceSaveView(APIView):
         has_existing_image_changes = any(
             isinstance(item, dict) and (
                 item.get("deactivate_ids")
-                or any(isinstance(token, str) and token.startswith("existing:") for token in item.get("order", []))
+                or (
+                    isinstance(item.get("order"), list)
+                    and any(isinstance(token, str) and token.startswith("existing:") for token in item["order"])
+                )
             )
             for item in images_data
         )
