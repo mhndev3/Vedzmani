@@ -131,12 +131,19 @@ def test_workspace_save_removes_new_files_and_rolls_back_when_later_image_fails(
     make_staff, make_variant_size, tmp_path,
 ):
     row = make_variant_size()
-    existing = VariantImage.objects.filter(variant=row.variant, is_active=True).first()
+    clear_fixture_image(row)
     actor = make_staff(
         "catalog.change_product", "catalog.add_variantimage", "catalog.view_colorvariant",
         "catalog.change_variantimage",
     )
     client = client_for(actor)
+    with override_settings(MEDIA_ROOT=tmp_path):
+        initial = client.post(
+            "/api/admin/catalog/images/upload/",
+            {"variant": row.variant_id, "file": png_upload("existing.png")},
+        )
+        assert initial.status_code == 201, initial.content
+        existing = VariantImage.objects.get(pk=initial.json()["id"])
     first_key = "b" * 32
     second_key = "c" * 32
     workspace = {
@@ -168,5 +175,5 @@ def test_workspace_save_removes_new_files_and_rolls_back_when_later_image_fails(
         existing.refresh_from_db()
         assert existing.storage_key == original_key
         assert existing.is_active is True
-        assert (tmp_path / original_key).is_file() is False
-        assert not list(tmp_path.rglob("*.webp"))
+        assert (tmp_path / original_key).is_file()
+        assert {path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*.webp")} == {original_key}
