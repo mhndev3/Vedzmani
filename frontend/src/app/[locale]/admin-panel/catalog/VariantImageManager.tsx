@@ -120,8 +120,19 @@ export default function VariantImageManager({
       body.append("alt_text", altText);
       await apiUploadRequest<ImageItem>("/api/admin/catalog/images/upload/", body);
       setAltText("");
+      const rows = await getAllImages(variantId);
+      const orderedRows = applyDraftOrder(rows);
+      setImages(orderedRows);
+      if (draftMode) {
+        const nextDraft = {
+          variant: variantId,
+          image_ids: orderedRows.map((image) => image.id),
+          deactivate_ids: deactivateIds,
+        };
+        draftRef.current = nextDraft;
+        onDraftChange?.(nextDraft);
+      }
       setNotice("تصویر آپلود شد. ترتیب و خارج‌کردن تصاویر با دکمه ذخیره همه تغییرات اعمال می‌شود.");
-      await refresh();
     } catch (e) {
       setError(message(e));
     } finally {
