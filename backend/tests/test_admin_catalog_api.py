@@ -876,7 +876,7 @@ def test_product_workspace_save_updates_product_color_sku_and_audited_stock_atom
     product.refresh_from_db()
     row.refresh_from_db()
     assert product.name == "بافت ویرایش‌شده"
-    assert row.variant.name == "آبی روشن"
+    assert ColorVariant.objects.get(pk=row.variant_id).name == "آبی روشن"
     assert row.sku == "WORKSPACE-SKU"
     assert row.stock_quantity == 7
     adjustment = InventoryAdjustment.objects.get()
