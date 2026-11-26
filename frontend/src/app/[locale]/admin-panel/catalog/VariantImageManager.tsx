@@ -258,7 +258,7 @@ export default function VariantImageManager({
                       <button type="button" className={buttonClass} disabled={index === 0} onClick={() => void move(index, -1)}>← جابه‌جایی</button>
                       <button type="button" className={buttonClass} disabled={index === entries.length - 1} onClick={() => void move(index, 1)}>→</button>
                       {image ? <button type="button" className={buttonClass}  onClick={() => toggleDeactivate(image)}>خارج‌کردن</button> :
-                        staged ? <button type="button" className={buttonClass} disabled={busy} onClick={() => removeStaged(staged)}>حذف پیش‌نویس</button> : null}
+                        staged ? <button type="button" className={buttonClass} onClick={() => removeStaged(staged)}>حذف پیش‌نویس</button> : null}
                     </div>
                   </div>
                 </article>
