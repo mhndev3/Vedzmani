@@ -74,7 +74,8 @@ export default function VariantImageManager({
   const applyDraftOrder = useCallback((rows: ImageItem[]) => {
     const current = draftRef.current;
     if (!current || current.variant !== variantId) return rows;
-    const positions = new Map(current.image_ids.map((id, index) => [id, index]));
+    const positions = new Map<number, number>();
+    current.image_ids.forEach((id, index) => positions.set(id, index));
     return [...rows].sort((a, b) => (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER));
   }, [variantId]);
 
