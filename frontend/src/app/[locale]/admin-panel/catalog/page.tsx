@@ -321,7 +321,10 @@ export default function AdminCatalogPage() {
   async function toggleProductPublication() {
     if (!selected) return;
     const nextActive = !selected.is_active;
-    if (selected.is_active && !window.confirm("این محصول از فروشگاه خارج شود؟ اطلاعات، رنگ‌ها، تصاویر و موجودی آن حفظ می‌شوند.")) return;
+    const confirmation = nextActive
+      ? "این محصول دوباره در فروشگاه منتشر شود؟"
+      : "این محصول از فروشگاه خارج شود؟ اطلاعات، رنگ‌ها، تصاویر و موجودی آن حفظ می‌شوند.";
+    if (!window.confirm(confirmation)) return;
     setSaving(true); setError(""); setNotice("");
     try {
       const saved = await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${selected.id}/`, { is_active: nextActive });
