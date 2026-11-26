@@ -585,7 +585,7 @@ export default function AdminCatalogPage() {
           }).length === 0 && <p className="rounded-xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">محصولی پیدا نشد.</p>}
         </section>}
         <section className="min-w-0">
-          {selected ? (
+          {selected && (
             <div className="space-y-5">
               <section className="grid gap-5 rounded-2xl border border-border bg-card p-4 sm:p-6 md:grid-cols-2">
                 <div className="space-y-3">
