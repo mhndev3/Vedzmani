@@ -16,6 +16,7 @@ from .homepage_banner_admin import HomepageBannerAdminViewSet
 from .homepage_banner_group_admin import HomepageBannerGroupAdminViewSet
 from .admin_media_library import AdminMediaLibraryView
 from .admin_product_variants import ProductWithVariantsCreateView
+from .admin_product_workspace import ProductWorkspaceSaveView
 from .storefront_theme import StorefrontThemeAdminView, StorefrontThemeRevisionView
 from .admin_views import (
     CategoryAdminViewSet,
@@ -51,6 +52,7 @@ router.register("catalog/images", VariantImageAdminViewSet, basename="admin-cata
 
 urlpatterns = [
     path("media/", AdminMediaLibraryView.as_view(), name="admin-media-library"),
+    path("catalog/products/<int:product_id>/workspace-save/", ProductWorkspaceSaveView.as_view(), name="admin-product-workspace-save"),
     path("catalog/products/create-with-variants/", ProductWithVariantsCreateView.as_view(), name="admin-product-create-with-variants"),
     path("storefront/theme/", StorefrontThemeAdminView.as_view(), name="admin-storefront-theme"),
     path("storefront/theme/revisions/", StorefrontThemeRevisionView.as_view(), name="admin-storefront-theme-revisions"),
