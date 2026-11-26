@@ -10,11 +10,13 @@ from rest_framework.views import APIView
 
 from .models import Category, Collection, ColorVariant, Product, Size, VariantSize
 from .admin_serializers import ProductAdminSerializer
+from apps.inventory.services import adjust_stock
 from .product_attributes import clean_optional_marker, clean_product_attributes
 
 
 class ProductVariantSizeInputSerializer(serializers.Serializer):
     size = serializers.PrimaryKeyRelatedField(queryset=Size.objects.all())
+    stock_quantity = serializers.IntegerField(min_value=0, max_value=2**31 - 1, required=False, default=0)
     # SKU is an internal identifier; staff should not have to invent one in the product form.
     sku = serializers.CharField(
         max_length=64,
@@ -107,7 +109,15 @@ class ProductWithVariantsInputSerializer(serializers.Serializer):
                     while VariantSize.objects.filter(sku=sku).exists():
                         sku = f"{base_sku}-{suffix}"
                         suffix += 1
-                VariantSize.objects.create(variant=color, size=size_data["size"], sku=sku)
+                initial_stock = size_data.pop("stock_quantity", 0)
+                variant_size = VariantSize.objects.create(variant=color, size=size_data["size"], sku=sku)
+                if initial_stock:
+                    adjust_stock(
+                        variant_size_id=variant_size.pk,
+                        quantity_change=initial_stock,
+                        reason="موجودی اولیه هنگام ثبت محصول",
+                        created_by=self.context["request"].user,
+                    )
         return product
 
     def to_representation(self, instance):
@@ -145,13 +155,15 @@ class ProductWithVariantsCreateView(APIView):
             "catalog.add_product",
             "catalog.add_colorvariant",
             "catalog.add_variantsize",
+            "catalog.view_variantsize",
+            "inventory.add_inventoryadjustment",
         )
         if not user.is_active or not user.is_staff or not all(
             user.has_perm(permission) for permission in required_permissions
         ):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        serializer = ProductWithVariantsInputSerializer(data=request.data)
+        serializer = ProductWithVariantsInputSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         try:
             product = serializer.save()

@@ -57,7 +57,7 @@ export default function AdminOrdersPage() {
   const [next, setNext] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
-  const [payment, setPayment] = useState("");
+  const [payment, setPayment] = useState("paid");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 

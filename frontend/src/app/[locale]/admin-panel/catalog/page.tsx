@@ -124,6 +124,13 @@ export default function AdminCatalogPage() {
       setSizes(data.sizes);
       setColors(data.colors);
       setVariantSizes(data.variantSizes);
+      const requestedMode = new URLSearchParams(window.location.search).get("mode");
+      if (requestedMode === "create") {
+        setSelected(null);
+        setProductFormMode("create");
+      } else if (requestedMode === "edit") {
+        setProductFormMode(null);
+      }
       setLoading(false);
     }).catch((e: unknown) => {
       if (!cancelled) setError(errorMessage(e));
@@ -379,7 +386,7 @@ export default function AdminCatalogPage() {
         </form>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.5fr)]">
+      {productFormMode !== "create" && <div className="grid gap-6 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.5fr)]">
         <section className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3"><h2 className="font-bold">فهرست محصولات</h2><span className="text-xs text-muted-foreground">{products.length.toLocaleString("fa-IR")} محصول</span></div>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجو با نام یا کد محصول…" className={inputClass + " mb-4"} />
@@ -464,7 +471,7 @@ export default function AdminCatalogPage() {
             </div>
           )}
         </section>
-      </div>
+      </div>}
       <p className="mt-7 text-xs leading-6 text-muted-foreground">تغییر موجودی فقط از مسیر ثبت گردش حسابرسی‌شده انجام می‌شود. تصاویر هر رنگ جداگانه مدیریت می‌شوند و اولین تصویر، تصویر اصلی کارت محصول است.</p>
     </main>
   );
