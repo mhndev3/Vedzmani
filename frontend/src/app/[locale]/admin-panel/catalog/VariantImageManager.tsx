@@ -76,7 +76,7 @@ export default function VariantImageManager({
   const [stagedImages, setStagedImages] = useState<StagedVariantImage[]>(draft?.new_images ?? []);
   const [order, setOrder] = useState<string[]>(draft?.order ?? []);
   const stagedImagesRef = useRef(stagedImages);
-  stagedImagesRef.current = stagedImages;
+  useEffect(() => { stagedImagesRef.current = stagedImages; }, [stagedImages]);
 
   useEffect(() => () => {
     stagedImagesRef.current.forEach((item) => URL.revokeObjectURL(item.preview_url));
