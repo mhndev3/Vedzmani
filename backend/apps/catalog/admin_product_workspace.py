@@ -7,10 +7,10 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.catalog.models import ColorVariant, Product, VariantImage, VariantSize
 from apps.inventory.services import adjust_stock
@@ -80,7 +80,7 @@ class ProductWorkspaceSaveView(APIView):
         saved_colors = []
         color_ids = set()
         for item in colors_data:
-            if not isinstance(item, dict) or not isinstance(item.get("id"), int):
+            if not isinstance(item, dict) or not isinstance(item.get("id"), int) or isinstance(item.get("id"), bool):
                 raise ValidationError({"colors": "هر تغییر رنگ باید شناسه معتبر داشته باشد."})
             color_id = item["id"]
             if color_id in color_ids:
@@ -133,7 +133,7 @@ class ProductWorkspaceSaveView(APIView):
         saved_images = []
         seen_variants = set()
         for item in images_data:
-            if not isinstance(item, dict) or not isinstance(item.get("variant"), int):
+            if not isinstance(item, dict) or not isinstance(item.get("variant"), int) or isinstance(item.get("variant"), bool):
                 raise ValidationError({"images": "اطلاعات گروه تصاویر معتبر نیست."})
             variant_id = item["variant"]
             if variant_id in seen_variants:
@@ -161,7 +161,7 @@ class ProductWorkspaceSaveView(APIView):
             if not set(deactivate_ids).issubset(active_ids):
                 raise ValidationError({"images": "تصویر برای خارج‌کردن متعلق به این گالری فعال نیست."})
 
-            ordered = reorder_variant_images(variant_id=variant_id, image_ids=image_ids)
+            reorder_variant_images(variant_id=variant_id, image_ids=image_ids)
             for image_id in deactivate_ids:
                 deactivate_variant_image(image_id=image_id)
             saved_images.extend(VariantImage.objects.filter(variant_id=variant_id, is_active=True).order_by("position", "id"))
