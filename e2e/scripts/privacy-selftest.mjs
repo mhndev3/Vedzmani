@@ -69,6 +69,11 @@ let t = sanitize(mkReport({ message: msg }));
 check("report: exit 0 and file written", t.s.status === 0 && t.out && t.out.length > 0);
 check("report: token, phones, OTP, address gone", t.out && leaks(t.out).length === 0);
 check("report: test id and status kept", t.out && t.out.includes(ID) && t.out.includes('"status": "failed"'));
+check("report: numeric international phone values are redacted", (() => {
+  const numericPhone = Number("989120000005");
+  const result = sanitize({ suites: [], contact: numericPhone });
+  return result.s.status === 0 && result.out !== null && !result.out.includes("989120000005") && JSON.parse(result.out).contact === "[redacted]";
+})());
 
 // ---------- REGRESSION, CI failure 1: "unredacted otp value" ----------
 // Quoted values after a sensitive key inside message text. The old post-check re-parsed JSON-escaped text (\")

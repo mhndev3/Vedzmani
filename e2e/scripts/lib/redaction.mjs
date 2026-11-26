@@ -244,6 +244,9 @@ export function redactTree(node, key = "", sensitive = false) {
   }
   if (sensitive) return REDACTED; // string, number or boolean under a sensitive key
   if (typeof node === "string") return key === "id" ? node : redactText(node); // "id" = Playwright test hash
+  // JSON numeric values are not passed through redactText. A phone number emitted as a number
+  // (rather than a string) must still be removed before the serialized safety check.
+  if (typeof node === "number" && redactPhones(String(node)) !== String(node)) return REDACTED;
   return node;
 }
 

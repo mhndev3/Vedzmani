@@ -29,6 +29,13 @@ const workspaceItems = [
     featured: false,
   },
   {
+    title: "بنر صفحه اصلی",
+    description: "جایگزینی تصویر بنر اصلی سایت با یک فایل جدید",
+    href: (locale: string) => `/${locale}/admin-panel/homepage/banners`,
+    icon: "▧",
+    featured: false,
+  },
+  {
     title: "سفارش‌های موفق",
     description: "مشاهده سفارش‌هایی که پرداخت آن‌ها با موفقیت تأیید شده است",
     href: (locale: string) => `/${locale}/admin-panel/orders?payment_status=paid`,
@@ -81,7 +88,7 @@ export default function AdminWorkspacePage() {
   }
 
   return (
-    <main dir="rtl" className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
+    <main dir="rtl" className="admin-panel mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
       <header className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-muted-foreground">ودزمانی</p>
