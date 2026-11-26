@@ -349,6 +349,8 @@ class ProductWorkspaceSaveView(APIView):
                 raise ValidationError({"images": "حجم مجموع تصاویر جدید برای هر رنگ نباید بیشتر از ۹ مگابایت باشد."})
 
             if order is None:
+                if new_images:
+                    raise ValidationError({"images": "ترتیب تصاویر جدید باید صریحاً ارسال شود."})
                 # Backwards compatibility for callers that only reorder existing images.
                 if set(image_ids) != active_ids:
                     raise ValidationError({"images": "ترتیب باید شامل تمام تصاویر فعال این رنگ باشد."})
