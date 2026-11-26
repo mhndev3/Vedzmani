@@ -457,7 +457,7 @@ export default function AdminCatalogPage() {
                   const colorB = productColors.findIndex((color) => color.id === b.variant);
                   return colorA - colorB || a.position - b.position || a.id - b.id;
                 })[0];
-                return <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
+                return <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setImageDrafts({}); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
                   <div className="flex gap-3 p-3">
                     <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {image ? <Image src={image.url} alt={image.alt_text || product.name} fill sizes="80px" className="object-cover" unoptimized /> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">بدون تصویر</div>}
@@ -537,7 +537,7 @@ export default function AdminCatalogPage() {
                         {variantSizes.filter((vs) => vs.variant === color.id).length === 0 && <p className="text-xs text-muted-foreground">هنوز سایزی برای این رنگ ثبت نشده است.</p>}
                       </div>
                     </div>}
-                    {imageVariantId === color.id && <VariantImageManager variantId={color.id} draftMode onDraftChange={(draft) => setImageDrafts((old) => ({ ...old, [color.id]: draft }))} />}
+                    {imageVariantId === color.id && <VariantImageManager variantId={color.id} draftMode draft={imageDrafts[color.id]} onDraftChange={(draft) => setImageDrafts((old) => ({ ...old, [color.id]: draft }))} />}
                   </div>)}
                   {selectedColors.length === 0 && <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">هنوز رنگی برای این محصول ثبت نشده است.</p>}
                 </div>
