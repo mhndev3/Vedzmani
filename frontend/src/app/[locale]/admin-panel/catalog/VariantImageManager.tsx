@@ -69,7 +69,6 @@ export default function VariantImageManager({
   useEffect(() => { onDraftChangeRef.current = onDraftChange; }, [onDraftChange]);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [altText, setAltText] = useState("");
@@ -161,6 +160,11 @@ export default function VariantImageManager({
       setError("حداکثر ۲۰ تصویر جدید را می‌توان هم‌زمان برای یک رنگ ذخیره کرد.");
       return;
     }
+    const totalBytes = [...stagedImages, ...selected.map((file) => ({ file }))].reduce((sum, item) => sum + item.file.size, 0);
+    if (totalBytes > 9 * 1024 * 1024) {
+      setError("حجم مجموع تصاویر جدید برای هر رنگ نباید بیشتر از ۹ مگابایت باشد.");
+      return;
+    }
     const additions = selected.map((file) => ({
       key: crypto.randomUUID().replace(/-/g, ""),
       file,
@@ -228,7 +232,7 @@ export default function VariantImageManager({
           </label>
           <label className={buttonClass + " cursor-pointer"}>
             ＋ افزودن تصویر
-            <input type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busy || loading} onChange={(event) => { addFiles(event.currentTarget.files); event.currentTarget.value = ""; }} />
+            <input type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={loading} onChange={(event) => { addFiles(event.currentTarget.files); event.currentTarget.value = ""; }} />
           </label>
         </div>
       </div>
@@ -251,9 +255,9 @@ export default function VariantImageManager({
                   <div className="space-y-2 p-2">
                     <p className="truncate text-[11px] text-muted-foreground">{image ? `${image.width} × ${image.height}` : staged?.file.name}</p>
                     <div className="flex flex-wrap gap-1">
-                      <button type="button" className={buttonClass} disabled={busy || index === 0} onClick={() => void move(index, -1)}>← جابه‌جایی</button>
-                      <button type="button" className={buttonClass} disabled={busy || index === entries.length - 1} onClick={() => void move(index, 1)}>→</button>
-                      {image ? <button type="button" className={buttonClass} disabled={busy} onClick={() => toggleDeactivate(image)}>خارج‌کردن</button> :
+                      <button type="button" className={buttonClass} disabled={index === 0} onClick={() => void move(index, -1)}>← جابه‌جایی</button>
+                      <button type="button" className={buttonClass} disabled={index === entries.length - 1} onClick={() => void move(index, 1)}>→</button>
+                      {image ? <button type="button" className={buttonClass}  onClick={() => toggleDeactivate(image)}>خارج‌کردن</button> :
                         staged ? <button type="button" className={buttonClass} disabled={busy} onClick={() => removeStaged(staged)}>حذف پیش‌نویس</button> : null}
                     </div>
                   </div>
