@@ -151,12 +151,20 @@ class ProductAdminSerializer(serializers.ModelSerializer):
         category = attrs.get("category", self.instance.category if self.instance else None)
         attributes = attrs.get("attributes", self.instance.attributes if self.instance else {})
         if category is not None:
-            attrs["attributes"] = clean_product_attributes(
+            cleaned_attributes = clean_product_attributes(
                 category,
                 attributes,
                 reject_unknown="attributes" in attrs,
                 enforce_required=("attributes" in attrs or "category" in attrs or self.instance is None),
             )
+            if self.instance is not None:
+                # Preserve values outside the selected category schema. The admin editor only
+                # exposes active category fields, so dropping other keys would destroy legacy data.
+                submitted_attributes = attrs.get("attributes", {})
+                for key, value in (self.instance.attributes or {}).items():
+                    if key not in cleaned_attributes and key not in submitted_attributes:
+                        cleaned_attributes[key] = value
+            attrs["attributes"] = cleaned_attributes
 
         # Validate the final effective values, not only fields included in a PATCH.
         # Otherwise changing the base price could silently leave a discount at or above it.

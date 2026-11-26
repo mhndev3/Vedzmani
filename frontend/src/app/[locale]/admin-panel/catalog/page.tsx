@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 import VariantImageManager from "./VariantImageManager";
@@ -18,6 +19,7 @@ type Product = { id: number; product_code: string | null; name: string; slug: st
 type Color = { id: number; product: number; name: string; slug: string; product_code: string; hex_color: string; is_active: boolean; position: number };
 type VariantSize = { id: number; variant: number; size: number; sku: string; stock_quantity: number; is_active: boolean };
 type Adjustment = { id: number; variant_size: number; quantity_change: number; stock_after: number; reason: string; created_at: string };
+type AdminImage = { id: number; variant: number; url: string; alt_text: string; position: number; is_primary: boolean; is_active: boolean };
 
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
 const buttonClass = "rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50";
@@ -57,6 +59,7 @@ export default function AdminCatalogPage() {
   const [sizes, setSizes] = useState<Size[]>([]);
   const [colors, setColors] = useState<Color[]>([]);
   const [variantSizes, setVariantSizes] = useState<VariantSize[]>([]);
+  const [images, setImages] = useState<AdminImage[]>([]);
   const [selected, setSelected] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,7 +93,8 @@ export default function AdminCatalogPage() {
       getAll<Color>("/api/admin/catalog/colors/"),
       getAll<VariantSize>("/api/admin/catalog/variant-sizes/"),
     ]);
-    return { products: p, categories: c, collections: co, sizes: s, colors: v, variantSizes: vs };
+    const imageRows = await getAll<AdminImage>("/api/admin/catalog/images/").catch(() => []);
+    return { products: p, categories: c, collections: co, sizes: s, colors: v, variantSizes: vs, images: imageRows };
   }, []);
 
   const refresh = useCallback(async () => {
@@ -104,6 +108,7 @@ export default function AdminCatalogPage() {
       setSizes(data.sizes);
       setColors(data.colors);
       setVariantSizes(data.variantSizes);
+      setImages(data.images);
       setSelected((current) => current ? data.products.find((item) => item.id === current.id) ?? null : null);
       return data;
     } catch (e) {
@@ -124,6 +129,7 @@ export default function AdminCatalogPage() {
       setSizes(data.sizes);
       setColors(data.colors);
       setVariantSizes(data.variantSizes);
+      setImages(data.images);
       const requestedMode = new URLSearchParams(window.location.search).get("mode");
       if (requestedMode === "create") {
         setSelected(null);
@@ -147,6 +153,8 @@ export default function AdminCatalogPage() {
 
   const selectedColors = selected ? colors.filter((color) => color.product === selected.id).sort((a, b) => a.position - b.position || a.id - b.id) : [];
   const selectedCategory = selected ? categories.find((category) => category.id === selected.category) : undefined;
+  const activeEditFieldKeys = new Set((categories.find((category) => category.id === Number(categoryId))?.product_fields ?? []).map((field) => field.key));
+  const legacyAttributes = selected ? Object.entries(selected.attributes ?? {}).filter(([key]) => !activeEditFieldKeys.has(key)) : [];
   const editableSizeIds = new Set([
     ...(selectedCategory?.sizes ?? []),
     ...variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant)).map((item) => item.size),
@@ -179,10 +187,12 @@ export default function AdminCatalogPage() {
       setError("حالت ویرایش محصول معتبر نیست؛ برای ساخت محصول از فرم محصول جدید استفاده کنید.");
       return;
     }
+    const activeAttributeValues = Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, value.trim() === "//" ? "" : value.trim()]));
+    const preservedLegacyAttributes = Object.fromEntries(Object.entries(selected.attributes ?? {}).filter(([key]) => !activeEditFieldKeys.has(key)));
     const payload = {
       name,
       description: description.trim() === "//" ? "" : description,
-      attributes: Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, value.trim() === "//" ? "" : value.trim()])),
+      attributes: { ...preservedLegacyAttributes, ...activeAttributeValues },
       price,
       sale_price: salePrice || null,
       category: Number(categoryId),
@@ -357,6 +367,15 @@ export default function AdminCatalogPage() {
             <label className="text-sm">قیمت با تخفیف (اختیاری)<input type="number" min="1" step="1" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className={inputClass} dir="ltr" aria-invalid={salePriceInvalid} />{salePriceInvalid && <span className="mt-1 block text-xs text-destructive">قیمت با تخفیف باید کمتر از قیمت اصلی باشد.</span>}</label>
             <label className="text-sm sm:col-span-2 lg:col-span-1">توضیحات<textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={inputClass} /></label>
           </div>
+          {legacyAttributes.length > 0 && (
+            <section className="mt-5 rounded-xl border border-border bg-muted/40 p-4">
+              <h3 className="font-semibold">مشخصات حفظ‌شده از قبل</h3>
+              <p className="mt-1 text-xs leading-6 text-muted-foreground">این مشخصات در دسته‌بندی فعلی تعریف نشده‌اند؛ هنگام ذخیره نیز همراه محصول حفظ می‌شوند.</p>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                {legacyAttributes.map(([key, value]) => <div key={key} className="rounded-lg border border-border bg-background p-3"><dt className="text-xs text-muted-foreground">{key}</dt><dd className="mt-1 break-words text-sm">{String(value ?? "—") || "—"}</dd></div>)}
+              </dl>
+            </section>
+          )}
           {(categories.find(item => item.id === Number(categoryId))?.product_fields ?? []).length > 0 && (
             <section className="mt-5 rounded-xl border border-border p-4">
               <h3 className="font-semibold">مشخصات اختصاصی این دسته‌بندی</h3>
@@ -392,10 +411,26 @@ export default function AdminCatalogPage() {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجو با نام یا کد محصول…" className={inputClass + " mb-4"} />
           {loading ? <p className="py-8 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : visibleProducts.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">محصولی پیدا نشد.</p> : (
             <div className="max-h-[70vh] space-y-2 overflow-y-auto">
-              {visibleProducts.map((product) => <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setError(""); }} className={"w-full rounded-xl border p-3 text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
-                <span className="flex items-center justify-between gap-2"><strong className="text-sm">{product.name}</strong><span className={"shrink-0 rounded-full px-2 py-1 text-[11px] " + (product.is_active ? "bg-muted text-foreground" : "bg-destructive/10 text-destructive")}>{product.is_active ? "منتشر" : "پیش‌نویس"}</span></span>
-                <span className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground"><span>کد: {product.product_code || "—"}</span><span>{formatPrice(product.sale_price || product.price)}</span></span>
-              </button>)}
+              {visibleProducts.map((product) => {
+                const productColors = colors.filter((color) => color.product === product.id).sort((a, b) => a.position - b.position || a.id - b.id);
+                const image = images.filter((item) => productColors.some((color) => color.id === item.variant)).sort((a, b) => {
+                  const colorA = productColors.findIndex((color) => color.id === a.variant);
+                  const colorB = productColors.findIndex((color) => color.id === b.variant);
+                  return colorA - colorB || a.position - b.position || a.id - b.id;
+                })[0];
+                return <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
+                  <div className="flex gap-3 p-3">
+                    <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
+                      {image ? <Image src={image.url} alt={image.alt_text || product.name} fill sizes="80px" className="object-cover" unoptimized /> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">بدون تصویر</div>}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="flex items-start justify-between gap-2"><strong className="text-sm">{product.name}</strong><span className={"shrink-0 rounded-full px-2 py-1 text-[11px] " + (product.is_active ? "bg-muted text-foreground" : "bg-destructive/10 text-destructive")}>{product.is_active ? "منتشر" : "پیش‌نویس"}</span></span>
+                      <span className="mt-2 block text-xs text-muted-foreground">کد محصول: {product.product_code || "—"}</span>
+                      <span className="mt-1 flex flex-wrap items-center gap-2 text-xs"><span className={product.sale_price ? "text-muted-foreground line-through" : "font-semibold"}>{formatPrice(product.price)}</span>{product.sale_price && <strong className="text-foreground">{formatPrice(product.sale_price)}</strong>}</span>
+                    </div>
+                  </div>
+                </button>;
+              })}
             </div>
           )}
         </section>

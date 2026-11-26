@@ -122,6 +122,50 @@ def test_product_edit_rejects_invalid_discount_for_effective_price(make_staff):
     assert product.sale_price == Decimal("1200000")
 
 
+def test_product_category_change_preserves_attributes_from_previous_category(make_staff):
+    old_category = Category.objects.create(
+        name="لباس قدیمی",
+        slug="legacy-clothing",
+        product_fields=[{
+            "key": "fabric",
+            "label": "جنس پارچه",
+            "type": "text",
+            "unit": "",
+            "required": False,
+        }],
+    )
+    new_category = Category.objects.create(
+        name="لباس جدید",
+        slug="new-clothing",
+        product_fields=[{
+            "key": "fit",
+            "label": "نوع فیت",
+            "type": "text",
+            "unit": "",
+            "required": False,
+        }],
+    )
+    product = Product.objects.create(
+        category=old_category,
+        name="بافت",
+        slug="legacy-attribute-knit",
+        price=Decimal("1000000"),
+        attributes={"fabric": "پنبه"},
+    )
+    client = client_for(make_staff("catalog.view_product", "catalog.change_product"))
+
+    response = client.patch(
+        f"/api/admin/catalog/products/{product.pk}/",
+        {"category": new_category.pk, "attributes": {"fit": "آزاد"}},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200, response.content
+    product.refresh_from_db()
+    assert product.category_id == new_category.pk
+    assert product.attributes == {"fit": "آزاد", "fabric": "پنبه"}
+
+
 def test_color_variant_and_size_are_created_without_direct_stock_write(make_staff):
     category = Category.objects.create(name="لباس", slug="clothing")
     size = Size.objects.create(code="m", label="متوسط")
