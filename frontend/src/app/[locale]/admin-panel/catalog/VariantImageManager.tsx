@@ -83,7 +83,6 @@ export default function VariantImageManager({
     new_images?: StagedVariantImage[];
     order?: string[];
   }) => {
-    const current = draftRef.current;
     const staged = next.new_images ?? stagedImages;
     const removed = next.deactivate_ids ?? deactivateIds;
     const nextOrder = next.order ?? order;
@@ -95,8 +94,8 @@ export default function VariantImageManager({
       order: nextOrder,
     };
     draftRef.current = value;
-    onDraftChange?.(value);
-  }, [variantId, images, stagedImages, deactivateIds, order, onDraftChange]);
+    onDraftChangeRef.current?.(value);
+  }, [variantId, images, stagedImages, deactivateIds, order]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,7 +117,6 @@ export default function VariantImageManager({
               order: initialOrder,
             };
             draftRef.current = value;
-            onDraftChangeRef.current?.(value);
           }
         }
         setError("");
