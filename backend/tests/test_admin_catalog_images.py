@@ -1,3 +1,4 @@
+import json
 from io import BytesIO
 
 import pytest
@@ -92,3 +93,80 @@ def test_deactivating_primary_promotes_next_image(make_staff, make_variant_size,
         assert VariantImage.objects.get(pk=first.json()["id"]).is_active is False
         promoted = VariantImage.objects.get(pk=second.json()["id"])
         assert promoted.is_primary is True
+
+
+def test_workspace_save_commits_staged_images_only_with_final_save(make_staff, make_variant_size, tmp_path):
+    row = make_variant_size()
+    clear_fixture_image(row)
+    actor = make_staff(
+        "catalog.change_product", "catalog.add_variantimage", "catalog.view_colorvariant",
+    )
+    client = client_for(actor)
+    key = "a" * 32
+    workspace = {
+        "images": [{
+            "variant": row.variant_id,
+            "image_ids": [],
+            "deactivate_ids": [],
+            "new_images": [{"key": key, "alt_text": "نمای جلو"}],
+            "order": [f"new:{key}"],
+        }],
+    }
+
+    with override_settings(MEDIA_ROOT=tmp_path):
+        response = client.post(
+            f"/api/admin/catalog/products/{row.variant.product_id}/workspace-save/",
+            {"workspace": json.dumps(workspace), f"image_{key}": png_upload()},
+        )
+        assert response.status_code == 200, response.content
+        image = VariantImage.objects.get(variant=row.variant)
+        assert image.alt_text == "نمای جلو"
+        assert image.is_primary is True
+        assert image.position == 0
+        assert (tmp_path / image.storage_key).is_file()
+        assert response.json()["images"][0]["id"] == image.pk
+
+
+def test_workspace_save_removes_new_files_and_rolls_back_when_later_image_fails(
+    make_staff, make_variant_size, tmp_path,
+):
+    row = make_variant_size()
+    existing = VariantImage.objects.filter(variant=row.variant, is_active=True).first()
+    actor = make_staff(
+        "catalog.change_product", "catalog.add_variantimage", "catalog.view_colorvariant",
+        "catalog.change_variantimage",
+    )
+    client = client_for(actor)
+    first_key = "b" * 32
+    second_key = "c" * 32
+    workspace = {
+        "images": [{
+            "variant": row.variant_id,
+            "image_ids": [existing.pk],
+            "deactivate_ids": [],
+            "new_images": [
+                {"key": first_key, "alt_text": "اول"},
+                {"key": second_key, "alt_text": "دوم"},
+            ],
+            "order": [f"existing:{existing.pk}", f"new:{first_key}", f"new:{second_key}"],
+        }],
+    }
+    invalid_upload = SimpleUploadedFile("invalid.png", b"not-an-image", content_type="image/png")
+
+    with override_settings(MEDIA_ROOT=tmp_path):
+        original_key = existing.storage_key
+        response = client.post(
+            f"/api/admin/catalog/products/{row.variant.product_id}/workspace-save/",
+            {
+                "workspace": json.dumps(workspace),
+                f"image_{first_key}": png_upload("first.png"),
+                f"image_{second_key}": invalid_upload,
+            },
+        )
+        assert response.status_code == 400, response.content
+        assert VariantImage.objects.filter(variant=row.variant).count() == 1
+        existing.refresh_from_db()
+        assert existing.storage_key == original_key
+        assert existing.is_active is True
+        assert (tmp_path / original_key).is_file() is False
+        assert not list(tmp_path.rglob("*.webp"))
