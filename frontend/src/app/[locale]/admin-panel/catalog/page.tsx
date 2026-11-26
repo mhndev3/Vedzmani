@@ -157,6 +157,10 @@ export default function AdminCatalogPage() {
   }, [loadCatalog]);
 
   const selectedColors = selected ? colors.filter((color) => color.product === selected.id).sort((a, b) => a.position - b.position || a.id - b.id) : [];
+  const previewColor = selectedColors.find(color => color.id === selectedPreviewColorId) ?? selectedColors[0] ?? null;
+  const previewImages = previewColor ? images.filter(image => image.variant === previewColor.id).sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.position - b.position || a.id - b.id) : [];
+  const previewImage = previewImages[0] ?? null;
+  const previewSizes = previewColor ? variantSizes.filter(item => item.variant === previewColor.id && item.is_active).sort((a, b) => a.id - b.id) : [];
   const activeEditCategory = categories.find((category) => category.id === Number(categoryId));
   const activeEditFieldKeys = new Set((activeEditCategory?.product_fields ?? []).map((field) => field.key));
   const legacyAttributes = selected ? Object.entries(selected.attributes ?? {}).filter(([key]) => !activeEditFieldKeys.has(key)) : [];
