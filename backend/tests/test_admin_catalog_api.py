@@ -999,3 +999,50 @@ def test_product_workspace_save_requires_permissions_for_every_submitted_section
     row.refresh_from_db()
     assert product.name != "نباید تغییر کند"
     assert row.sku != "NO-PERMISSION"
+
+
+def test_product_publication_can_be_toggled_without_mutating_children_and_requires_change_permission(
+    make_staff, make_variant_size
+):
+    row = make_variant_size(stock=7)
+    product = row.variant.product
+    product.is_active = False
+    product.save(update_fields=["is_active"])
+
+    editor = client_for(make_staff("catalog.view_product", "catalog.change_product"))
+    published = editor.patch(
+        f"/api/admin/catalog/products/{product.pk}/",
+        {"is_active": True},
+        content_type="application/json",
+    )
+    assert published.status_code == 200, published.content
+    product.refresh_from_db()
+    row.refresh_from_db()
+    assert product.is_active is True
+    assert row.stock_quantity == 7
+    assert row.is_active is True
+    assert row.variant.is_active is True
+
+    unpublished = editor.patch(
+        f"/api/admin/catalog/products/{product.pk}/",
+        {"is_active": False},
+        content_type="application/json",
+    )
+    assert unpublished.status_code == 200, unpublished.content
+    product.refresh_from_db()
+    row.refresh_from_db()
+    assert product.is_active is False
+    assert row.stock_quantity == 7
+    assert row.is_active is True
+    assert row.variant.is_active is True
+
+    viewer = client_for(make_staff("catalog.view_product"))
+    denied = viewer.patch(
+        f"/api/admin/catalog/products/{product.pk}/",
+        {"is_active": True},
+        content_type="application/json",
+    )
+    assert denied.status_code == 403
+    product.refresh_from_db()
+    assert product.is_active is False
+    assert row.stock_quantity == 7
