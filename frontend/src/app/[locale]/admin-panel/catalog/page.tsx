@@ -440,7 +440,7 @@ export default function AdminCatalogPage() {
   }
 
   return (
-    <main dir="rtl" className="mx-auto w-full max-w-7xl px-4 py-8 sm:py-10">
+    <main dir="rtl" className="admin-panel mx-auto w-full max-w-7xl px-4 py-8 sm:py-10">
       <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href={`/${locale}/admin-panel`} className="text-sm text-muted-foreground hover:text-foreground">← بازگشت به پنل مدیریت</Link>
