@@ -25,7 +25,7 @@ const secondary = "rounded-xl border border-border px-3 py-2 text-sm hover:bg-mu
 
 function errorMessage(error: unknown) {
   if (error instanceof BrowserApiError && (error.status === 401 || error.status === 403)) {
-    return "برای ساخت محصول، رنگ و سایز مجوز کافی ندارید.";
+    return "برای ساخت محصول و ثبت موجودی، مجوز کافی ندارید.";
   }
   if (error instanceof BrowserApiError && error.status === 400) {
     return "بعضی اطلاعات محصول معتبر نیست یا رنگ و سایز تکراری انتخاب شده است. موارد فرم را بررسی کنید.";
@@ -175,7 +175,7 @@ export default function CreateProductWithVariantsForm({
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">ساخت محصول با رنگ‌ها و سایزها</h2>
-          <p className="mt-1 text-xs leading-6 text-muted-foreground">محصول، رنگ‌ها و سایزها یکجا ساخته می‌شوند. کدهای داخلی خودکار تولید می‌شوند و موجودی اولیه صفر می‌ماند.</p>
+          <p className="mt-1 text-xs leading-6 text-muted-foreground">محصول، رنگ‌ها و سایزها یکجا ساخته می‌شوند. برای هر سایز موجودی را وارد کنید؛ کدهای داخلی خودکار ساخته می‌شوند.</p>
         </div>
         <button type="button" className={secondary} onClick={onCancel}>انصراف</button>
       </div>
