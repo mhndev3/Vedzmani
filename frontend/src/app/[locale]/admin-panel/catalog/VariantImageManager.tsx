@@ -65,6 +65,8 @@ export default function VariantImageManager({
   draft?: VariantImageDraft;
 }) {
   const draftRef = useRef<VariantImageDraft | undefined>(draft);
+  const onDraftChangeRef = useRef(onDraftChange);
+  useEffect(() => { onDraftChangeRef.current = onDraftChange; }, [onDraftChange]);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -116,7 +118,7 @@ export default function VariantImageManager({
               order: initialOrder,
             };
             draftRef.current = value;
-            onDraftChange?.(value);
+            onDraftChangeRef.current?.(value);
           }
         }
         setError("");
@@ -128,7 +130,7 @@ export default function VariantImageManager({
     }
     void load();
     return () => { cancelled = true; };
-  }, [variantId, draftMode, onDraftChange]);
+  }, [variantId, draftMode]);
 
   useEffect(() => {
     const next: Record<string, string> = {};
