@@ -469,6 +469,7 @@ export default function AdminCatalogPage() {
             ? "محصول، رنگ‌ها، سایزها و تصاویر انتخاب‌شده ساخته شدند."
             : "محصول و ترکیب‌های آن ساخته شدند، اما آپلود همه تصاویر کامل نشد. از بخش تصاویر رنگ‌ها ادامه دهید.");
           const data = await refresh();
+          setCategoryId(String(product.category));
           setSelected(product);
           setImageVariantId(data?.colors.find((color) => color.product === product.id)?.id ?? null);
         }}
@@ -542,7 +543,7 @@ export default function AdminCatalogPage() {
                   const colorB = productColors.findIndex((color) => color.id === b.variant);
                   return colorA - colorB || a.position - b.position || a.id - b.id;
                 })[0];
-                return <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setImageDrafts({}); setNewColorDrafts([]); setNewVariantSizeDrafts([]); setNewColorSizeSelections({}); setNewColorSizeStocks({}); setNewVariantSizeStock("0"); setEditingColorId(null); setSkuDrafts({}); setStockChanges({}); setStockReasons({}); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
+                return <button key={product.id} type="button" onClick={() => { setSelected(product); setCategoryId(String(product.category)); setProductFormMode(null); setVariantId(null); setImageDrafts({}); setNewColorDrafts([]); setNewVariantSizeDrafts([]); setNewColorSizeSelections({}); setNewColorSizeStocks({}); setNewVariantSizeStock("0"); setEditingColorId(null); setSkuDrafts({}); setStockChanges({}); setStockReasons({}); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
                   <div className="flex gap-3 p-3">
                     <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {image ? <Image src={image.url} alt={image.alt_text || product.name} fill sizes="80px" className="object-cover" unoptimized /> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">بدون تصویر</div>}
