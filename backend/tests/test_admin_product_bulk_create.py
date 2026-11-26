@@ -1,6 +1,7 @@
 import pytest
 
 from apps.catalog.models import Category, Collection, ColorVariant, Product, Size, VariantSize
+from apps.inventory.models import InventoryAdjustment
 from tests.conftest import client_for
 
 pytestmark = pytest.mark.django_db
@@ -11,6 +12,8 @@ def create_permissions():
         "catalog.add_product",
         "catalog.add_colorvariant",
         "catalog.add_variantsize",
+        "catalog.view_variantsize",
+        "inventory.add_inventoryadjustment",
     )
 
 
@@ -19,7 +22,8 @@ def test_staff_can_create_product_with_multiple_colors_and_sizes_atomically(make
     collection = Collection.objects.create(name="پاییز", slug="bulk-create-autumn-collection")
     small = Size.objects.create(code="bulk-s", label="Small", position=1)
     medium = Size.objects.create(code="bulk-m", label="Medium", position=2)
-    client = client_for(make_staff(*create_permissions()))
+    actor = make_staff(*create_permissions())
+    client = client_for(actor)
 
     response = client.post(
         "/api/admin/catalog/products/create-with-variants/",
@@ -37,8 +41,8 @@ def test_staff_can_create_product_with_multiple_colors_and_sizes_atomically(make
                     "slug": "blue",
                     "hex_color": "#87CEEB",
                     "sizes": [
-                        {"size": small.pk, "sku": "KNIT-BLUE-S"},
-                        {"size": medium.pk, "sku": "KNIT-BLUE-M"},
+                        {"size": small.pk, "sku": "KNIT-BLUE-S", "stock_quantity": 7},
+                        {"size": medium.pk, "sku": "KNIT-BLUE-M", "stock_quantity": 0},
                     ],
                 },
                 {
@@ -46,8 +50,8 @@ def test_staff_can_create_product_with_multiple_colors_and_sizes_atomically(make
                     "slug": "black",
                     "hex_color": "#000000",
                     "sizes": [
-                        {"size": small.pk, "sku": "KNIT-BLACK-S"},
-                        {"size": medium.pk, "sku": "KNIT-BLACK-M"},
+                        {"size": small.pk, "sku": "KNIT-BLACK-S", "stock_quantity": 3},
+                        {"size": medium.pk, "sku": "KNIT-BLACK-M", "stock_quantity": 0},
                     ],
                 },
             ],
@@ -67,9 +71,19 @@ def test_staff_can_create_product_with_multiple_colors_and_sizes_atomically(make
     assert set(
         VariantSize.objects.filter(variant__product=product).values_list("sku", flat=True)
     ) == {"KNIT-BLUE-S", "KNIT-BLUE-M", "KNIT-BLACK-S", "KNIT-BLACK-M"}
-    assert set(
-        VariantSize.objects.filter(variant__product=product).values_list("stock_quantity", flat=True)
-    ) == {0}
+    stock_by_sku = dict(
+        VariantSize.objects.filter(variant__product=product).values_list("sku", "stock_quantity")
+    )
+    assert stock_by_sku == {
+        "KNIT-BLUE-S": 7,
+        "KNIT-BLUE-M": 0,
+        "KNIT-BLACK-S": 3,
+        "KNIT-BLACK-M": 0,
+    }
+    adjustments = list(InventoryAdjustment.objects.order_by("variant_size_id"))
+    assert len(adjustments) == 2
+    assert all(item.created_by == actor for item in adjustments)
+    assert {item.stock_after for item in adjustments} == {3, 7}
     assert len(response.json()["colors"]) == 2
     assert sum(len(color["sizes"]) for color in response.json()["colors"]) == 4
 
