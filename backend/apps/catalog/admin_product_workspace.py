@@ -99,6 +99,8 @@ class ProductWorkspaceSaveView(APIView):
         product = product_serializer.save()
 
         saved_colors = []
+        saved_variant_sizes = []
+        adjustments = []
         color_ids = set()
         for item in colors_data:
             if not isinstance(item, dict) or not isinstance(item.get("id"), int) or isinstance(item.get("id"), bool):
@@ -172,8 +174,6 @@ class ProductWorkspaceSaveView(APIView):
                         created_by=request.user,
                     ))
 
-        saved_variant_sizes = []
-        adjustments = []
         variant_size_ids = set()
         for item in variant_sizes_data:
             if not isinstance(item, dict) or not isinstance(item.get("id"), int):
