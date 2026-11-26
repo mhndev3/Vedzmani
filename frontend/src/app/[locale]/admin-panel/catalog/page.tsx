@@ -263,6 +263,7 @@ export default function AdminCatalogPage() {
       setStockChanges({});
       setStockReasons({});
       setImageDrafts({});
+      setImageVariantId(null);
       setNotice("همه تغییرات پیش‌نویس اطلاعات محصول، رنگ، موجودی و ترتیب تصاویر ذخیره شدند.");
       await refresh();
       setSelected(result.product);
