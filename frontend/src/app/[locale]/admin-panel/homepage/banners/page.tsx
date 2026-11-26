@@ -31,7 +31,7 @@ export default function AdminHomepageBannersPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const refresh = useCallback(async () => {
+  const loadBanner = useCallback(async () => {
     const [groups, banners] = await Promise.all([
       apiRequest<BannerGroup[]>("GET", "/api/admin/homepage/banner-groups/"),
       apiRequest<Banner[]>("GET", "/api/admin/homepage/banners/"),
@@ -39,26 +39,30 @@ export default function AdminHomepageBannersPage() {
     const mainGroup = groups.find(group => group.slug === "main" && group.is_active)
       ?? groups.find(group => group.is_active);
     if (!mainGroup) throw new Error("گروه اصلی بنر صفحه اصلی پیدا نشد.");
-    setGroupId(mainGroup.id);
     const current = banners
       .filter(item => item.group === mainGroup.id && item.status === "published")
       .sort((a, b) => a.position - b.position || a.id - b.id)[0] ?? null;
-    setBanner(current);
+    return { groupId: mainGroup.id, banner: current };
   }, []);
 
   useEffect(() => {
     let active = true;
-    void refresh().catch(cause => { if (active) setError(errorMessage(cause)); })
+    void loadBanner()
+      .then(({ groupId: nextGroupId, banner: nextBanner }) => {
+        if (!active) return;
+        setGroupId(nextGroupId);
+        setBanner(nextBanner);
+      })
+      .catch(cause => { if (active) setError(errorMessage(cause)); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [refresh]);
+  }, [loadBanner]);
 
   useEffect(() => {
-    if (!file) { setPreview(""); return; }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,7 +84,10 @@ export default function AdminHomepageBannersPage() {
         await apiMultipartRequest("POST", "/api/admin/homepage/banners/", data);
       }
       setFile(null);
-      await refresh();
+      setPreview("");
+      const updated = await loadBanner();
+      setGroupId(updated.groupId);
+      setBanner(updated.banner);
       setNotice("بنر جدید ذخیره و در صفحه اصلی منتشر شد.");
     } catch (cause) {
       setError(cause instanceof Error && !(cause instanceof BrowserApiError) ? cause.message : errorMessage(cause));
@@ -112,7 +119,11 @@ export default function AdminHomepageBannersPage() {
         <form onSubmit={save} className="mt-5 space-y-4">
           <label className="block text-sm font-medium text-foreground">
             تصویر جدید بنر (JPEG، PNG یا WebP، حداکثر ۸ مگابایت)
-            <input type="file" accept="image/jpeg,image/png,image/webp" required onChange={event => setFile(event.target.files?.[0] ?? null)} className={fieldClass} />
+            <input type="file" accept="image/jpeg,image/png,image/webp" required onChange={event => {
+              const nextFile = event.target.files?.[0] ?? null;
+              setPreview(nextFile ? URL.createObjectURL(nextFile) : "");
+              setFile(nextFile);
+            }} className={fieldClass} />
           </label>
           {preview && <p className="text-xs text-muted-foreground">پیش‌نمایش تصویر انتخاب‌شده نمایش داده می‌شود؛ تصویر فعلی تا زمان ذخیره تغییر نمی‌کند.</p>}
           <button type="submit" disabled={saving || loading || !file} className={primaryClass}>{saving ? "در حال ذخیره…" : "ذخیره و انتشار بنر"}</button>
