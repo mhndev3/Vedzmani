@@ -237,7 +237,7 @@ class ProductWorkspaceSaveView(APIView):
             saved_variant_sizes.append(created_variant_size)
 
             initial_stock = item.get("initial_stock", 0)
-            if isinstance(initial_stock, bool) or not isinstance(initial_stock, int) or initial_stock < 0:
+            if isinstance(initial_stock, bool) or not isinstance(initial_stock, int) or initial_stock < 0 or initial_stock > 2147483647:
                 raise ValidationError({"new_variant_sizes": "موجودی اولیه باید عدد صحیح و نامنفی باشد."})
             if initial_stock:
                 adjustments.append(adjust_stock(
