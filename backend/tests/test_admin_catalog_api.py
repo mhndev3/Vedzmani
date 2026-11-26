@@ -885,6 +885,70 @@ def test_product_workspace_save_updates_product_color_sku_and_audited_stock_atom
     assert adjustment.stock_after == 7
 
 
+def test_product_workspace_save_creates_color_sizes_and_audited_initial_stock(make_staff, make_variant_size):
+    existing = make_variant_size(stock=0)
+    product = existing.variant.product
+    product.category.sizes.add(existing.size)
+    actor = make_staff(
+        "catalog.change_product",
+        "catalog.add_colorvariant",
+        "catalog.add_variantsize",
+        "inventory.add_inventoryadjustment",
+        "catalog.view_variantsize",
+    )
+    client = client_for(actor)
+
+    response = client.post(
+        f"/api/admin/catalog/products/{product.pk}/workspace-save/",
+        {
+            "new_colors": [{
+                "name": "سبز",
+                "hex_color": "#008000",
+                "sizes": [{"size": existing.size_id, "initial_stock": 5}],
+            }],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200, response.content
+    created_color = ColorVariant.objects.get(product=product, name="سبز")
+    created_size = VariantSize.objects.get(variant=created_color, size=existing.size)
+    assert created_color.product_code
+    assert created_size.stock_quantity == 5
+    adjustment = InventoryAdjustment.objects.get(variant_size=created_size)
+    assert adjustment.quantity_change == 5
+    assert adjustment.stock_after == 5
+    assert adjustment.created_by == actor
+
+
+def test_product_workspace_save_rolls_back_new_color_when_initial_stock_fails(make_staff, make_variant_size):
+    existing = make_variant_size(stock=0)
+    product = existing.variant.product
+    product.category.sizes.add(existing.size)
+    client = client_for(make_staff(
+        "catalog.change_product",
+        "catalog.add_colorvariant",
+        "catalog.add_variantsize",
+        "inventory.add_inventoryadjustment",
+        "catalog.view_variantsize",
+    ))
+
+    response = client.post(
+        f"/api/admin/catalog/products/{product.pk}/workspace-save/",
+        {
+            "new_colors": [{
+                "name": "نباید باقی بماند",
+                "hex_color": "#008000",
+                "sizes": [{"size": existing.size_id, "initial_stock": -1}],
+            }],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400, response.content
+    assert not ColorVariant.objects.filter(product=product, name="نباید باقی بماند").exists()
+
+
 def test_product_workspace_save_rolls_back_product_and_stock_when_adjustment_fails(make_staff, make_variant_size):
     row = make_variant_size(stock=2)
     product = row.variant.product

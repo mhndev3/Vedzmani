@@ -21,6 +21,8 @@ type VariantSize = { id: number; variant: number; size: number; sku: string; sto
 type Adjustment = { id: number; variant_size: number; quantity_change: number; stock_after: number; reason: string; created_at: string };
 type AdminImage = { id: number; variant: number; url: string; alt_text: string; position: number; is_primary: boolean; is_active: boolean };
 type ImageDraft = { variant: number; image_ids: number[]; deactivate_ids: number[] };
+type NewColorDraft = { key: string; name: string; hex_color: string; sizes: { size: number; initial_stock: number }[] };
+type NewVariantSizeDraft = { key: string; variant: number; size: number; initial_stock: number };
 
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
 const buttonClass = "rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50";
@@ -62,6 +64,10 @@ export default function AdminCatalogPage() {
   const [variantSizes, setVariantSizes] = useState<VariantSize[]>([]);
   const [images, setImages] = useState<AdminImage[]>([]);
   const [imageDrafts, setImageDrafts] = useState<Record<number, ImageDraft>>({});
+  const [newColorDrafts, setNewColorDrafts] = useState<NewColorDraft[]>([]);
+  const [newVariantSizeDrafts, setNewVariantSizeDrafts] = useState<NewVariantSizeDraft[]>([]);
+  const [newColorSizeSelections, setNewColorSizeSelections] = useState<Record<string, string>>({});
+  const [newColorSizeStocks, setNewColorSizeStocks] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -82,6 +88,7 @@ export default function AdminCatalogPage() {
   const [variantId, setVariantId] = useState<number | null>(null);
   const [imageVariantId, setImageVariantId] = useState<number | null>(null);
   const [sizeId, setSizeId] = useState("");
+  const [newVariantSizeStock, setNewVariantSizeStock] = useState("0");
   const [stockChanges, setStockChanges] = useState<Record<number, string>>({});
   const [skuDrafts, setSkuDrafts] = useState<Record<number, string>>({});
   const [stockReasons, setStockReasons] = useState<Record<number, string>>({});
@@ -238,6 +245,13 @@ export default function AdminCatalogPage() {
       hex_color: hexColor,
     }] : [];
 
+    const invalidNewColor = newColorDrafts.some((color) => !color.name.trim() || color.sizes.some((item) => !Number.isInteger(item.initial_stock) || item.initial_stock < 0));
+    const invalidNewVariantSize = newVariantSizeDrafts.some((item) => !Number.isInteger(item.initial_stock) || item.initial_stock < 0);
+    if (invalidNewColor || invalidNewVariantSize) {
+      setError("نام رنگ و موجودی اولیه سایزها را بررسی کنید. موجودی باید عدد صحیح و نامنفی باشد.");
+      return;
+    }
+
     if (pendingColors.some((color) => !color.name)) {
       setError("نام رنگ نمی‌تواند خالی باشد.");
       return;
@@ -253,6 +267,8 @@ export default function AdminCatalogPage() {
         product: productPayload,
         colors: pendingColors,
         variant_sizes: pendingVariantSizes,
+        new_colors: newColorDrafts.map(({ name, hex_color, sizes }) => ({ name: name.trim(), hex_color, sizes })),
+        new_variant_sizes: newVariantSizeDrafts.map(({ variant, size, initial_stock }) => ({ variant, size, initial_stock })),
         images: Object.values(imageDrafts),
       });
       setProductFormMode(null);
@@ -263,8 +279,13 @@ export default function AdminCatalogPage() {
       setStockChanges({});
       setStockReasons({});
       setImageDrafts({});
+      setNewColorDrafts([]);
+      setNewVariantSizeDrafts([]);
+      setNewColorSizeSelections({});
+      setNewColorSizeStocks({});
+      setNewVariantSizeStock("0");
       setImageVariantId(null);
-      setNotice("همه تغییرات پیش‌نویس اطلاعات محصول، رنگ، موجودی و ترتیب تصاویر ذخیره شدند.");
+      setNotice("همه تغییرات پیش‌نویس محصول، رنگ‌ها، سایزها، موجودی و تصاویر ذخیره شدند.");
       await refresh();
       setSelected(result.product);
     } catch (e) {
@@ -293,14 +314,20 @@ export default function AdminCatalogPage() {
   async function addColor(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected) return;
-    setSaving(true); setError(""); setNotice("");
-    try {
-      await apiRequest<Color>(editingColorId ? "PATCH" : "POST", editingColorId ? `/api/admin/catalog/colors/${editingColorId}/` : "/api/admin/catalog/colors/", { product: selected.id, name: colorName, hex_color: hexColor, position: editingColorId ? (selectedColors.find((item) => item.id === editingColorId)?.position ?? selectedColors.length) : selectedColors.length, ...(editingColorId ? {} : { is_active: true }) });
-      setColorName(""); setHexColor("#000000"); setEditingColorId(null);
-      setNotice(editingColorId ? "مشخصات رنگ ویرایش شد." : "رنگ جدید اضافه شد؛ کد کارت به‌صورت خودکار ساخته می‌شود.");
-      await refresh();
-    } catch (e) { setError(errorMessage(e)); }
-    finally { setSaving(false); }
+    if (!colorName.trim()) {
+      setError("نام رنگ نمی‌تواند خالی باشد.");
+      return;
+    }
+    setNewColorDrafts((current) => [...current, {
+      key: `new-color-${Date.now()}-${current.length}`,
+      name: colorName.trim(),
+      hex_color: hexColor,
+      sizes: [],
+    }]);
+    setColorName("");
+    setHexColor("#000000");
+    setError("");
+    setNotice("رنگ جدید به پیش‌نویس اضافه شد؛ با «ذخیره همه تغییرات» ثبت می‌شود.");
   }
 
   async function toggleColor(color: Color) {
@@ -348,16 +375,47 @@ export default function AdminCatalogPage() {
 
   async function addVariantSize(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!variantId) return;
-    setSaving(true); setError(""); setNotice("");
-    try {
-      const created = await apiRequest<VariantSize>("POST", "/api/admin/catalog/variant-sizes/", { variant: variantId, size: Number(sizeId), is_active: true });
-      setSizeId("");
-      setVariantId(created.variant);
-      setNotice(`سایز اضافه شد. شناسه داخلی به‌صورت خودکار ساخته شد (${created.sku}). برای ثبت موجودی از فرم گردش موجودی استفاده کنید.`);
-      await refresh();
-    } catch (e) { setError(errorMessage(e)); }
-    finally { setSaving(false); }
+    if (!variantId || !sizeId) return;
+    const initialStock = Number(newVariantSizeStock);
+    if (!Number.isInteger(initialStock) || initialStock < 0) {
+      setError("موجودی اولیه باید عدد صحیح و نامنفی باشد.");
+      return;
+    }
+    if (newVariantSizeDrafts.some((item) => item.variant === variantId && item.size === Number(sizeId))) {
+      setError("این سایز از قبل در پیش‌نویس این رنگ وجود دارد.");
+      return;
+    }
+    setNewVariantSizeDrafts((current) => [...current, {
+      key: `new-size-${Date.now()}-${current.length}`,
+      variant: variantId,
+      size: Number(sizeId),
+      initial_stock: initialStock,
+    }]);
+    setSizeId("");
+    setNewVariantSizeStock("0");
+    setError("");
+    setNotice("سایز جدید به پیش‌نویس اضافه شد؛ با ذخیره همه تغییرات ثبت می‌شود.");
+  }
+
+  function addSizeToNewColor(colorKey: string) {
+    const size = Number(newColorSizeSelections[colorKey]);
+    const initialStock = Number(newColorSizeStocks[colorKey] ?? "0");
+    const color = newColorDrafts.find((item) => item.key === colorKey);
+    if (!color || !size) return;
+    if (!Number.isInteger(initialStock) || initialStock < 0) {
+      setError("موجودی اولیه باید عدد صحیح و نامنفی باشد.");
+      return;
+    }
+    if (color.sizes.some((item) => item.size === size)) {
+      setError("این سایز قبلاً به پیش‌نویس رنگ اضافه شده است.");
+      return;
+    }
+    setNewColorDrafts((current) => current.map((item) => item.key === colorKey
+      ? { ...item, sizes: [...item.sizes, { size, initial_stock: initialStock }] }
+      : item));
+    setNewColorSizeSelections((current) => ({ ...current, [colorKey]: "" }));
+    setNewColorSizeStocks((current) => ({ ...current, [colorKey]: "0" }));
+    setError("");
   }
 
   return (
@@ -368,7 +426,7 @@ export default function AdminCatalogPage() {
           <h1 className="mt-3 text-2xl font-bold sm:text-3xl">مدیریت محصولات</h1>
           <p className="mt-2 text-sm text-muted-foreground">محصول، رنگ، سایز و موجودی هر ترکیب را از یک صفحه مدیریت کنید.</p>
         </div>
-        <button type="button" className={buttonClass} onClick={() => { setSelected(null); setProductFormMode("create"); setError(""); setNotice(""); }}>＋ محصول جدید</button>
+        <button type="button" className={buttonClass} onClick={() => { setSelected(null); setProductFormMode("create"); setNewColorDrafts([]); setNewVariantSizeDrafts([]); setNewColorSizeSelections({}); setNewColorSizeStocks({}); setNewVariantSizeStock("0"); setEditingColorId(null); setError(""); setNotice(""); }}>＋ محصول جدید</button>
       </div>
 
       {notice && <div role="status" className="mb-4 rounded-xl border border-border bg-muted p-3 text-sm">{notice}</div>}
@@ -458,7 +516,7 @@ export default function AdminCatalogPage() {
                   const colorB = productColors.findIndex((color) => color.id === b.variant);
                   return colorA - colorB || a.position - b.position || a.id - b.id;
                 })[0];
-                return <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setImageDrafts({}); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
+                return <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setImageDrafts({}); setNewColorDrafts([]); setNewVariantSizeDrafts([]); setNewColorSizeSelections({}); setNewColorSizeStocks({}); setNewVariantSizeStock("0"); setEditingColorId(null); setSkuDrafts({}); setStockChanges({}); setStockReasons({}); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
                   <div className="flex gap-3 p-3">
                     <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {image ? <Image src={image.url} alt={image.alt_text || product.name} fill sizes="80px" className="object-cover" unoptimized /> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">بدون تصویر</div>}
@@ -514,11 +572,13 @@ export default function AdminCatalogPage() {
                       </div>
                     </div>
                     {variantId === color.id && <div className="mt-4 border-t border-border pt-4">
-                      <form onSubmit={addVariantSize} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                        <label className="text-sm">سایز<select required value={sizeId} onChange={(e) => setSizeId(e.target.value)} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((s) => categories.find((category) => category.id === selected.category)?.sizes.includes(s.id) && !variantSizes.some((vs) => vs.variant === color.id && vs.size === s.id)).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
-                        <div className="flex items-end"><button disabled={saving || !sizeId} className={buttonClass}>افزودن سایز</button></div>
+                      <form onSubmit={addVariantSize} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px_auto]">
+                        <label className="text-sm">سایز<select required value={sizeId} onChange={(e) => setSizeId(e.target.value)} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((s) => categories.find((category) => category.id === selected.category)?.sizes.includes(s.id) && !variantSizes.some((vs) => vs.variant === color.id && vs.size === s.id) && !newVariantSizeDrafts.some((draft) => draft.variant === color.id && draft.size === s.id)).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+                        <label className="text-sm">موجودی اولیه<input type="number" min="0" step="1" value={newVariantSizeStock} onChange={(e) => setNewVariantSizeStock(e.target.value)} className={inputClass} dir="ltr" /></label>
+                        <div className="flex items-end"><button disabled={saving || !sizeId} className={buttonClass}>افزودن به پیش‌نویس</button></div>
                       </form>
                       <div className="mt-4 space-y-3">
+                        {newVariantSizeDrafts.filter((draft) => draft.variant === color.id).map((draft) => <div key={draft.key} className="flex items-center justify-between rounded-lg border border-dashed border-primary/50 p-3 text-xs"><span>پیش‌نویس سایز: {sizes.find((item) => item.id === draft.size)?.label || "—"} · موجودی اولیه: {draft.initial_stock.toLocaleString("fa-IR")}</span><button type="button" className={secondaryClass} onClick={() => setNewVariantSizeDrafts((current) => current.filter((item) => item.key !== draft.key))}>حذف</button></div>)}
                         {variantSizes.filter((vs) => vs.variant === color.id).map((item) => {
                           const size = sizes.find((s) => s.id === item.size);
                           return <div key={item.id} className="rounded-xl bg-muted/50 p-3">
@@ -539,6 +599,18 @@ export default function AdminCatalogPage() {
                       </div>
                     </div>}
                     {imageVariantId === color.id && <VariantImageManager variantId={color.id} draftMode draft={imageDrafts[color.id]} onDraftChange={(draft) => setImageDrafts((old) => ({ ...old, [color.id]: draft }))} />}
+                  </div>)}
+                  {newColorDrafts.map((draft) => <div key={draft.key} className="rounded-xl border border-dashed border-primary/50 bg-muted/30 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-3"><span className="size-8 rounded-full border border-border" style={{ backgroundColor: draft.hex_color }} /><div><strong className="text-sm">{draft.name}</strong><p className="text-xs text-muted-foreground">پیش‌نویس رنگ جدید · کد کارت پس از ذخیره ساخته می‌شود</p></div></div>
+                      <button type="button" className={secondaryClass} onClick={() => setNewColorDrafts((current) => current.filter((item) => item.key !== draft.key))}>حذف پیش‌نویس</button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-end gap-2">
+                      <label className="min-w-[150px] flex-1 text-xs">سایز<select value={newColorSizeSelections[draft.key] ?? ""} onChange={(event) => setNewColorSizeSelections((current) => ({ ...current, [draft.key]: event.target.value }))} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((item) => categories.find((category) => category.id === selected.category)?.sizes.includes(item.id) && !draft.sizes.some((size) => size.size === item.id)).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+                      <label className="w-28 text-xs">موجودی اولیه<input type="number" min="0" step="1" value={newColorSizeStocks[draft.key] ?? "0"} onChange={(event) => setNewColorSizeStocks((current) => ({ ...current, [draft.key]: event.target.value }))} className={inputClass} dir="ltr" /></label>
+                      <button type="button" disabled={!newColorSizeSelections[draft.key]} className={secondaryClass} onClick={() => addSizeToNewColor(draft.key)}>افزودن سایز</button>
+                    </div>
+                    {draft.sizes.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{draft.sizes.map((item) => <span key={item.size} className="rounded-lg border border-border bg-background px-2 py-1 text-xs">{sizes.find((size) => size.id === item.size)?.label} · موجودی {item.initial_stock.toLocaleString("fa-IR")} <button type="button" className="mr-1 text-destructive" onClick={() => setNewColorDrafts((current) => current.map((row) => row.key === draft.key ? { ...row, sizes: row.sizes.filter((size) => size.size !== item.size) } : row))}>×</button></span>)}</div>}
                   </div>)}
                   {selectedColors.length === 0 && <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">هنوز رنگی برای این محصول ثبت نشده است.</p>}
                 </div>
