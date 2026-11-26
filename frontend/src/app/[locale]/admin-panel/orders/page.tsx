@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiRequest, BrowserApiError } from "@/lib/browser-api";
 
@@ -58,6 +58,7 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [payment, setPayment] = useState("");
+  const initialQueryApplied = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -86,8 +87,16 @@ export default function AdminOrdersPage() {
   }, [payment, search, status]);
 
   useEffect(() => {
+    if (!initialQueryApplied.current) {
+      initialQueryApplied.current = true;
+      const requestedPayment = new URLSearchParams(window.location.search).get("payment_status");
+      if (requestedPayment === "paid" && payment !== "paid") {
+        setPayment("paid");
+        return;
+      }
+    }
     void Promise.resolve().then(() => load());
-  }, [load]);
+  }, [load, payment]);
 
   async function openOrder(order: Order) {
     setSelected(order);
