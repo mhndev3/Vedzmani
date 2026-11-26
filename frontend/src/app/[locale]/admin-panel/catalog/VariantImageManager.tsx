@@ -156,6 +156,10 @@ export default function VariantImageManager({
   function addFiles(files: FileList | null) {
     if (!files?.length) return;
     const selected = Array.from(files);
+    if (selected.some((file) => file.size <= 0 || file.size > 8 * 1024 * 1024)) {
+      setError("حجم هر تصویر باید بیشتر از صفر و حداکثر ۸ مگابایت باشد.");
+      return;
+    }
     if (stagedImages.length + selected.length > 20) {
       setError("حداکثر ۲۰ تصویر جدید را می‌توان هم‌زمان برای یک رنگ ذخیره کرد.");
       return;
