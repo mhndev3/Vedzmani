@@ -82,6 +82,8 @@ def test_create_product_validates_category_fields_and_hides_double_slash_values(
         "catalog.add_product",
         "catalog.add_colorvariant",
         "catalog.add_variantsize",
+        "catalog.view_variantsize",
+        "inventory.add_inventoryadjustment",
         "catalog.view_product",
         "catalog.change_product",
     ))
@@ -153,7 +155,10 @@ def test_product_attributes_must_match_selected_category_schema(make_staff):
         ],
     )
     size = Size.objects.create(code="cat-fields-s", label="کوچک")
-    editor = client_for(make_staff("catalog.add_product", "catalog.add_colorvariant", "catalog.add_variantsize"))
+    editor = client_for(make_staff(
+        "catalog.add_product", "catalog.add_colorvariant", "catalog.add_variantsize",
+        "catalog.view_variantsize", "inventory.add_inventoryadjustment",
+    ))
 
     response = editor.post(
         "/api/admin/catalog/products/create-with-variants/",
