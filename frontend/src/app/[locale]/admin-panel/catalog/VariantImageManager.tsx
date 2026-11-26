@@ -76,7 +76,7 @@ export default function VariantImageManager({
     if (!current || current.variant !== variantId) return rows;
     const positions = new Map(current.image_ids.map((id, index) => [id, index]));
     return [...rows].sort((a, b) => (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER));
-  }, [applyDraftOrder, variantId]);
+  }, [variantId]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -108,7 +108,7 @@ export default function VariantImageManager({
     }
     void load();
     return () => { cancelled = true; };
-  }, [variantId]);
+  }, [applyDraftOrder, variantId]);
 
   async function upload(file?: File) {
     if (!file) return;
