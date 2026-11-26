@@ -3,11 +3,17 @@
 The endpoint deliberately composes the existing serializers, inventory service, and image lifecycle helpers.
 It does not introduce a second stock writer or bypass image deactivation semantics.
 """
+import json
+import re
+from pathlib import Path
+
+from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,7 +21,9 @@ from rest_framework.views import APIView
 from apps.catalog.models import ColorVariant, Product, Size, VariantImage, VariantSize
 from apps.inventory.services import adjust_stock
 
-from .admin_media import deactivate_variant_image, reorder_variant_images
+from .admin_media import deactivate_variant_image, reorder_variant_images, upload_variant_image
+
+MAX_WORKSPACE_IMAGE_UPLOAD_BYTES = 9 * 1024 * 1024
 from .admin_serializers import (
     ColorVariantAdminSerializer,
     InventoryAdjustmentAdminSerializer,
@@ -29,14 +37,37 @@ class ProductWorkspaceSaveView(APIView):
     """Apply one product editor draft atomically, including audited stock adjustments."""
 
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def _require(self, user, *permissions):
         if not user.is_staff or not user.is_active or not user.has_perms(permissions):
             raise PermissionDenied("مجوز لازم برای ذخیره همه تغییرات این محصول را ندارید.")
 
-    @transaction.atomic
     def post(self, request, product_id):
+        created_storage_keys = []
+        try:
+            with transaction.atomic():
+                return self._save_workspace(request, product_id, created_storage_keys)
+        except Exception:
+            # The database transaction cannot roll back filesystem writes. Remove every
+            # binary created by this request if validation, serialization, or commit fails.
+            media_root = Path(settings.MEDIA_ROOT).resolve()
+            for key in created_storage_keys:
+                target = (media_root / key).resolve()
+                try:
+                    target.relative_to(media_root)
+                except ValueError:
+                    continue
+                target.unlink(missing_ok=True)
+            raise
+
+    def _save_workspace(self, request, product_id, created_storage_keys):
         payload = request.data
+        if "workspace" in payload:
+            try:
+                payload = json.loads(payload.get("workspace") or "")
+            except (TypeError, ValueError) as exc:
+                raise ValidationError({"workspace": "ساختار پیش‌نویس معتبر نیست."}) from exc
         if not isinstance(payload, dict):
             raise ValidationError({"detail": "ساختار اطلاعات ارسالی معتبر نیست."})
 
@@ -58,6 +89,8 @@ class ProductWorkspaceSaveView(APIView):
         ):
             if not isinstance(value, list) or len(value) > 200:
                 raise ValidationError({field: "فهرست تغییرات معتبر نیست."})
+        if sum(upload.size for upload in request.FILES.values()) > MAX_WORKSPACE_IMAGE_UPLOAD_BYTES:
+            raise ValidationError({"images": "حجم مجموع تصاویر جدید این محصول نباید بیشتر از ۹ مگابایت باشد."})
 
         permissions = ["catalog.change_product"]
         if colors_data:
@@ -66,8 +99,24 @@ class ProductWorkspaceSaveView(APIView):
             permissions.append("catalog.change_variantsize")
         if any(isinstance(item, dict) and item.get("quantity_change") not in (None, "", 0, "0") for item in variant_sizes_data):
             permissions.extend(["inventory.add_inventoryadjustment", "catalog.view_variantsize"])
-        if images_data:
+        has_existing_image_changes = any(
+            isinstance(item, dict) and (
+                item.get("deactivate_ids")
+                or (
+                    isinstance(item.get("order"), list)
+                    and any(isinstance(token, str) and token.startswith("existing:") for token in item["order"])
+                )
+            )
+            for item in images_data
+        )
+        if has_existing_image_changes:
             permissions.append("catalog.change_variantimage")
+        has_new_images = any(
+            isinstance(item, dict) and item.get("new_images")
+            for item in images_data
+        )
+        if has_new_images:
+            permissions.extend(["catalog.add_variantimage", "catalog.view_colorvariant"])
         if new_colors_data:
             permissions.append("catalog.add_colorvariant")
         if new_variant_sizes_data or any(isinstance(item, dict) and item.get("sizes") for item in new_colors_data):
@@ -260,6 +309,8 @@ class ProductWorkspaceSaveView(APIView):
 
             image_ids = item.get("image_ids", [])
             deactivate_ids = item.get("deactivate_ids", [])
+            new_images = item.get("new_images", [])
+            order = item.get("order")
             if (
                 not isinstance(image_ids, list)
                 or not all(isinstance(value, int) and not isinstance(value, bool) for value in image_ids)
@@ -267,21 +318,88 @@ class ProductWorkspaceSaveView(APIView):
                 or not isinstance(deactivate_ids, list)
                 or not all(isinstance(value, int) and not isinstance(value, bool) for value in deactivate_ids)
                 or len(deactivate_ids) != len(set(deactivate_ids))
+                or not isinstance(new_images, list)
+                or len(new_images) > 20
             ):
-                raise ValidationError({"images": "شناسه یا ترتیب تصاویر معتبر نیست."})
+                raise ValidationError({"images": "شناسه یا فهرست تصاویر معتبر نیست."})
 
             active_ids = set(VariantImage.objects.filter(
                 variant_id=variant_id, is_active=True
             ).values_list("id", flat=True))
-            if set(image_ids) != active_ids:
-                raise ValidationError({"images": "ترتیب باید شامل تمام تصاویر فعال این رنگ باشد."})
             if not set(deactivate_ids).issubset(active_ids):
                 raise ValidationError({"images": "تصویر برای خارج‌کردن متعلق به این گالری فعال نیست."})
+            remaining_ids = active_ids - set(deactivate_ids)
 
-            reorder_variant_images(variant_id=variant_id, image_ids=image_ids)
+            new_by_key = {}
+            for new_item in new_images:
+                if not isinstance(new_item, dict):
+                    raise ValidationError({"images": "اطلاعات تصویر جدید معتبر نیست."})
+                key = new_item.get("key")
+                alt_text = new_item.get("alt_text", "")
+                if not isinstance(key, str) or not re.fullmatch(r"[a-f0-9]{32}", key):
+                    raise ValidationError({"images": "شناسه تصویر جدید معتبر نیست."})
+                if key in new_by_key or not isinstance(alt_text, str):
+                    raise ValidationError({"images": "شناسه یا متن جایگزین تصویر تکراری یا نامعتبر است."})
+                upload = request.FILES.get(f"image_{key}")
+                if upload is None:
+                    raise ValidationError({"images": "فایل یکی از تصاویر پیش‌نویس ارسال نشده است."})
+                new_by_key[key] = {"upload": upload, "alt_text": alt_text[:200]}
+
+            if sum(item["upload"].size for item in new_by_key.values()) > MAX_WORKSPACE_IMAGE_UPLOAD_BYTES:
+                raise ValidationError({"images": "حجم مجموع تصاویر جدید برای هر رنگ نباید بیشتر از ۹ مگابایت باشد."})
+
+            if order is None:
+                if new_images:
+                    raise ValidationError({"images": "ترتیب تصاویر جدید باید صریحاً ارسال شود."})
+                # Backwards compatibility for callers that only reorder existing images.
+                if set(image_ids) != active_ids:
+                    raise ValidationError({"images": "ترتیب باید شامل تمام تصاویر فعال این رنگ باشد."})
+                ordered_tokens = [f"existing:{image_id}" for image_id in image_ids if image_id not in deactivate_ids]
+            else:
+                if not isinstance(order, list) or len(order) > 100:
+                    raise ValidationError({"images": "ترتیب تصاویر معتبر نیست."})
+                ordered_tokens = order
+                parsed_existing = []
+                parsed_new = []
+                for token in ordered_tokens:
+                    if not isinstance(token, str):
+                        raise ValidationError({"images": "ترتیب تصاویر معتبر نیست."})
+                    if token.startswith("existing:") and token[9:].isdigit():
+                        parsed_existing.append(int(token[9:]))
+                    elif token.startswith("new:") and re.fullmatch(r"[a-f0-9]{32}", token[4:]):
+                        parsed_new.append(token[4:])
+                    else:
+                        raise ValidationError({"images": "شناسه یکی از تصاویر در ترتیب معتبر نیست."})
+                if len(parsed_existing) != len(set(parsed_existing)) or set(parsed_existing) != remaining_ids:
+                    raise ValidationError({"images": "ترتیب باید شامل تمام تصاویر باقی‌مانده همین رنگ باشد."})
+                if len(parsed_new) != len(set(parsed_new)) or set(parsed_new) != set(new_by_key):
+                    raise ValidationError({"images": "ترتیب باید شامل تمام تصاویر جدید پیش‌نویس باشد."})
+
             for image_id in deactivate_ids:
                 deactivate_variant_image(image_id=image_id)
-            saved_images.extend(VariantImage.objects.filter(variant_id=variant_id, is_active=True).order_by("position", "id"))
+
+            created_ids_by_key = {}
+            for token in ordered_tokens:
+                if token.startswith("new:"):
+                    key = token[4:]
+                    image_data = new_by_key[key]
+                    image = upload_variant_image(
+                        variant_id=variant_id,
+                        upload=image_data["upload"],
+                        alt_text=image_data["alt_text"],
+                    )
+                    created_storage_keys.append(image.storage_key)
+                    created_ids_by_key[key] = image.pk
+
+            final_ids = [
+                int(token[9:]) if token.startswith("existing:") else created_ids_by_key[token[4:]]
+                for token in ordered_tokens
+            ]
+            if final_ids:
+                reorder_variant_images(variant_id=variant_id, image_ids=final_ids)
+            saved_images.extend(
+                VariantImage.objects.filter(variant_id=variant_id, is_active=True).order_by("position", "id")
+            )
 
         return Response({
             "product": ProductAdminSerializer(product, context={"request": request}).data,
