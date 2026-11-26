@@ -62,14 +62,15 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const load = useCallback(async (url?: string) => {
+  const load = useCallback(async (url?: string, paymentOverride?: string) => {
     setLoading(true);
     setError("");
     try {
       const query = new URLSearchParams();
       if (search.trim()) query.set("search", search.trim());
       if (status) query.set("status", status);
-      if (payment) query.set("payment_status", payment);
+      if (paymentOverride) query.set("payment_status", paymentOverride);
+      else if (payment) query.set("payment_status", payment);
       const target = url ?? "/api/admin/orders/?" + query.toString();
       const data = await apiRequest<Page>("GET", target);
       setRows(data.results);
@@ -90,13 +91,11 @@ export default function AdminOrdersPage() {
     if (!initialQueryApplied.current) {
       initialQueryApplied.current = true;
       const requestedPayment = new URLSearchParams(window.location.search).get("payment_status");
-      if (requestedPayment === "paid" && payment !== "paid") {
-        setPayment("paid");
-        return;
-      }
+      void Promise.resolve().then(() => load(undefined, requestedPayment === "paid" ? "paid" : undefined));
+      return;
     }
     void Promise.resolve().then(() => load());
-  }, [load, payment]);
+  }, [load]);
 
   async function openOrder(order: Order) {
     setSelected(order);
