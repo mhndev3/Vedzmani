@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { apiRequest, BrowserApiError } from "@/lib/browser-api";
-import VariantImageManager from "./VariantImageManager";
+import { apiMultipartRequest, apiRequest, BrowserApiError } from "@/lib/browser-api";
+import VariantImageManager, { type VariantImageDraft } from "./VariantImageManager";
 import ProductMeasurementManager from "./ProductMeasurementManager";
 import InventoryHistory from "./InventoryHistory";
 import CreateProductWithVariantsForm from "./CreateProductWithVariantsForm";
@@ -20,7 +20,7 @@ type Color = { id: number; product: number; name: string; slug: string; product_
 type VariantSize = { id: number; variant: number; size: number; sku: string; stock_quantity: number; is_active: boolean };
 type Adjustment = { id: number; variant_size: number; quantity_change: number; stock_after: number; reason: string; created_at: string };
 type AdminImage = { id: number; variant: number; url: string; alt_text: string; position: number; is_primary: boolean; is_active: boolean };
-type ImageDraft = { variant: number; image_ids: number[]; deactivate_ids: number[] };
+type ImageDraft = VariantImageDraft;
 type NewColorDraft = { key: string; name: string; hex_color: string; sizes: { size: number; initial_stock: number }[] };
 type NewVariantSizeDraft = { key: string; variant: number; size: number; initial_stock: number };
 
@@ -259,18 +259,30 @@ export default function AdminCatalogPage() {
 
     setSaving(true); setError(""); setNotice("");
     try {
-      const result = await apiRequest<{
-        product: Product;
-        colors: Color[];
-        variant_sizes: VariantSize[];
-      }>("POST", `/api/admin/catalog/products/${selected.id}/workspace-save/`, {
+      const workspace = {
         product: productPayload,
         colors: pendingColors,
         variant_sizes: pendingVariantSizes,
         new_colors: newColorDrafts.map(({ name, hex_color, sizes }) => ({ name: name.trim(), hex_color, sizes })),
         new_variant_sizes: newVariantSizeDrafts.map(({ variant, size, initial_stock }) => ({ variant, size, initial_stock })),
-        images: Object.values(imageDrafts),
+        images: Object.values(imageDrafts).map((draft) => ({
+          variant: draft.variant,
+          image_ids: draft.image_ids,
+          deactivate_ids: draft.deactivate_ids,
+          order: draft.order,
+          new_images: draft.new_images.map(({ key, alt_text }) => ({ key, alt_text })),
+        })),
+      };
+      const body = new FormData();
+      body.append("workspace", JSON.stringify(workspace));
+      Object.values(imageDrafts).forEach((draft) => {
+        draft.new_images.forEach((image) => body.append(`image_${image.key}`, image.file, image.file.name));
       });
+      const result = await apiMultipartRequest<{
+        product: Product;
+        colors: Color[];
+        variant_sizes: VariantSize[];
+      }>("POST", `/api/admin/catalog/products/${selected.id}/workspace-save/`, body);
       setProductFormMode(null);
       setEditingColorId(null);
       setColorName("");
