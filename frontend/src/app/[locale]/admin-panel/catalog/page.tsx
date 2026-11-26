@@ -587,7 +587,7 @@ export default function AdminCatalogPage() {
         <section className="min-w-0">
           {selected ? (
             <div className="space-y-5">
-              {(() => {
+
                 const previewColor = selectedColors.find(color => color.id === selectedPreviewColorId) ?? selectedColors[0] ?? null;
                 const previewImages = previewColor
                   ? images.filter(image => image.variant === previewColor.id && image.is_active)
@@ -628,8 +628,8 @@ export default function AdminCatalogPage() {
                     </div>
                   </div>
                 </section>;
-              })()}
-              <section className="rounded-2xl border border-border bg-card p-5">
+              </section>
+
                 <div className="mb-4 flex items-center justify-between gap-3"><button type="button" className={secondaryClass} onClick={() => setSelected(null)}>← بازگشت به فهرست محصولات</button><span className="text-xs text-muted-foreground">مدیریت محصول</span></div>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><p className="text-xs text-muted-foreground">محصول انتخاب‌شده</p><h2 className="mt-1 text-xl font-bold">{selected.name}</h2><p className="mt-1 text-xs text-muted-foreground">کد محصول: {selected.product_code || "—"} · {formatPrice(selected.sale_price || selected.price)}</p></div>
