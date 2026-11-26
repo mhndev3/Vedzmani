@@ -110,6 +110,8 @@ class ProductWorkspaceSaveView(APIView):
                 variant__product=product,
             )
             data = {key: item[key] for key in ("sku", "is_active") if key in item}
+            if "sku" in data and (not isinstance(data["sku"], str) or not data["sku"].strip()):
+                raise ValidationError({"variant_sizes": "SKU نمی‌تواند خالی باشد."})
             serializer = VariantSizeAdminSerializer(
                 row, data=data, partial=True, context={"request": request}
             )
