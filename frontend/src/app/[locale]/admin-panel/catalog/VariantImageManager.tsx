@@ -18,7 +18,7 @@ type ImageItem = {
   is_active: boolean;
 };
 type ImagePage = { results: ImageItem[]; next: string | null };
-export type StagedVariantImage = { key: string; file: File; alt_text: string };
+export type StagedVariantImage = { key: string; file: File; alt_text: string; preview_url: string };
 export type VariantImageDraft = {
   variant: number;
   image_ids: number[];
@@ -75,7 +75,12 @@ export default function VariantImageManager({
   const [deactivateIds, setDeactivateIds] = useState<number[]>(draft?.deactivate_ids ?? []);
   const [stagedImages, setStagedImages] = useState<StagedVariantImage[]>(draft?.new_images ?? []);
   const [order, setOrder] = useState<string[]>(draft?.order ?? []);
-  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  const stagedImagesRef = useRef(stagedImages);
+  stagedImagesRef.current = stagedImages;
+
+  useEffect(() => () => {
+    stagedImagesRef.current.forEach((item) => URL.revokeObjectURL(item.preview_url));
+  }, []);
 
   const emitDraft = useCallback((next: {
     deactivate_ids?: number[];
@@ -129,13 +134,6 @@ export default function VariantImageManager({
     return () => { cancelled = true; };
   }, [variantId, draftMode]);
 
-  useEffect(() => {
-    const next: Record<string, string> = {};
-    stagedImages.forEach((item) => { next[item.key] = URL.createObjectURL(item.file); });
-    setPreviewUrls(next);
-    return () => Object.values(next).forEach((url) => URL.revokeObjectURL(url));
-  }, [stagedImages]);
-
   const entries = useMemo(() => {
     const existing = new Map(images.map((image) => [`existing:${image.id}`, image]));
     const staged = new Map(stagedImages.map((item) => [`new:${item.key}`, item]));
@@ -173,6 +171,7 @@ export default function VariantImageManager({
       key: crypto.randomUUID().replace(/-/g, ""),
       file,
       alt_text: altText.trim().slice(0, 200),
+      preview_url: URL.createObjectURL(file),
     }));
     const nextStaged = [...stagedImages, ...additions];
     const nextOrder = [...order, ...additions.map((item) => `new:${item.key}`)];
@@ -185,6 +184,7 @@ export default function VariantImageManager({
   }
 
   function removeStaged(item: StagedVariantImage) {
+    URL.revokeObjectURL(item.preview_url);
     const nextStaged = stagedImages.filter((row) => row.key !== item.key);
     const nextOrder = order.filter((token) => token !== `new:${item.key}`);
     setStagedImages(nextStaged);
@@ -252,7 +252,7 @@ export default function VariantImageManager({
                 <article key={entry.token} className="overflow-hidden rounded-xl border border-border">
                   <div className="relative aspect-[4/5] bg-muted">
                     {image ? <Image src={image.url} alt={image.alt_text || "تصویر محصول"} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover" unoptimized /> :
-                      staged ? <img src={previewUrls[staged.key]} alt={staged.alt_text || "پیش‌نمایش تصویر جدید"} className="h-full w-full object-cover" /> : null}
+                      staged ? <img src={staged.preview_url} alt={staged.alt_text || "پیش‌نمایش تصویر جدید"} className="h-full w-full object-cover" /> : null}
                     {index === 0 && <span className="absolute right-2 top-2 rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold">تصویر اصلی پس از ذخیره</span>}
                     {staged && <span className="absolute bottom-2 right-2 rounded-full bg-primary px-2 py-1 text-[10px] font-semibold text-primary-foreground">پیش‌نویس · ذخیره‌نشده</span>}
                   </div>
