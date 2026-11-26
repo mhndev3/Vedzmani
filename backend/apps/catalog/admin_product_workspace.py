@@ -22,6 +22,8 @@ from apps.catalog.models import ColorVariant, Product, Size, VariantImage, Varia
 from apps.inventory.services import adjust_stock
 
 from .admin_media import deactivate_variant_image, reorder_variant_images, upload_variant_image
+
+MAX_WORKSPACE_IMAGE_UPLOAD_BYTES = 9 * 1024 * 1024
 from .admin_serializers import (
     ColorVariantAdminSerializer,
     InventoryAdjustmentAdminSerializer,
@@ -340,6 +342,9 @@ class ProductWorkspaceSaveView(APIView):
                 if upload is None:
                     raise ValidationError({"images": "فایل یکی از تصاویر پیش‌نویس ارسال نشده است."})
                 new_by_key[key] = {"upload": upload, "alt_text": alt_text[:200]}
+
+            if sum(item["upload"].size for item in new_by_key.values()) > MAX_WORKSPACE_IMAGE_UPLOAD_BYTES:
+                raise ValidationError({"images": "حجم مجموع تصاویر جدید برای هر رنگ نباید بیشتر از ۹ مگابایت باشد."})
 
             if order is None:
                 # Backwards compatibility for callers that only reorder existing images.
