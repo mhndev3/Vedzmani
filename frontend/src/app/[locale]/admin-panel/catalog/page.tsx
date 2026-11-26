@@ -161,11 +161,13 @@ export default function AdminCatalogPage() {
   }, [products, search]);
 
   const selectedColors = selected ? colors.filter((color) => color.product === selected.id).sort((a, b) => a.position - b.position || a.id - b.id) : [];
-  const selectedCategory = selected ? categories.find((category) => category.id === selected.category) : undefined;
-  const activeEditFieldKeys = new Set((categories.find((category) => category.id === Number(categoryId))?.product_fields ?? []).map((field) => field.key));
+  const activeEditCategory = categories.find((category) => category.id === Number(categoryId));
+  const activeEditFieldKeys = new Set((activeEditCategory?.product_fields ?? []).map((field) => field.key));
   const legacyAttributes = selected ? Object.entries(selected.attributes ?? {}).filter(([key]) => !activeEditFieldKeys.has(key)) : [];
+  // Keep existing variant sizes visible for safe editing, while offering only sizes
+  // assigned to the currently selected category when adding new combinations.
   const editableSizeIds = new Set([
-    ...(selectedCategory?.sizes ?? []),
+    ...(activeEditCategory?.sizes ?? []),
     ...variantSizes.filter((item) => selectedColors.some((color) => color.id === item.variant)).map((item) => item.size),
   ]);
   const formatPrice = (value: string | number) => Number(value).toLocaleString("fa-IR") + " تومان";
@@ -594,7 +596,7 @@ export default function AdminCatalogPage() {
                     </div>
                     {variantId === color.id && <div className="mt-4 border-t border-border pt-4">
                       <form onSubmit={addVariantSize} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px_auto]">
-                        <label className="text-sm">سایز<select required value={sizeId} onChange={(e) => setSizeId(e.target.value)} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((s) => categories.find((category) => category.id === selected.category)?.sizes.includes(s.id) && !variantSizes.some((vs) => vs.variant === color.id && vs.size === s.id) && !newVariantSizeDrafts.some((draft) => draft.variant === color.id && draft.size === s.id)).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+                        <label className="text-sm">سایز<select required value={sizeId} onChange={(e) => setSizeId(e.target.value)} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((s) => categories.find((category) => category.id === Number(categoryId))?.sizes.includes(s.id) && !variantSizes.some((vs) => vs.variant === color.id && vs.size === s.id) && !newVariantSizeDrafts.some((draft) => draft.variant === color.id && draft.size === s.id)).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
                         <label className="text-sm">موجودی اولیه<input type="number" min="0" step="1" value={newVariantSizeStock} onChange={(e) => setNewVariantSizeStock(e.target.value)} className={inputClass} dir="ltr" /></label>
                         <div className="flex items-end"><button disabled={saving || !sizeId} className={buttonClass}>افزودن به پیش‌نویس</button></div>
                       </form>
@@ -627,7 +629,7 @@ export default function AdminCatalogPage() {
                       <button type="button" className={secondaryClass} onClick={() => setNewColorDrafts((current) => current.filter((item) => item.key !== draft.key))}>حذف پیش‌نویس</button>
                     </div>
                     <div className="mt-3 flex flex-wrap items-end gap-2">
-                      <label className="min-w-[150px] flex-1 text-xs">سایز<select value={newColorSizeSelections[draft.key] ?? ""} onChange={(event) => setNewColorSizeSelections((current) => ({ ...current, [draft.key]: event.target.value }))} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((item) => categories.find((category) => category.id === selected.category)?.sizes.includes(item.id) && !draft.sizes.some((size) => size.size === item.id)).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+                      <label className="min-w-[150px] flex-1 text-xs">سایز<select value={newColorSizeSelections[draft.key] ?? ""} onChange={(event) => setNewColorSizeSelections((current) => ({ ...current, [draft.key]: event.target.value }))} className={inputClass}><option value="">انتخاب سایز</option>{sizes.filter((item) => categories.find((category) => category.id === Number(categoryId))?.sizes.includes(item.id) && !draft.sizes.some((size) => size.size === item.id)).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
                       <label className="w-28 text-xs">موجودی اولیه<input type="number" min="0" step="1" value={newColorSizeStocks[draft.key] ?? "0"} onChange={(event) => setNewColorSizeStocks((current) => ({ ...current, [draft.key]: event.target.value }))} className={inputClass} dir="ltr" /></label>
                       <button type="button" disabled={!newColorSizeSelections[draft.key]} className={secondaryClass} onClick={() => addSizeToNewColor(draft.key)}>افزودن سایز</button>
                     </div>
