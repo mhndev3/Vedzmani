@@ -20,6 +20,7 @@ type Color = { id: number; product: number; name: string; slug: string; product_
 type VariantSize = { id: number; variant: number; size: number; sku: string; stock_quantity: number; is_active: boolean };
 type Adjustment = { id: number; variant_size: number; quantity_change: number; stock_after: number; reason: string; created_at: string };
 type AdminImage = { id: number; variant: number; url: string; alt_text: string; position: number; is_primary: boolean; is_active: boolean };
+type ImageDraft = { variant: number; image_ids: number[]; deactivate_ids: number[] };
 
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
 const buttonClass = "rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50";
@@ -60,6 +61,7 @@ export default function AdminCatalogPage() {
   const [colors, setColors] = useState<Color[]>([]);
   const [variantSizes, setVariantSizes] = useState<VariantSize[]>([]);
   const [images, setImages] = useState<AdminImage[]>([]);
+  const [imageDrafts, setImageDrafts] = useState<Record<number, ImageDraft>>({});
   const [selected, setSelected] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -179,33 +181,97 @@ export default function AdminCatalogPage() {
     setError("");
   }
 
-  async function saveProduct(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true); setError(""); setNotice("");
-    if (productFormMode !== "edit" || !selected) {
-      setSaving(false);
-      setError("حالت ویرایش محصول معتبر نیست؛ برای ساخت محصول از فرم محصول جدید استفاده کنید.");
-      return;
-    }
-    const activeAttributeValues = Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, value.trim() === "//" ? "" : value.trim()]));
-    const preservedLegacyAttributes = Object.fromEntries(Object.entries(selected.attributes ?? {}).filter(([key]) => !activeEditFieldKeys.has(key)));
-    const payload = {
+  async function saveWorkspace(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    if (!selected) return;
+
+    const productPayload = productFormMode === "edit" ? {
       name,
       description: description.trim() === "//" ? "" : description,
-      attributes: { ...preservedLegacyAttributes, ...activeAttributeValues },
+      attributes: {
+        ...Object.fromEntries(Object.entries(selected.attributes ?? {}).filter(([key]) => !activeEditFieldKeys.has(key))),
+        ...Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, value.trim() === "//" ? "" : value.trim()])),
+      },
       price,
       sale_price: salePrice || null,
       category: Number(categoryId),
       collections: collectionIds,
-    };
+    } : {};
+
+    if (productFormMode === "edit" && salePriceInvalid) {
+      setError("قیمت با تخفیف باید کمتر از قیمت اصلی باشد.");
+      return;
+    }
+
+    let draftValidationError = "";
+    const pendingVariantSizes = variantSizes
+      .filter((item) => selectedColors.some((color) => color.id === item.variant))
+      .flatMap((item) => {
+        const sku = (skuDrafts[item.id] ?? item.sku).trim();
+        const rawChange = (stockChanges[item.id] ?? "").trim();
+        if (!rawChange && (!sku || sku === item.sku)) return [];
+        const change = rawChange ? Number(rawChange) : undefined;
+        if (rawChange && (!Number.isInteger(change) || change === 0)) {
+          draftValidationError = "تغییر موجودی باید عدد صحیح و غیرصفر باشد.";
+          return [];
+        }
+        const reason = stockReasons[item.id]?.trim() ?? "";
+        if (rawChange && !reason) {
+          draftValidationError = "برای هر تغییر موجودی، دلیل الزامی است.";
+          return [];
+        }
+        return [{
+          id: item.id,
+          ...(sku && sku !== item.sku ? { sku } : {}),
+          ...(change !== undefined ? { quantity_change: change, stock_reason: reason } : {}),
+        }];
+      });
+
+    if (draftValidationError) {
+      setError(draftValidationError);
+      return;
+    }
+
+    const pendingColors = editingColorId !== null ? [{
+      id: editingColorId,
+      name: colorName.trim(),
+      hex_color: hexColor,
+    }] : [];
+
+    if (pendingColors.some((color) => !color.name)) {
+      setError("نام رنگ نمی‌تواند خالی باشد.");
+      return;
+    }
+
+    setSaving(true); setError(""); setNotice("");
     try {
-      const saved = await apiRequest<Product>("PATCH", `/api/admin/catalog/products/${selected.id}/`, payload);
+      const result = await apiRequest<{
+        product: Product;
+        colors: Color[];
+        variant_sizes: VariantSize[];
+      }>("POST", `/api/admin/catalog/products/${selected.id}/workspace-save/`, {
+        product: productPayload,
+        colors: pendingColors,
+        variant_sizes: pendingVariantSizes,
+        images: Object.values(imageDrafts),
+      });
       setProductFormMode(null);
-      setNotice("اطلاعات محصول ذخیره شد.");
+      setEditingColorId(null);
+      setColorName("");
+      setHexColor("#000000");
+      setSkuDrafts({});
+      setStockChanges({});
+      setStockReasons({});
+      setImageDrafts({});
+      setImageVariantId(null);
+      setNotice("همه تغییرات پیش‌نویس اطلاعات محصول، رنگ، موجودی و ترتیب تصاویر ذخیره شدند.");
       await refresh();
-      setSelected(saved);
-    } catch (e) { setError(errorMessage(e)); }
-    finally { setSaving(false); }
+      setSelected(result.product);
+    } catch (e) {
+      setError(e instanceof Error && !(e instanceof BrowserApiError) ? e.message : errorMessage(e));
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function toggleProductPublication() {
@@ -243,19 +309,6 @@ export default function AdminCatalogPage() {
     try {
       await apiRequest<Color>("PATCH", `/api/admin/catalog/colors/${color.id}/`, { is_active: !color.is_active });
       setNotice(color.is_active ? "رنگ غیرفعال شد؛ اطلاعات و سابقه آن حفظ شد." : "رنگ دوباره فعال شد.");
-      await refresh();
-    } catch (e) { setError(errorMessage(e)); }
-    finally { setSaving(false); }
-  }
-
-  async function saveVariantSku(item: VariantSize) {
-    const nextSku = (skuDrafts[item.id] ?? item.sku).trim();
-    if (!nextSku || nextSku === item.sku) return;
-    setSaving(true); setError(""); setNotice("");
-    try {
-      await apiRequest<VariantSize>("PATCH", `/api/admin/catalog/variant-sizes/${item.id}/`, { sku: nextSku });
-      setSkuDrafts((old) => { const next = { ...old }; delete next[item.id]; return next; });
-      setNotice("SKU ترکیب رنگ و سایز به‌روزرسانی شد.");
       await refresh();
     } catch (e) { setError(errorMessage(e)); }
     finally { setSaving(false); }
@@ -307,19 +360,6 @@ export default function AdminCatalogPage() {
     finally { setSaving(false); }
   }
 
-  async function adjustStock(event: FormEvent<HTMLFormElement>, item: VariantSize) {
-    event.preventDefault();
-    setSaving(true); setError(""); setNotice("");
-    try {
-      await apiRequest<Adjustment>("POST", "/api/admin/inventory/adjustments/", { variant_size: item.id, quantity_change: Number(stockChanges[item.id]), reason: stockReasons[item.id] });
-      setStockChanges((old) => ({ ...old, [item.id]: "" }));
-      setStockReasons((old) => ({ ...old, [item.id]: "" }));
-      setNotice("گردش موجودی با موفقیت ثبت شد.");
-      await refresh();
-    } catch (e) { setError(errorMessage(e)); }
-    finally { setSaving(false); }
-  }
-
   return (
     <main dir="rtl" className="mx-auto w-full max-w-7xl px-4 py-8 sm:py-10">
       <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
@@ -350,7 +390,7 @@ export default function AdminCatalogPage() {
         }}
       />}
       {productFormMode === "edit" && selected && (
-        <form onSubmit={saveProduct} className="mb-7 rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <form onSubmit={saveWorkspace} className="mb-7 rounded-2xl border border-border bg-card p-5 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold">{selected ? "ویرایش محصول" : "ثبت محصول جدید"}</h2>
             <button type="button" className={secondaryClass} onClick={() => setProductFormMode(null)}>انصراف</button>
@@ -401,7 +441,7 @@ export default function AdminCatalogPage() {
             <p className="mb-2 text-sm">مجموعه‌ها</p>
             <div className="flex flex-wrap gap-2">{collections.filter((c) => c.is_active).map((c) => <label key={c.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"><input type="checkbox" checked={collectionIds.includes(c.id)} onChange={(e) => setCollectionIds((old) => e.target.checked ? [...old, c.id] : old.filter((id) => id !== c.id))} />{c.name}</label>)}</div>
           </div>
-          <div className="mt-5 flex flex-wrap gap-2"><button disabled={saving || salePriceInvalid} className={buttonClass}>{saving ? "در حال ذخیره…" : "ذخیره محصول"}</button></div>
+          <div className="mt-5 flex flex-wrap gap-2"><button disabled={saving || salePriceInvalid} className={buttonClass}>{saving ? "در حال ذخیره…" : "ذخیره همه تغییرات"}</button></div>
         </form>
       )}
 
@@ -418,7 +458,7 @@ export default function AdminCatalogPage() {
                   const colorB = productColors.findIndex((color) => color.id === b.variant);
                   return colorA - colorB || a.position - b.position || a.id - b.id;
                 })[0];
-                return <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
+                return <button key={product.id} type="button" onClick={() => { setSelected(product); setProductFormMode(null); setVariantId(null); setImageDrafts({}); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
                   <div className="flex gap-3 p-3">
                     <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {image ? <Image src={image.url} alt={image.alt_text || product.name} fill sizes="80px" className="object-cover" unoptimized /> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">بدون تصویر</div>}
@@ -441,7 +481,7 @@ export default function AdminCatalogPage() {
               <section className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><p className="text-xs text-muted-foreground">محصول انتخاب‌شده</p><h2 className="mt-1 text-xl font-bold">{selected.name}</h2><p className="mt-1 text-xs text-muted-foreground">کد محصول: {selected.product_code || "—"} · {formatPrice(selected.sale_price || selected.price)}</p></div>
-                  <div className="flex flex-wrap gap-2"><button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button><button type="button" disabled={saving} className={selected.is_active ? secondaryClass : buttonClass} onClick={() => void toggleProductPublication()}>{saving ? "در حال ذخیره…" : selected.is_active ? "خروج از فروشگاه" : "انتشار محصول"}</button></div>
+                  <div className="flex flex-wrap gap-2"><button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button><button type="button" disabled={saving} className={buttonClass} onClick={() => void saveWorkspace()}>{saving ? "در حال ذخیره…" : "ذخیره همه تغییرات"}</button><button type="button" disabled={saving} className={selected.is_active ? secondaryClass : buttonClass} onClick={() => void toggleProductPublication()}>{saving ? "در حال ذخیره…" : selected.is_active ? "خروج از فروشگاه" : "انتشار محصول"}</button></div>
                 </div>
               </section>
 
@@ -455,10 +495,10 @@ export default function AdminCatalogPage() {
               <section className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="font-bold">رنگ‌های محصول</h3>
                 <p className="mt-1 text-xs text-muted-foreground">برای هر رنگ یک کارت مستقل ساخته می‌شود؛ کد عددی کارت را سیستم خودکار اختصاص می‌دهد.</p>
-                <form onSubmit={addColor} className="mt-4 grid gap-3 sm:grid-cols-2">
+                <form onSubmit={editingColorId ? saveWorkspace : addColor} className="mt-4 grid gap-3 sm:grid-cols-2">
                   <label className="text-sm">نام رنگ<input required value={colorName} onChange={(e) => setColorName(e.target.value)} className={inputClass} placeholder="مثلاً آبی آسمانی" /></label>
                   <label className="text-sm">کد رنگ<input type="color" value={hexColor} onChange={(e) => setHexColor(e.target.value)} className={inputClass + " h-11 p-1"} dir="ltr" /></label>
-                  <div className="flex items-end gap-2"><button disabled={saving} className={buttonClass}>{editingColorId ? "ذخیره رنگ" : "افزودن رنگ"}</button>{editingColorId && <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(null); setColorName(""); setHexColor("#000000"); }}>لغو</button>}</div>
+                  <div className="flex items-end gap-2"><button disabled={saving} className={buttonClass}>{editingColorId ? "ذخیره همه تغییرات" : "افزودن رنگ"}</button>{editingColorId && <button type="button" className={secondaryClass} onClick={() => { setEditingColorId(null); setColorName(""); setHexColor("#000000"); }}>لغو</button>}</div>
                 </form>
                 <div className="mt-4 space-y-2">
                   {selectedColors.map((color) => <div key={color.id} className="rounded-xl border border-border p-3">
@@ -485,20 +525,20 @@ export default function AdminCatalogPage() {
                             <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><strong>{size?.label || "سایز نامشخص"}{!item.is_active && <span className="mr-2 text-xs text-destructive">غیرفعال</span>}</strong><span className="flex items-center gap-3">موجودی: <b>{item.stock_quantity.toLocaleString("fa-IR")}</b><button type="button" disabled={saving} className={secondaryClass} onClick={() => void toggleVariantSize(item)}>{item.is_active ? "غیرفعال‌سازی" : "فعال‌سازی"}</button></span></div>
                             <div className="mt-3 flex flex-wrap items-end gap-2">
                               <label className="min-w-0 flex-1 text-xs">SKU<input required maxLength={64} value={skuDrafts[item.id] ?? item.sku} onChange={(e) => setSkuDrafts((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} dir="ltr" /></label>
-                              <button type="button" disabled={saving || !(skuDrafts[item.id] ?? item.sku).trim() || (skuDrafts[item.id] ?? item.sku).trim() === item.sku} className={secondaryClass} onClick={() => void saveVariantSku(item)}>ذخیره SKU</button>
+                              
                             </div>
-                            <form onSubmit={(e) => void adjustStock(e, item)} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_auto]">
+                            <div className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr]">
                               <label className="text-xs">تغییر تعداد<input required type="number" step="1" value={stockChanges[item.id] ?? ""} onChange={(e) => setStockChanges((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} dir="ltr" placeholder="+10 / -2" /></label>
                               <label className="text-xs">دلیل تغییر<input required value={stockReasons[item.id] ?? ""} onChange={(e) => setStockReasons((old) => ({ ...old, [item.id]: e.target.value }))} className={inputClass} placeholder="مثلاً ورود بار جدید" /></label>
-                              <div className="flex items-end"><button disabled={saving || !stockChanges[item.id] || Number(stockChanges[item.id]) === 0 || !stockReasons[item.id]?.trim()} className={secondaryClass}>ثبت گردش</button></div>
-                            </form>
+                              <p className="text-xs text-muted-foreground sm:col-span-2">تغییر موجودی همراه سایر تغییرات، با دکمه «ذخیره همه تغییرات» ثبت می‌شود.</p>
+                            </div>
                             <InventoryHistory variantSizeId={item.id} />
                           </div>;
                         })}
                         {variantSizes.filter((vs) => vs.variant === color.id).length === 0 && <p className="text-xs text-muted-foreground">هنوز سایزی برای این رنگ ثبت نشده است.</p>}
                       </div>
                     </div>}
-                    {imageVariantId === color.id && <VariantImageManager variantId={color.id} />}
+                    {imageVariantId === color.id && <VariantImageManager variantId={color.id} draftMode draft={imageDrafts[color.id]} onDraftChange={(draft) => setImageDrafts((old) => ({ ...old, [color.id]: draft }))} />}
                   </div>)}
                   {selectedColors.length === 0 && <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">هنوز رنگی برای این محصول ثبت نشده است.</p>}
                 </div>
