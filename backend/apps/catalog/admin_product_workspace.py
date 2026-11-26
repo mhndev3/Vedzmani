@@ -89,6 +89,8 @@ class ProductWorkspaceSaveView(APIView):
         ):
             if not isinstance(value, list) or len(value) > 200:
                 raise ValidationError({field: "فهرست تغییرات معتبر نیست."})
+        if sum(upload.size for upload in request.FILES.values()) > MAX_WORKSPACE_IMAGE_UPLOAD_BYTES:
+            raise ValidationError({"images": "حجم مجموع تصاویر جدید این محصول نباید بیشتر از ۹ مگابایت باشد."})
 
         permissions = ["catalog.change_product"]
         if colors_data:
