@@ -1,8 +1,9 @@
 # Orders API (Agent 9, Sessions 1–2)
 
 App: `backend/apps/orders`. PostgreSQL is the source of truth. An authenticated user can **create** an order from
-their cart (Session 1) and **read** their own orders (Session 2). Nothing else about the order lifecycle exists
-yet (see "Not implemented").
+their cart and **read** their own orders. SEP payment initiation, server-side verification, callback reconciliation
+and reversal are implemented separately behind feature flags; their contract is documented in `PAYMENT.md`.
+Shipping rules and carrier tariffs are not yet connected to checkout.
 
 ```
 User ─< Order ─< OrderItem >─ catalog.VariantSize        (OrderItem unique (order, variant_size); quantity > 0)
