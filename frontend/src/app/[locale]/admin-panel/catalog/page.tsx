@@ -530,40 +530,69 @@ export default function AdminCatalogPage() {
         </form>
       )}
 
-      {productFormMode !== "create" && <div className="grid gap-6 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.5fr)]">
-        <section className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5">
-          <div className="mb-4 flex items-center justify-between gap-3"><h2 className="font-bold">فهرست محصولات</h2><span className="text-xs text-muted-foreground">{products.length.toLocaleString("fa-IR")} محصول</span></div>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجو با نام یا کد محصول…" className={inputClass + " mb-4"} />
-          {loading ? <p className="py-8 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : visibleProducts.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">محصولی پیدا نشد.</p> : (
-            <div className="max-h-[70vh] space-y-2 overflow-y-auto">
-              {visibleProducts.map((product) => {
-                const productColors = colors.filter((color) => color.product === product.id).sort((a, b) => a.position - b.position || a.id - b.id);
-                const image = images.filter((item) => productColors.some((color) => color.id === item.variant)).sort((a, b) => {
-                  const colorA = productColors.findIndex((color) => color.id === a.variant);
-                  const colorB = productColors.findIndex((color) => color.id === b.variant);
-                  return colorA - colorB || a.position - b.position || a.id - b.id;
-                })[0];
-                return <button key={product.id} type="button" onClick={() => { setSelected(product); setCategoryId(String(product.category)); setProductFormMode(null); setVariantId(null); setImageDrafts({}); setNewColorDrafts([]); setNewVariantSizeDrafts([]); setNewColorSizeSelections({}); setNewColorSizeStocks({}); setNewVariantSizeStock("0"); setEditingColorId(null); setSkuDrafts({}); setStockChanges({}); setStockReasons({}); setError(""); }} className={"w-full overflow-hidden rounded-xl border text-right transition " + (selected?.id === product.id ? "border-primary bg-muted" : "border-border hover:bg-muted/60")}>
-                  <div className="flex gap-3 p-3">
-                    <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
-                      {image ? <Image src={image.url} alt={image.alt_text || product.name} fill sizes="80px" className="object-cover" unoptimized /> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">بدون تصویر</div>}
+      {productFormMode !== "create" && <div className="block">
+        {!selected && <section className="min-w-0">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold">همه محصولات</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{colors.length.toLocaleString("fa-IR")} کارت رنگی</p>
+            </div>
+            <label className="w-full sm:max-w-sm">
+              <span className="sr-only">جستجوی محصولات</span>
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجو با نام محصول، کد یا رنگ…" className={inputClass} />
+            </label>
+          </div>
+          {loading ? <p className="py-12 text-center text-sm text-muted-foreground">در حال دریافت اطلاعات…</p> : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {colors
+                .filter((color) => {
+                  const product = products.find((item) => item.id === color.product);
+                  const term = search.trim().toLocaleLowerCase();
+                  return Boolean(product) && (!term || product!.name.toLocaleLowerCase().includes(term) || String(product!.product_code ?? "").includes(term) || color.name.toLocaleLowerCase().includes(term) || color.product_code.includes(term));
+                })
+                .sort((a, b) => {
+                  const productA = products.find((item) => item.id === a.product);
+                  const productB = products.find((item) => item.id === b.product);
+                  return (productA?.name ?? "").localeCompare(productB?.name ?? "", "fa");
+                })
+                .map((color) => {
+                  const product = products.find((item) => item.id === color.product);
+                  if (!product) return null;
+                  const image = images.filter((item) => item.variant === color.id && item.is_active)
+                    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.position - b.position || a.id - b.id)[0];
+                  const colorSizes = variantSizes.filter((item) => item.variant === color.id && item.is_active);
+                  const inStock = colorSizes.some((item) => item.stock_quantity > 0);
+                  return <button key={color.id} type="button" onClick={() => {
+                    setSelected(product); setCategoryId(String(product.category)); setProductFormMode(null);
+                    setVariantId(null); setImageDrafts({}); setNewColorDrafts([]); setNewVariantSizeDrafts([]);
+                    setNewColorSizeSelections({}); setNewColorSizeStocks({}); setNewVariantSizeStock("0");
+                    setEditingColorId(null); setSkuDrafts({}); setStockChanges({}); setStockReasons({}); setError("");
+                  }} className="group min-w-0 rounded-2xl border border-border bg-card p-2.5 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                    <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted">
+                      {image ? <Image src={image.url} alt={image.alt_text || product.name} fill sizes="(min-width:1024px) 20vw, (min-width:640px) 33vw, 50vw" className="object-cover transition-transform group-hover:scale-[1.02]" unoptimized /> : <span className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">بدون تصویر</span>}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="flex items-start justify-between gap-2"><strong className="text-sm">{product.name}</strong><span className={"shrink-0 rounded-full px-2 py-1 text-[11px] " + (product.is_active ? "bg-muted text-foreground" : "bg-destructive/10 text-destructive")}>{product.is_active ? "منتشر" : "پیش‌نویس"}</span></span>
-                      <span className="mt-2 block text-xs text-muted-foreground">کد محصول: {product.product_code || "—"}</span>
-                      <span className="mt-1 flex flex-wrap items-center gap-2 text-xs"><span className={product.sale_price ? "text-muted-foreground line-through" : "font-semibold"}>{formatPrice(product.price)}</span>{product.sale_price && <strong className="text-foreground">{formatPrice(product.sale_price)}</strong>}</span>
-                    </div>
-                  </div>
-                </button>;
-              })}
+                    <h3 className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold text-foreground">{product.name}</h3>
+                    <p className="mt-1 flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                      <span>{color.name}</span><span className="size-3.5 rounded-sm border border-border" style={{ backgroundColor: color.hex_color || "#777" }} />
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">کد محصول: {color.product_code || product.product_code || "—"}</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">{formatPrice(product.sale_price || product.price)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{inStock ? "موجود" : "ناموجود"} · {product.is_active ? "منتشرشده" : "پیش‌نویس"}</p>
+                  </button>;
+                })}
             </div>
           )}
-        </section>
-
+          {!loading && colors.filter((color) => {
+            const product = products.find((item) => item.id === color.product);
+            const term = search.trim().toLocaleLowerCase();
+            return Boolean(product) && (!term || product!.name.toLocaleLowerCase().includes(term) || String(product!.product_code ?? "").includes(term) || color.name.toLocaleLowerCase().includes(term) || color.product_code.includes(term));
+          }).length === 0 && <p className="rounded-xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">محصولی پیدا نشد.</p>}
+        </section>}
         <section className="min-w-0">
-          {!selected ? <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-border p-6 text-center"><span className="text-3xl">▦</span><h2 className="mt-3 font-semibold">یک محصول انتخاب کنید</h2><p className="mt-2 text-sm text-muted-foreground">یا محصول جدیدی بسازید تا رنگ‌ها و سایزهای آن را مدیریت کنید.</p></div> : (
+          {selected ? (
             <div className="space-y-5">
               <section className="rounded-2xl border border-border bg-card p-5">
+                <div className="mb-4 flex items-center justify-between gap-3"><button type="button" className={secondaryClass} onClick={() => setSelected(null)}>← بازگشت به فهرست محصولات</button><span className="text-xs text-muted-foreground">مدیریت محصول</span></div>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><p className="text-xs text-muted-foreground">محصول انتخاب‌شده</p><h2 className="mt-1 text-xl font-bold">{selected.name}</h2><p className="mt-1 text-xs text-muted-foreground">کد محصول: {selected.product_code || "—"} · {formatPrice(selected.sale_price || selected.price)}</p></div>
                   <div className="flex flex-wrap gap-2"><button type="button" className={secondaryClass} onClick={() => resetProductForm(selected)}>ویرایش مشخصات</button><button type="button" disabled={saving} className={buttonClass} onClick={() => void saveWorkspace()}>{saving ? "در حال ذخیره…" : "ذخیره همه تغییرات"}</button><button type="button" disabled={saving} className={selected.is_active ? secondaryClass : buttonClass} onClick={() => void toggleProductPublication()}>{saving ? "در حال ذخیره…" : selected.is_active ? "خروج از فروشگاه" : "انتشار محصول"}</button></div>
