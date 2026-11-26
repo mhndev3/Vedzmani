@@ -124,6 +124,13 @@ export default function AdminCatalogPage() {
       setSizes(data.sizes);
       setColors(data.colors);
       setVariantSizes(data.variantSizes);
+      const requestedMode = new URLSearchParams(window.location.search).get("mode");
+      if (requestedMode === "create") {
+        setSelected(null);
+        setProductFormMode("create");
+      } else if (requestedMode === "edit") {
+        setProductFormMode(null);
+      }
       setLoading(false);
     }).catch((e: unknown) => {
       if (!cancelled) setError(errorMessage(e));
