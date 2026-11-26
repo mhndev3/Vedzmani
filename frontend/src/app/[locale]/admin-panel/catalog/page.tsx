@@ -201,6 +201,7 @@ export default function AdminCatalogPage() {
       return;
     }
 
+    let draftValidationError = "";
     const pendingVariantSizes = variantSizes
       .filter((item) => selectedColors.some((color) => color.id === item.variant))
       .flatMap((item) => {
@@ -209,17 +210,25 @@ export default function AdminCatalogPage() {
         if (!rawChange && (!sku || sku === item.sku)) return [];
         const change = rawChange ? Number(rawChange) : undefined;
         if (rawChange && (!Number.isInteger(change) || change === 0)) {
-          throw new Error("تغییر موجودی باید عدد صحیح و غیرصفر باشد.");
+          draftValidationError = "تغییر موجودی باید عدد صحیح و غیرصفر باشد.";
+          return [];
         }
-        if (rawChange && !stockReasons[item.id]?.trim()) {
-          throw new Error("برای هر تغییر موجودی، دلیل الزامی است.");
+        const reason = stockReasons[item.id]?.trim() ?? "";
+        if (rawChange && !reason) {
+          draftValidationError = "برای هر تغییر موجودی، دلیل الزامی است.";
+          return [];
         }
         return [{
           id: item.id,
           ...(sku && sku !== item.sku ? { sku } : {}),
-          ...(change !== undefined ? { quantity_change: change, stock_reason: stockReasons[item.id].trim() } : {}),
+          ...(change !== undefined ? { quantity_change: change, stock_reason: reason } : {}),
         }];
       });
+
+    if (draftValidationError) {
+      setError(draftValidationError);
+      return;
+    }
 
     const pendingColors = editingColorId !== null ? [{
       id: editingColorId,
