@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { apiRequest, apiUploadRequest, BrowserApiError } from "@/lib/browser-api";
 
@@ -55,31 +55,41 @@ export default function VariantImageManager({
   variantId,
   draftMode = false,
   onDraftChange,
+  draft,
 }: {
   variantId: number;
   draftMode?: boolean;
   onDraftChange?: (draft: ImageDraft) => void;
+  draft?: ImageDraft;
 }) {
+  const draftRef = useRef(draft);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [altText, setAltText] = useState("");
-  const [deactivateIds, setDeactivateIds] = useState<number[]>([]);
+  const [deactivateIds, setDeactivateIds] = useState<number[]>(draft?.deactivate_ids ?? []);
+
+  const applyDraftOrder = useCallback((rows: ImageItem[]) => {
+    const current = draftRef.current;
+    if (!current || current.variant !== variantId) return rows;
+    const positions = new Map(current.image_ids.map((id, index) => [id, index]));
+    return [...rows].sort((a, b) => (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+  }, [applyDraftOrder, variantId]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const rows = await getAllImages(variantId);
-      setImages(rows);
+      setImages(applyDraftOrder(rows));
       setError("");
     } catch (e) {
       setError(message(e));
     } finally {
       setLoading(false);
     }
-  }, [variantId]);
+  }, [applyDraftOrder, variantId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,7 +97,7 @@ export default function VariantImageManager({
       try {
         const rows = await getAllImages(variantId);
         if (!cancelled) {
-          setImages(rows);
+          setImages(applyDraftOrder(rows));
           setError("");
         }
       } catch (e) {
@@ -126,11 +136,13 @@ export default function VariantImageManager({
     [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
     if (draftMode) {
       setImages(reordered);
-      onDraftChange?.({
+      const nextDraft = {
         variant: variantId,
         image_ids: reordered.map((image) => image.id),
         deactivate_ids: deactivateIds,
-      });
+      };
+      draftRef.current = nextDraft;
+      onDraftChange?.(nextDraft);
       setNotice("ترتیب جدید پیش‌نویس شد؛ با ذخیره همه تغییرات اعمال می‌شود.");
       return;
     }
@@ -153,11 +165,9 @@ export default function VariantImageManager({
     if (deactivateIds.includes(image.id)) {
       const next = deactivateIds.filter((id) => id !== image.id);
       setDeactivateIds(next);
-      onDraftChange?.({
-        variant: variantId,
-        image_ids: images.map((item) => item.id),
-        deactivate_ids: next,
-      });
+      const nextDraft = { variant: variantId, image_ids: images.map((item) => item.id), deactivate_ids: next };
+      draftRef.current = nextDraft;
+      onDraftChange?.(nextDraft);
       setNotice("تصویر به پیش‌نویس گالری بازگردانده شد.");
       return;
     }
@@ -165,11 +175,9 @@ export default function VariantImageManager({
     if (draftMode) {
       const next = [...deactivateIds, image.id];
       setDeactivateIds(next);
-      onDraftChange?.({
-        variant: variantId,
-        image_ids: images.map((item) => item.id),
-        deactivate_ids: next,
-      });
+      const nextDraft = { variant: variantId, image_ids: images.map((item) => item.id), deactivate_ids: next };
+      draftRef.current = nextDraft;
+      onDraftChange?.(nextDraft);
       setNotice("حذف تصویر پیش‌نویس شد؛ با ذخیره همه تغییرات اعمال می‌شود.");
       return;
     }
