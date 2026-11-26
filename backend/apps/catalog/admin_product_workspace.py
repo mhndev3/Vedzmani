@@ -6,7 +6,7 @@ It does not introduce a second stock writer or bypass image deactivation semanti
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -164,7 +164,7 @@ class ProductWorkspaceSaveView(APIView):
             ordered = reorder_variant_images(variant_id=variant_id, image_ids=image_ids)
             for image_id in deactivate_ids:
                 deactivate_variant_image(image_id=image_id)
-            saved_images.extend(ordered)
+            saved_images.extend(VariantImage.objects.filter(variant_id=variant_id, is_active=True).order_by("position", "id"))
 
         return Response({
             "product": ProductAdminSerializer(product, context={"request": request}).data,
