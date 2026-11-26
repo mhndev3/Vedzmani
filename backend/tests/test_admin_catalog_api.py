@@ -1046,3 +1046,76 @@ def test_product_publication_can_be_toggled_without_mutating_children_and_requir
     product.refresh_from_db()
     assert product.is_active is False
     assert row.stock_quantity == 7
+
+
+def test_product_workspace_category_change_uses_new_category_sizes_and_preserves_existing_sizes(make_staff):
+    old_category = Category.objects.create(name="دسته قدیمی", slug="workspace-old-category")
+    new_category = Category.objects.create(name="دسته جدید", slug="workspace-new-category")
+    old_size = Size.objects.create(code="old-size", label="سایز قدیمی")
+    new_size = Size.objects.create(code="new-size", label="سایز جدید")
+    new_color_size = Size.objects.create(code="new-color-size", label="سایز رنگ جدید")
+    old_category.sizes.add(old_size)
+    new_category.sizes.add(new_size, new_color_size)
+    product = Product.objects.create(
+        category=old_category, name="محصول", slug="workspace-category-change", price=Decimal("1000000")
+    )
+    color = ColorVariant.objects.create(product=product, name="مشکی", slug="black")
+    existing = VariantSize.objects.create(variant=color, size=old_size, sku="WORKSPACE-OLD-SIZE")
+
+    client = client_for(make_staff(
+        "catalog.change_product", "catalog.add_colorvariant", "catalog.add_variantsize",
+    ))
+    response = client.post(
+        f"/api/admin/catalog/products/{product.pk}/workspace-save/",
+        {
+            "product": {"category": new_category.pk},
+            "new_variant_sizes": [{"variant": color.pk, "size": new_size.pk, "initial_stock": 0}],
+            "new_colors": [{
+                "name": "آبی",
+                "hex_color": "#87CEEB",
+                "sizes": [{"size": new_color_size.pk, "initial_stock": 0}],
+            }],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200, response.content
+    product.refresh_from_db()
+    existing.refresh_from_db()
+    assert product.category_id == new_category.pk
+    assert VariantSize.objects.filter(pk=existing.pk, size=old_size).exists()
+    assert VariantSize.objects.filter(variant=color, size=new_size).exists()
+    created_color = ColorVariant.objects.get(product=product, name="آبی")
+    assert VariantSize.objects.filter(variant=created_color, size=new_color_size).exists()
+
+
+def test_product_workspace_rejects_sizes_outside_changed_category_and_rolls_back(make_staff):
+    old_category = Category.objects.create(name="دسته قدیمی", slug="workspace-reject-old")
+    new_category = Category.objects.create(name="دسته جدید", slug="workspace-reject-new")
+    old_size = Size.objects.create(code="reject-old", label="سایز قبلی")
+    allowed_size = Size.objects.create(code="reject-allowed", label="سایز مجاز")
+    rejected_size = Size.objects.create(code="reject-size", label="سایز نامجاز")
+    old_category.sizes.add(old_size)
+    new_category.sizes.add(allowed_size)
+    product = Product.objects.create(
+        category=old_category, name="محصول", slug="workspace-reject-category-change", price=Decimal("1000000")
+    )
+    color = ColorVariant.objects.create(product=product, name="مشکی", slug="black")
+    existing = VariantSize.objects.create(variant=color, size=old_size, sku="WORKSPACE-REJECT-OLD")
+
+    client = client_for(make_staff("catalog.change_product", "catalog.add_variantsize"))
+    response = client.post(
+        f"/api/admin/catalog/products/{product.pk}/workspace-save/",
+        {
+            "product": {"category": new_category.pk},
+            "new_variant_sizes": [{"variant": color.pk, "size": rejected_size.pk, "initial_stock": 0}],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400, response.content
+    product.refresh_from_db()
+    existing.refresh_from_db()
+    assert product.category_id == old_category.pk
+    assert VariantSize.objects.filter(pk=existing.pk).exists()
+    assert not VariantSize.objects.filter(variant=color, size=rejected_size).exists()
