@@ -5,7 +5,37 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { authApi } from "@/lib/auth/api";
 import type { AuthUser } from "@/lib/auth/api";
-import ProductRemovalManager from "./ProductRemovalManager";
+
+const workspaceItems = [
+  {
+    title: "محصول جدید",
+    description: "ثبت نام، رنگ، تصاویر، دسته‌بندی، سایزها و موجودی اولیه محصول",
+    href: (locale: string) => `/${locale}/admin-panel/catalog?mode=create`,
+    icon: "＋",
+    featured: true,
+  },
+  {
+    title: "ویرایش محصولات",
+    description: "مشاهده کارت محصولات و مدیریت مشخصات، تصاویر، قیمت و موجودی",
+    href: (locale: string) => `/${locale}/admin-panel/catalog?mode=edit`,
+    icon: "▦",
+    featured: false,
+  },
+  {
+    title: "مدیریت دسته‌بندی‌ها",
+    description: "افزودن و ویرایش دسته‌بندی‌ها و مشخصات اختصاصی هر دسته",
+    href: (locale: string) => `/${locale}/admin-panel/catalog/taxonomy`,
+    icon: "◇",
+    featured: false,
+  },
+  {
+    title: "سفارش‌های موفق",
+    description: "مشاهده سفارش‌هایی که پرداخت آن‌ها با موفقیت تأیید شده است",
+    href: (locale: string) => `/${locale}/admin-panel/orders?payment_status=paid`,
+    icon: "▤",
+    featured: false,
+  },
+];
 
 export default function AdminWorkspacePage() {
   const params = useParams<{ locale: string }>();
@@ -35,7 +65,7 @@ export default function AdminWorkspacePage() {
   }, []);
 
   if (checking) {
-    return <main dir="rtl" className="mx-auto w-full max-w-6xl px-4 py-16 text-center text-muted-foreground">در حال بررسی دسترسی مدیریت…</main>;
+    return <main dir="rtl" className="mx-auto w-full max-w-5xl px-4 py-16 text-center text-muted-foreground">در حال بررسی دسترسی مدیریت…</main>;
   }
 
   if (!user) {
@@ -51,86 +81,41 @@ export default function AdminWorkspacePage() {
   }
 
   return (
-    <main dir="rtl" className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-12">
-      <div className="flex flex-col gap-4 border-b border-border pb-7 sm:flex-row sm:items-end sm:justify-between">
+    <main dir="rtl" className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
+      <header className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-muted-foreground">فضای مدیریت ودزمانی</p>
+          <p className="text-sm font-medium text-muted-foreground">ودزمانی</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">پنل مدیریت</h1>
-          <p className="mt-2 text-sm text-muted-foreground">مدیریت فروشگاه از یک فضای یکپارچه</p>
+          <p className="mt-2 text-sm text-muted-foreground">ابزارهای اصلی مدیریت فروشگاه</p>
         </div>
-        <Link href={"/" + locale + "?admin=1"} className="inline-flex w-fit items-center rounded-xl border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted">مشاهده فروشگاه در حالت مدیریت</Link>
-      </div>
+        <div className="text-sm text-muted-foreground">
+          مدیر: <span className="font-medium text-foreground" dir="ltr">{user.phone}</span>
+        </div>
+      </header>
 
-      <section className="mt-7 rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold">حساب مدیر</h2>
-            <p className="mt-1 text-sm text-muted-foreground" dir="ltr">{user.phone}</p>
-          </div>
-          <span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">دسترسی مدیریتی تأیید شد</span>
-        </div>
+      <section aria-label="بخش‌های اصلی پنل مدیریت" className="mt-7 grid gap-4 sm:grid-cols-2">
+        {workspaceItems.map((item) => (
+          <Link
+            key={item.title}
+            href={item.href(locale)}
+            className={`group flex min-h-36 items-start gap-4 rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-sm ${item.featured ? "border-primary/40 bg-primary/5 hover:bg-primary/10" : "border-border bg-card hover:bg-muted/50"}`}
+          >
+            <span aria-hidden="true" className={`flex size-11 shrink-0 items-center justify-center rounded-xl text-xl font-bold ${item.featured ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+              {item.icon}
+            </span>
+            <span className="min-w-0">
+              <strong className="block text-base">{item.title}</strong>
+              <span className="mt-2 block text-sm leading-7 text-muted-foreground">{item.description}</span>
+              <span className="mt-3 block text-xs font-semibold text-primary">ورود به بخش ←</span>
+            </span>
+          </Link>
+        ))}
       </section>
 
-      <Link href={"/" + locale + "/admin-panel/catalog"} className="mt-7 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">
-        <div><h2 className="font-bold">مدیریت اختصاصی محصولات</h2><p className="mt-1 text-sm text-muted-foreground">ساخت و ویرایش محصول، رنگ‌بندی، سایزبندی و کنترل موجودی</p></div>
-        <span className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">ورود به کاتالوگ ←</span>
-      </Link>
-
-      <Link href={"/" + locale + "/admin-panel/catalog/taxonomy"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
-        <div><h2 className="font-bold">مدیریت دسته‌بندی‌ها و مجموعه‌ها</h2><p className="mt-1 text-sm text-muted-foreground">ساخت، ویرایش، مرتب‌سازی و فعال‌سازی ساختار کاتالوگ</p></div>
-        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت ساختار ←</span>
-      </Link>
-
-      <ProductRemovalManager />
-
-      <Link href={"/" + locale + "/admin-panel/media"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">
-        <div><h2 className="font-bold">کتابخانه رسانه</h2><p className="mt-1 text-sm text-muted-foreground">جستجو و مشاهده یکپارچه تصاویر محصولات و بنرهای صفحه اصلی</p></div>
-        <span className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">ورود به کتابخانه ←</span>
-      </Link>
-
-      <Link href={"/" + locale + "/admin-panel/homepage/banners"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
-        <div><h2 className="font-bold">مدیریت بنرهای صفحه اصلی</h2><p className="mt-1 text-sm text-muted-foreground">آپلود تصویر دسکتاپ و موبایل، متن، دکمه و زمان‌بندی نمایش بنرها</p></div>
-        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت بنرها ←</span>
-      </Link>
-
-      <Link href={"/" + locale + "/admin-panel/storefront/theme"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
-        <div><h2 className="font-bold">شخصی‌سازی ظاهر فروشگاه</h2><p className="mt-1 text-sm text-muted-foreground">قالب‌های رنگ، فونت، گردی اجزا و حرکت‌های رابط کاربری</p></div>
-        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">تنظیم ظاهر ←</span>
-      </Link>
-
-
-      <Link href={"/" + locale + "/admin-panel/customers"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
-        <div><h2 className="font-bold">مدیریت مشتریان</h2><p className="mt-1 text-sm text-muted-foreground">فهرست حساب‌ها، وضعیت عضویت و خلاصه سفارش‌ها با رعایت حریم خصوصی</p></div>
-        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مشاهده مشتریان ←</span>
-      </Link>
-
-      <Link href={"/" + locale + "/admin-panel/support"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
-        <div><h2 className="font-bold">پشتیبانی مشتریان</h2><p className="mt-1 text-sm text-muted-foreground">صندوق تیکت‌ها، گفت‌وگو با مشتری و مدیریت وضعیت درخواست‌ها</p></div>
-        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">ورود به پشتیبانی ←</span>
-      </Link>
-
-      <Link href={"/" + locale + "/admin-panel/shipping"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
-        <div><h2 className="font-bold">مدیریت روش‌های ارسال</h2><p className="mt-1 text-sm text-muted-foreground">تعریف شرکت حمل، تعرفه‌ها، محدوده سرویس‌دهی و زمان تحویل</p></div>
-        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت ارسال ←</span>
-      </Link>
-
-      <Link href={"/" + locale + "/admin-panel/homepage"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:bg-primary/10">
-        <div><h2 className="font-bold">مدیریت صفحه اصلی</h2><p className="mt-1 text-sm text-muted-foreground">ساخت و انتشار بخش‌های دسته‌بندی و محصولات منتخب در ویترین فروشگاه</p></div>
-        <span className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">مدیریت صفحه اصلی ←</span>
-      </Link>
-
-
-      <Link href={"/" + locale + "/admin-panel/staff"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
-        <div><h2 className="font-bold">مدیریت مدیران و نقش‌ها</h2><p className="mt-1 text-sm text-muted-foreground">تعریف نقش‌ها، تعیین مجوزها و تخصیص دسترسی به مدیران</p></div>
-        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مدیریت دسترسی‌ها ←</span>
-      </Link>
-
-      <Link href={"/" + locale + "/admin-panel/audit-log"} className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
-        <div><h2 className="font-bold">تاریخچه فعالیت مدیران</h2><p className="mt-1 text-sm text-muted-foreground">مشاهده عملیات مدیریتی، زمان اجرا و نتیجه درخواست‌ها</p></div>
-        <span className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">مشاهده تاریخچه ←</span>
-      </Link>
-
-
+      <footer className="mt-8 rounded-2xl border border-dashed border-border bg-muted/30 px-5 py-4 text-center">
+        <p className="font-semibold">سایر امکانات پنل در حال توسعه است</p>
+        <p className="mt-1 text-xs leading-6 text-muted-foreground">بخش‌های بیشتری به‌مرور و پس از تکمیل امکانات اصلی اضافه خواهند شد.</p>
+      </footer>
     </main>
   );
 }
