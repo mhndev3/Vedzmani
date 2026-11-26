@@ -79,6 +79,19 @@ export default function VariantImageManager({
     return [...rows].sort((a, b) => (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER));
   }, [variantId]);
 
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const rows = await getAllImages(variantId);
+      setImages(applyDraftOrder(rows));
+      setError("");
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [applyDraftOrder, variantId]);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
