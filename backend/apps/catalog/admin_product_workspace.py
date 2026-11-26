@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.catalog.models import ColorVariant, Product, VariantImage, VariantSize
+from apps.catalog.models import ColorVariant, Product, Size, VariantImage, VariantSize
 from apps.inventory.services import adjust_stock
 
 from .admin_media import deactivate_variant_image, reorder_variant_images
@@ -44,6 +44,8 @@ class ProductWorkspaceSaveView(APIView):
         colors_data = payload.get("colors", [])
         variant_sizes_data = payload.get("variant_sizes", [])
         images_data = payload.get("images", [])
+        new_colors_data = payload.get("new_colors", [])
+        new_variant_sizes_data = payload.get("new_variant_sizes", [])
 
         if not isinstance(product_data, dict):
             raise ValidationError({"product": "اطلاعات محصول باید یک شیء باشد."})
@@ -51,6 +53,8 @@ class ProductWorkspaceSaveView(APIView):
             ("colors", colors_data),
             ("variant_sizes", variant_sizes_data),
             ("images", images_data),
+            ("new_colors", new_colors_data),
+            ("new_variant_sizes", new_variant_sizes_data),
         ):
             if not isinstance(value, list) or len(value) > 200:
                 raise ValidationError({field: "فهرست تغییرات معتبر نیست."})
@@ -64,6 +68,20 @@ class ProductWorkspaceSaveView(APIView):
             permissions.extend(["inventory.add_inventoryadjustment", "catalog.view_variantsize"])
         if images_data:
             permissions.append("catalog.change_variantimage")
+        if new_colors_data:
+            permissions.append("catalog.add_colorvariant")
+        if new_variant_sizes_data or any(isinstance(item, dict) and item.get("sizes") for item in new_colors_data):
+            permissions.append("catalog.add_variantsize")
+        has_initial_stock = any(
+            isinstance(size, dict) and size.get("initial_stock", 0) not in (None, "", 0, "0")
+            for color in new_colors_data if isinstance(color, dict)
+            for size in color.get("sizes", []) if isinstance(color.get("sizes", []), list)
+        ) or any(
+            isinstance(item, dict) and item.get("initial_stock", 0) not in (None, "", 0, "0")
+            for item in new_variant_sizes_data
+        )
+        if has_initial_stock:
+            permissions.extend(["inventory.add_inventoryadjustment", "catalog.view_variantsize"])
         self._require(request.user, *permissions)
 
         product = get_object_or_404(
@@ -93,6 +111,63 @@ class ProductWorkspaceSaveView(APIView):
             )
             serializer.is_valid(raise_exception=True)
             saved_colors.append(serializer.save())
+
+        # New colors and their size combinations are created only when the whole workspace is saved.
+        # All rows remain inside this transaction, including audited opening-stock adjustments.
+        for color_item in new_colors_data:
+            if not isinstance(color_item, dict):
+                raise ValidationError({"new_colors": "اطلاعات رنگ جدید معتبر نیست."})
+            name = color_item.get("name")
+            hex_color = color_item.get("hex_color", "#000000")
+            if not isinstance(name, str) or not name.strip():
+                raise ValidationError({"new_colors": "نام رنگ نمی‌تواند خالی باشد."})
+            color_position = color_item.get("position", product.color_variants.count())
+            color_serializer = ColorVariantAdminSerializer(
+                data={
+                    "product": product.pk,
+                    "name": name.strip(),
+                    "hex_color": hex_color,
+                    "position": color_position,
+                    "is_active": True,
+                },
+                context={"request": request},
+            )
+            color_serializer.is_valid(raise_exception=True)
+            created_color = color_serializer.save()
+            saved_colors.append(created_color)
+
+            sizes = color_item.get("sizes", [])
+            if not isinstance(sizes, list) or len(sizes) > 100:
+                raise ValidationError({"new_colors": "فهرست سایزهای رنگ جدید معتبر نیست."})
+            seen_sizes = set()
+            for size_item in sizes:
+                if not isinstance(size_item, dict):
+                    raise ValidationError({"new_colors": "اطلاعات سایز جدید معتبر نیست."})
+                size_id = size_item.get("size")
+                if isinstance(size_id, bool) or not isinstance(size_id, int) or size_id in seen_sizes:
+                    raise ValidationError({"new_colors": "شناسه سایز معتبر یا یکتا نیست."})
+                seen_sizes.add(size_id)
+                if not product.category.sizes.filter(pk=size_id).exists():
+                    raise ValidationError({"new_colors": "این سایز برای دسته‌بندی محصول مجاز نیست."})
+                size = get_object_or_404(Size, pk=size_id)
+                variant_size_serializer = VariantSizeAdminSerializer(
+                    data={"variant": created_color.pk, "size": size.pk},
+                    context={"request": request},
+                )
+                variant_size_serializer.is_valid(raise_exception=True)
+                created_variant_size = variant_size_serializer.save()
+                saved_variant_sizes.append(created_variant_size)
+
+                initial_stock = size_item.get("initial_stock", 0)
+                if isinstance(initial_stock, bool) or not isinstance(initial_stock, int) or initial_stock < 0:
+                    raise ValidationError({"new_colors": "موجودی اولیه باید عدد صحیح و نامنفی باشد."})
+                if initial_stock:
+                    adjustments.append(adjust_stock(
+                        variant_size_id=created_variant_size.pk,
+                        quantity_change=initial_stock,
+                        reason="موجودی اولیه هنگام ساخت ترکیب رنگ و سایز",
+                        created_by=request.user,
+                    ))
 
         saved_variant_sizes = []
         adjustments = []
@@ -129,6 +204,43 @@ class ProductWorkspaceSaveView(APIView):
                     variant_size_id=row.pk,
                     quantity_change=change,
                     reason=reason,
+                    created_by=request.user,
+                ))
+
+        for item in new_variant_sizes_data:
+            if not isinstance(item, dict):
+                raise ValidationError({"new_variant_sizes": "اطلاعات سایز جدید معتبر نیست."})
+            variant_id = item.get("variant")
+            size_id = item.get("size")
+            if (
+                isinstance(variant_id, bool) or not isinstance(variant_id, int)
+                or isinstance(size_id, bool) or not isinstance(size_id, int)
+            ):
+                raise ValidationError({"new_variant_sizes": "شناسه رنگ یا سایز معتبر نیست."})
+            color = get_object_or_404(
+                ColorVariant.objects.select_for_update(), pk=variant_id, product=product
+            )
+            if not product.category.sizes.filter(pk=size_id).exists():
+                raise ValidationError({"new_variant_sizes": "این سایز برای دسته‌بندی محصول مجاز نیست."})
+            if VariantSize.objects.filter(variant=color, size_id=size_id).exists():
+                raise ValidationError({"new_variant_sizes": "این سایز قبلاً برای این رنگ ثبت شده است."})
+            size = get_object_or_404(Size, pk=size_id)
+            serializer = VariantSizeAdminSerializer(
+                data={"variant": color.pk, "size": size.pk},
+                context={"request": request},
+            )
+            serializer.is_valid(raise_exception=True)
+            created_variant_size = serializer.save()
+            saved_variant_sizes.append(created_variant_size)
+
+            initial_stock = item.get("initial_stock", 0)
+            if isinstance(initial_stock, bool) or not isinstance(initial_stock, int) or initial_stock < 0:
+                raise ValidationError({"new_variant_sizes": "موجودی اولیه باید عدد صحیح و نامنفی باشد."})
+            if initial_stock:
+                adjustments.append(adjust_stock(
+                    variant_size_id=created_variant_size.pk,
+                    quantity_change=initial_stock,
+                    reason="موجودی اولیه هنگام افزودن سایز به رنگ",
                     created_by=request.user,
                 ))
 
