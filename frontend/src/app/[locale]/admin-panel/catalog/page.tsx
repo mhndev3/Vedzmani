@@ -20,6 +20,7 @@ type Color = { id: number; product: number; name: string; slug: string; product_
 type VariantSize = { id: number; variant: number; size: number; sku: string; stock_quantity: number; is_active: boolean };
 type Adjustment = { id: number; variant_size: number; quantity_change: number; stock_after: number; reason: string; created_at: string };
 type AdminImage = { id: number; variant: number; url: string; alt_text: string; position: number; is_primary: boolean; is_active: boolean };
+type ImageDraft = { variant: number; image_ids: number[]; deactivate_ids: number[] };
 
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary";
 const buttonClass = "rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50";
@@ -60,6 +61,7 @@ export default function AdminCatalogPage() {
   const [colors, setColors] = useState<Color[]>([]);
   const [variantSizes, setVariantSizes] = useState<VariantSize[]>([]);
   const [images, setImages] = useState<AdminImage[]>([]);
+  const [imageDrafts, setImageDrafts] = useState<Record<number, ImageDraft>>({});
   const [selected, setSelected] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -251,6 +253,7 @@ export default function AdminCatalogPage() {
         product: productPayload,
         colors: pendingColors,
         variant_sizes: pendingVariantSizes,
+        images: Object.values(imageDrafts),
       });
       setProductFormMode(null);
       setEditingColorId(null);
@@ -259,7 +262,8 @@ export default function AdminCatalogPage() {
       setSkuDrafts({});
       setStockChanges({});
       setStockReasons({});
-      setNotice("همه تغییرات اطلاعات محصول، رنگ و موجودی با موفقیت ذخیره شدند.");
+      setImageDrafts({});
+      setNotice("همه تغییرات پیش‌نویس اطلاعات محصول، رنگ، موجودی و ترتیب تصاویر ذخیره شدند.");
       await refresh();
       setSelected(result.product);
     } catch (e) {
@@ -533,7 +537,7 @@ export default function AdminCatalogPage() {
                         {variantSizes.filter((vs) => vs.variant === color.id).length === 0 && <p className="text-xs text-muted-foreground">هنوز سایزی برای این رنگ ثبت نشده است.</p>}
                       </div>
                     </div>}
-                    {imageVariantId === color.id && <VariantImageManager variantId={color.id} />}
+                    {imageVariantId === color.id && <VariantImageManager variantId={color.id} draftMode onDraftChange={(draft) => setImageDrafts((old) => ({ ...old, [color.id]: draft }))} />}
                   </div>)}
                   {selectedColors.length === 0 && <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">هنوز رنگی برای این محصول ثبت نشده است.</p>}
                 </div>
