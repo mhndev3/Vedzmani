@@ -129,6 +129,12 @@ body {
 
 .auth-step { animation: auth-step-enter 280ms cubic-bezier(.2,.75,.25,1) both; }
 
+/* Admin workspaces need stronger secondary-text contrast in dark mode. */
+.admin-panel {
+  --muted-foreground: #bdbdbd;
+}
+
+
 
 html[data-motion="none"] *,
 html[data-motion="none"] *::before,
