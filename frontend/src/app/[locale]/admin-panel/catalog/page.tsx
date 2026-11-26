@@ -192,6 +192,15 @@ export default function AdminCatalogPage() {
     event?.preventDefault();
     if (!selected) return;
 
+    const stagedUploadBytes = Object.values(imageDrafts).reduce(
+      (total, draft) => total + draft.new_images.reduce((sum, image) => sum + image.file.size, 0),
+      0,
+    );
+    if (stagedUploadBytes > 9 * 1024 * 1024) {
+      setError("حجم مجموع تصاویر جدید این محصول نباید بیشتر از ۹ مگابایت باشد.");
+      return;
+    }
+
     const productPayload = productFormMode === "edit" ? {
       name,
       description: description.trim() === "//" ? "" : description,
