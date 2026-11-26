@@ -96,12 +96,14 @@ per-line `availability` the client can show.
    enough stock.
 4. Price every line from the live catalog (`Product.current_price`: `sale_price` if set, else `price`); the cart
    stores no prices. `subtotal = unit_price × quantity`, `total = Σ subtotal`. No shipping or tax; currency is Toman.
-5. Decrement stock with a guarded update (`stock_quantity >= quantity`), a second line of defence on top of the
-   row lock; stock can never go negative (also a DB constraint on the column).
-6. Insert `Order` (status `pending`, `payment_status` `unpaid`, delivery snapshot, `customer_phone` = the user's phone at
-   that moment) and its `OrderItem`s,
-   then delete the cart's lines (the empty `Cart` row stays).
-Any exception anywhere rolls all of it back (tested by failing after the stock decrement and order insert).
+5. Insert `Order` (status `pending`, `payment_status` `unpaid`, delivery snapshot, `customer_phone` = the user's phone at
+   that moment) and its `OrderItem`s, then delete the cart's lines (the empty `Cart` row stays).
+6. **Do not reserve or decrement stock here.** The order is still unpaid and stock remains unchanged.
+   For SEP, `process_sep_callback` later locks the payment attempt, order, and exact `VariantSize` rows; it
+   performs server-to-server verification, rechecks stock, and only then decrements stock and marks the
+   order paid/confirmed in one database transaction. If stock is insufficient after a verified charge,
+   the backend does not decrement it and requests a SEP reversal. See `PAYMENT.md`.
+Any exception during order creation rolls back the order, its items, and cart changes (covered by tests).
 
 ## Data decisions
 - **Snapshots:** `OrderItem` stores `product_name`, `color_name`, `size_label`, `sku`, `unit_price`, `quantity`,
@@ -109,8 +111,10 @@ Any exception anywhere rolls all of it back (tested by failing after the stock d
 - **References are `PROTECT`:** `Order.user` and `OrderItem.variant_size`. A purchased variant size (or the user)
   cannot be deleted while orders reference it; deactivate (`is_active=False`) instead. Deleting such a product
   through the admin is blocked by Django's protected-objects page for the same reason.
-- **Stock timing:** decremented at order creation (as `CART.md`/`CATALOG.md` prescribe). Because nothing can cancel,
-  expire or restock an order yet, stock removed here is not returned automatically.
+- **Stock timing:** order creation does not reserve or decrement inventory. Stock is decremented only after a
+  complete matching server-side SEP verification and a fresh locked stock check; the decrement and paid/confirmed
+  transition commit together. If stock is insufficient, the order is not fulfilled and the verified charge is sent
+  for reversal. See `PAYMENT.md` for callback idempotency and reversal retries.
 - **Cart limits** (`CART_MAX_ITEM_QUANTITY`, `CART_MAX_LINES`) are enforced by the cart, not re-checked here.
 
 ## Delivery details (Agent 11, Session 1)
@@ -126,20 +130,22 @@ Any exception anywhere rolls all of it back (tested by failing after the stock d
   on PostgreSQL 11+. **Orders created before this migration keep blank delivery fields** and `payment_status`
   `unpaid`; they stay readable (tested against PostgreSQL by migrating back to `0001`, inserting, migrating forward).
   No non-blank DB constraint exists, because it would fail on those rows; "required" is enforced by the API.
-- **Payment:** `payment_status` is server-owned, read-only, and has the single value `unpaid`. Nothing sets another
-  value; real payment is not integrated (see `PAYMENT.md`). The browser cannot influence it.
+- **Payment:** `payment_status` is server-owned and never accepted from the browser. A verified SEP callback may
+  move it from `unpaid` to `paid`; failed verification may mark it `failed`. The order becomes `confirmed` only
+  when payment and stock checks succeed. Payment initiation and callbacks are implemented behind feature flags;
+  production order/payment flags remain disabled. See `PAYMENT.md`.
 - **Duplicate submission:** there is no idempotency key. The cart row lock makes a repeated or concurrent submit
   safe (the second one gets `400 empty_cart`), but a client that lost the response cannot tell whether the order was
   created; it should check `GET /api/orders/` before retrying.
-- **Inventory risk (unchanged behavior, documented):** stock is decremented when the order is created. If an order is
-  created but payment is never completed, the order may continue to reserve/decrement inventory indefinitely, because
-  order expiry, cancellation and stock restoration are not implemented. The owner must decide that policy before
-  online payment goes live; staff can only correct stock manually through the inventory adjustments.
+- **Pending orders:** an unpaid order can remain pending and its cart has already been cleared, but it does not reserve
+  or decrement stock. Order expiry/cancellation and restoring the cart after an abandoned checkout are not implemented.
+  Payment attempts and callback reconciliation are documented in `PAYMENT.md`.
 
 ## Not implemented (by design, so far)
-Guest checkout; status transitions, cancellation, refunds and restocking; any payment processing (only the `unpaid`
-boundary exists); shipping cost/rules and tax; a public order number; idempotency keys; pagination of the order list; customer order list/detail pages in the frontend (sign-in, add-to-cart, cart and
-checkout pages exist). Staff can inspect orders in a read-only Django admin (`apps/orders/admin.py`, see `ADMIN.md`).
+Guest checkout; order expiry/cancellation, refunds and restocking; customer order list/detail pages in the frontend;
+shipping cost/rules and tax; a public order number; idempotency keys; pagination of the order list. SEP initiation,
+server-side verification, callback reconciliation and reversal are implemented behind feature flags, but remain
+disabled in production. Staff can inspect orders in a read-only Django admin (`apps/orders/admin.py`, see `ADMIN.md`).
 
 ## Tests
 `tests/test_orders_api.py`: auth/CSRF/405, success + snapshot + server totals + sale price, price read at checkout,
