@@ -15,7 +15,7 @@ type Product = {
 };
 type ColorDraft = {
   key: number; name: string; hex_color: string;
-  sizes: { size: number }[];
+  sizes: { size: number; stock_quantity: string }[];
   imageFiles: File[];
 };
 
@@ -62,6 +62,10 @@ export default function CreateProductWithVariantsForm({
   const [error, setError] = useState("");
   const selectedCategory = categories.find(item => item.id === Number(categoryId));
   const categorySizes = selectedCategory ? sizes.filter(size => selectedCategory.sizes.includes(size.id)) : [];
+  const totalInitialStock = colors.reduce(
+    (total, color) => total + color.sizes.reduce((subtotal, item) => subtotal + (Number(item.stock_quantity) || 0), 0),
+    0,
+  );
 
   function updateColor(index: number, patch: Partial<ColorDraft>) {
     setColors(current => current.map((color, i) => i === index ? { ...color, ...patch } : color));
@@ -73,9 +77,16 @@ export default function CreateProductWithVariantsForm({
       return {
         ...color,
         sizes: checked
-          ? [...color.sizes, { size: sizeId }]
+          ? [...color.sizes, { size: sizeId, stock_quantity: "0" }]
           : color.sizes.filter(item => item.size !== sizeId),
       };
+    }));
+  }
+
+  function updateSizeStock(colorIndex: number, sizeId: number, stockQuantity: string) {
+    setColors(current => current.map((color, index) => index !== colorIndex ? color : {
+      ...color,
+      sizes: color.sizes.map(item => item.size === sizeId ? { ...item, stock_quantity: stockQuantity } : item),
     }));
   }
 
@@ -111,6 +122,12 @@ export default function CreateProductWithVariantsForm({
       setError("برای هر رنگ، نام و دست‌کم یک سایز انتخاب کنید.");
       return;
     }
+    if (colors.some(color => color.sizes.some(item =>
+      !/^\d+$/.test(item.stock_quantity) || Number(item.stock_quantity) > 2147483647
+    ))) {
+      setError("موجودی هر سایز باید یک عدد صحیح بین صفر و ۲٬۱۴۷٬۴۸۳٬۶۴۷ باشد.");
+      return;
+    }
     setSaving(true);
     try {
       const product = await apiRequest<Product>("POST", "/api/admin/catalog/products/create-with-variants/", {
@@ -124,7 +141,7 @@ export default function CreateProductWithVariantsForm({
         colors: colors.map(color => ({
           name: color.name.trim(),
           hex_color: color.hex_color,
-          sizes: color.sizes.map(item => ({ size: item.size })),
+          sizes: color.sizes.map(item => ({ size: item.size, stock_quantity: Number(item.stock_quantity) })),
         })),
       });
 
@@ -232,8 +249,26 @@ export default function CreateProductWithVariantsForm({
                     {categorySizes.map(size => {
                       const selectedSize = color.sizes.find(item => item.size === size.id);
                       return <div key={size.id} className="rounded-lg border border-border p-3">
-                        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(selectedSize)} onChange={event => toggleSize(index, size.id, event.target.checked)} />{size.label}</label>
-
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" checked={Boolean(selectedSize)} onChange={event => toggleSize(index, size.id, event.target.checked)} />
+                          {size.label}
+                        </label>
+                        {selectedSize && (
+                          <label className="mt-3 block text-xs text-muted-foreground">
+                            موجودی این سایز
+                            <input
+                              type="number"
+                              min="0"
+                              max="2147483647"
+                              step="1"
+                              required
+                              value={selectedSize.stock_quantity}
+                              onChange={event => updateSizeStock(index, size.id, event.target.value)}
+                              className={field}
+                              dir="ltr"
+                            />
+                          </label>
+                        )}
                       </div>;
                     })}
                   </div>}
@@ -282,8 +317,16 @@ export default function CreateProductWithVariantsForm({
         </div>
       </section>
 
+      <section className="mt-5 rounded-xl border border-primary/30 bg-primary/5 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium">مجموع موجودی اولیه محصول</span>
+          <strong className="text-lg tabular-nums">{totalInitialStock.toLocaleString("fa-IR")} عدد</strong>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">جمع موجودی تمام سایزهای انتخاب‌شده در همه رنگ‌ها</p>
+      </section>
+
       {error && <p role="alert" className="mt-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</p>}
-      <div className="mt-5 flex flex-wrap gap-2"><button disabled={saving} className={primary}>{saving ? "در حال ساخت محصول و ترکیب‌ها…" : "ساخت محصول و همه رنگ‌ها و سایزها"}</button></div>
+      <div className="mt-5 flex flex-wrap gap-2"><button disabled={saving} className={primary}>{saving ? "در حال ساخت محصول و ثبت موجودی…" : "ذخیره محصول"}</button></div>
     </form>
   );
 }
