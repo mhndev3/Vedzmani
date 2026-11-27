@@ -18,8 +18,7 @@ class PaymentRejected(Exception):
 def initiate_sep_payment(order, *, redirect_url):
     if not settings.ORDERS_ENABLED or not settings.SEP_PAYMENT_ENABLED:
         raise PaymentRejected("payment_disabled")
-    if settings.SEP_SHIPPING_AMOUNT_TOMAN is None or settings.SEP_SHIPPING_AMOUNT_TOMAN < 0:
-        raise PaymentRejected("shipping_not_configured")
+    # Tipax freight is collected by the carrier on delivery, never in the online payment.
     if not settings.SEP_TERMINAL_ID:
         raise PaymentRejected("payment_not_configured")
     with transaction.atomic():
@@ -32,7 +31,7 @@ def initiate_sep_payment(order, *, redirect_url):
         if existing and existing.token:
             return existing
         res_num = f"VZ{locked_order.pk}-{uuid.uuid4().hex[:16]}"
-        shipping_toman = settings.SEP_SHIPPING_AMOUNT_TOMAN
+        shipping_toman = 0
         amount_rial = int((Decimal(locked_order.total) + Decimal(shipping_toman)) * 10)
         attempt = SepPaymentAttempt.objects.create(
             order=locked_order, res_num=res_num, shipping_amount_toman=shipping_toman, amount_rial=amount_rial,
