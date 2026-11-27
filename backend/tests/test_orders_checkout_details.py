@@ -82,7 +82,9 @@ def test_valid_checkout_snapshots_delivery_details_and_stays_unpaid(http, user, 
     assert body["status"] == "pending"
     assert body["customer_phone"] == user.phone == order.customer_phone
     assert body["total"] == "2000"  # lines only
-    assert not any("ship" in key or "fee" in key for key in body)  # no shipping cost is invented
+    assert body["shipping_provider"] == order.shipping_provider == Order.TIPAX
+    assert body["shipping_payment"] == order.shipping_payment == Order.COLLECT_ON_DELIVERY
+    assert not any("shipping_amount" in key or "shipping_fee" in key for key in body)
     assert stock_after(cart) == 5
 
 
