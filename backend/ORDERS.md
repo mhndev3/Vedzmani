@@ -48,9 +48,11 @@ Success `201`:
 `id` is the database id and the only order identifier (no separate public order number yet). Money is a whole-unit
 Decimal rendered as a string, like the catalog and cart. One stored/displayed unit is one Iranian Toman.
 
-**`total` excludes shipping.** It is the sum of the line subtotals. No shipping fee, free-shipping rule, courier or
-delivery estimate exists (decision pending with the owner), so `total` is **not** a final delivered price and the UI
-must not present it as one. Adding shipping later must introduce a separate field rather than silently change `total`.
+**`total` excludes Tipax freight.** It is the sum of the line subtotals and is the full amount charged by SEP or
+TorobPay. The order snapshots `shipping_provider="tipax"` and
+`shipping_payment="collect_on_delivery"`; the recipient pays the carrier directly when the parcel is delivered.
+No freight amount is requested from the customer online. Future carriers or prepaid shipping must add a separate
+server-owned shipping amount and preserve the existing order/payment snapshots.
 
 ### `GET /api/orders/` — list own orders (Session 2)
 `200` with a plain JSON **array** of orders in exactly the `201` shape above, **newest first** (`created_at` desc,
