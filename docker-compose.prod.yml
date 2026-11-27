@@ -61,6 +61,7 @@ services:
       # Hard fail-safe: payment/order flags are not configurable from the production env file.
       ORDERS_ENABLED: "false"
       SEP_PAYMENT_ENABLED: "false"
+      SEP_TERMINAL_ID: ${SEP_TERMINAL_ID:-}
       TOROBPAY_ENABLED: "false"
       # Credentials are optional so the OAuth-only check can be run after they are provisioned.
       TOROBPAY_CLIENT_ID: ${TOROBPAY_CLIENT_ID:-}
