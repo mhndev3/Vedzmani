@@ -65,7 +65,14 @@ def test_checkout_input_is_exactly_the_delivery_fields():
 # --- success -----------------------------------------------------------------------------------
 
 def test_valid_checkout_snapshots_delivery_details_and_stays_unpaid(http, user, cart):
-    response = checkout(http, recipient_name="  علی رضایی  ", postal_code="۱۲۳۴۵۶۷۸۹۰")
+    response = checkout(
+        http,
+        recipient_name="  علی رضایی  ",
+        postal_code="۱۲۳۴۵۶۷۸۹۰",
+        shipping_provider="post",
+        shipping_payment="prepaid",
+        shipping_amount_toman=1,
+    )
 
     assert response.status_code == 201, response.content
     body, order = response.json(), Order.objects.get()
