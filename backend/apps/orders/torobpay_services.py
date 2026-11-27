@@ -30,12 +30,10 @@ ACTIVE_ATTEMPT_STATUSES = (
 def _require_torobpay_ready(*, require_item_amount_mode=False):
     if not settings.ORDERS_ENABLED or not settings.TOROBPAY_ENABLED:
         raise PaymentRejected("payment_disabled")
-    shipping = settings.TOROBPAY_SHIPPING_AMOUNT_TOMAN
-    if shipping is None or shipping < 0:
-        raise PaymentRejected("shipping_not_configured")
+    # Tipax freight is paid to the carrier on delivery, not through TorobPay.
     if require_item_amount_mode and settings.TOROBPAY_CART_ITEM_AMOUNT_MODE not in {"unit", "line_total"}:
         raise PaymentRejected("cart_item_amount_mode_not_configured")
-    return shipping
+    return 0
 
 
 def _rial_from_toman(value):
@@ -81,7 +79,7 @@ def _payment_payload(order, attempt, shipping_toman, return_url):
             "taxAmount": 0,
             "shippingAmount": shipping_rial,
             "isTaxIncluded": False,
-            "isShipmentIncluded": True,
+            "isShipmentIncluded": False,
             "cartItems": cart_items,
         }],
         "address": order.address,

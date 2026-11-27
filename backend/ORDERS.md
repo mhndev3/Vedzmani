@@ -3,7 +3,7 @@
 App: `backend/apps/orders`. PostgreSQL is the source of truth. An authenticated user can **create** an order from
 their cart and **read** their own orders. SEP payment initiation, server-side verification, callback reconciliation
 and reversal are implemented separately behind feature flags; their contract is documented in `PAYMENT.md`.
-Shipping rules and carrier tariffs are not yet connected to checkout.
+V1 checkout uses Tipax only; freight is collected by Tipax from the recipient on delivery.
 
 ```
 User ─< Order ─< OrderItem >─ catalog.VariantSize        (OrderItem unique (order, variant_size); quantity > 0)
@@ -41,15 +41,18 @@ Success `201`:
 ```
 { id, status: "pending", payment_status: "unpaid", customer_phone,
   recipient_name, province, city, address, postal_code,
+  shipping_provider: "tipax", shipping_payment: "collect_on_delivery",
   total, created_at,
   items: [{ id, variant_size_id, product_name, color_name, size_label, sku, unit_price, quantity, subtotal }] }
 ```
 `id` is the database id and the only order identifier (no separate public order number yet). Money is a whole-unit
 Decimal rendered as a string, like the catalog and cart. One stored/displayed unit is one Iranian Toman.
 
-**`total` excludes shipping.** It is the sum of the line subtotals. No shipping fee, free-shipping rule, courier or
-delivery estimate exists (decision pending with the owner), so `total` is **not** a final delivered price and the UI
-must not present it as one. Adding shipping later must introduce a separate field rather than silently change `total`.
+**`total` excludes Tipax freight.** It is the sum of the line subtotals and is the full amount charged by SEP or
+TorobPay. The order snapshots `shipping_provider="tipax"` and
+`shipping_payment="collect_on_delivery"`; the recipient pays the carrier directly when the parcel is delivered.
+No freight amount is requested from the customer online. Future carriers or prepaid shipping must add a separate
+server-owned shipping amount and preserve the existing order/payment snapshots.
 
 ### `GET /api/orders/` — list own orders (Session 2)
 `200` with a plain JSON **array** of orders in exactly the `201` shape above, **newest first** (`created_at` desc,

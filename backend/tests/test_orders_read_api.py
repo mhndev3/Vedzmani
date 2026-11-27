@@ -172,11 +172,14 @@ def test_items_quantities_prices_and_totals_are_returned_from_the_snapshot(http,
 
     body = http.get(detail(order.id)).json()
 
-    # Delivery snapshot + payment_status were added by Agent 11 (additive); there is no shipping/fee key.
+    # Delivery snapshot, payment status, and server-owned shipping policy are additive order fields.
     assert set(body) == {
-        "id", "status", "payment_status", "customer_phone", "recipient_name", "province", "city", "address",
+        "id", "status", "payment_status", "shipping_provider", "shipping_payment",
+        "customer_phone", "recipient_name", "province", "city", "address",
         "postal_code", "total", "created_at", "items",
     }
+    assert body["shipping_provider"] == "tipax"
+    assert body["shipping_payment"] == "collect_on_delivery"
     assert body["total"] == "2100"
     items = {i["sku"]: i for i in body["items"]}
     assert set(items["hoodie-m"]) == {
