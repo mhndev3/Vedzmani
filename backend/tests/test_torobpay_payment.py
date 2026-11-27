@@ -90,7 +90,7 @@ class FakeTorobPayClient:
 @override_settings(
     ORDERS_ENABLED=True,
     TOROBPAY_ENABLED=True,
-    TOROBPAY_SHIPPING_AMOUNT_TOMAN=200,
+    TOROBPAY_SHIPPING_AMOUNT_TOMAN=None,
     TOROBPAY_CART_ITEM_AMOUNT_MODE="unit",
 )
 def test_torobpay_eligibility_and_token_use_server_owned_rial_amount(make_variant_size):
@@ -104,18 +104,18 @@ def test_torobpay_eligibility_and_token_use_server_owned_rial_amount(make_varian
         client=client,
     )
 
-    assert eligibility == {"eligible": True, "amount_rial": 12000}
-    assert attempt.amount_toman == 1200
-    assert attempt.amount_rial == 12000
+    assert eligibility == {"eligible": True, "amount_rial": 10000}
+    assert attempt.amount_toman == 1000
+    assert attempt.amount_rial == 10000
     assert attempt.status == TorobPayPaymentAttempt.NEW
     assert attempt.payment_token == "provider-token"
     assert attempt.payment_page_url.startswith("https://cpg.torobpay.com/")
-    assert client.payload["amount"] == 12000
-    assert client.payload["cartList"][0]["totalAmount"] == 12000
-    assert client.payload["cartList"][0]["shippingAmount"] == 2000
+    assert client.payload["amount"] == 10000
+    assert client.payload["cartList"][0]["totalAmount"] == 10000
+    assert client.payload["cartList"][0]["shippingAmount"] == 0
     assert client.payload["cartList"][0]["taxAmount"] == 0
     assert client.payload["cartList"][0]["isTaxIncluded"] is False
-    assert client.payload["cartList"][0]["isShipmentIncluded"] is True
+    assert client.payload["cartList"][0]["isShipmentIncluded"] is False
     assert client.payload["cartList"][0]["cartItems"][0]["amount"] == 10000
     assert client.payload["transactionId"] == str(attempt.merchant_transaction_id)
     assert client.payload["number_phone_registration"] == order.customer_phone
@@ -145,19 +145,22 @@ def test_torobpay_initiation_fails_closed_when_orders_are_disabled(make_variant_
     ORDERS_ENABLED=True,
     TOROBPAY_ENABLED=True,
     TOROBPAY_SHIPPING_AMOUNT_TOMAN=None,
+    TOROBPAY_CART_ITEM_AMOUNT_MODE="unit",
 )
-def test_torobpay_initiation_fails_closed_until_shipping_is_configured(make_variant_size):
+def test_torobpay_does_not_require_shipping_tariff_for_tipax_collect_on_delivery(make_variant_size):
     order, _ = make_order(make_variant_size)
     client = FakeTorobPayClient()
 
-    with pytest.raises(PaymentRejected, match="shipping_not_configured"):
-        initiate_torobpay_payment(
-            order,
-            return_url="https://vedzmani.ir/api/orders/payment/torobpay/callback/",
-            client=client,
-        )
+    attempt = initiate_torobpay_payment(
+        order,
+        return_url="https://vedzmani.ir/api/orders/payment/torobpay/callback/",
+        client=client,
+    )
 
-    assert client.calls == []
+    assert attempt.amount_toman == 1000
+    assert attempt.amount_rial == 10000
+    assert client.payload["cartList"][0]["shippingAmount"] == 0
+    assert client.payload["cartList"][0]["isShipmentIncluded"] is False
 
 
 @override_settings(ORDERS_ENABLED=True, TOROBPAY_ENABLED=True, TOROBPAY_SHIPPING_AMOUNT_TOMAN=0)
