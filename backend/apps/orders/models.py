@@ -28,6 +28,10 @@ class Order(models.Model):
     PAYMENT_STATUS_CHOICES = [(UNPAID, "Unpaid"), (PAID, "Paid"), (FAILED, "Failed")]
 
     DELIVERY_FIELDS = ("recipient_name", "province", "city", "address", "postal_code")
+    TIPAX = "tipax"
+    SHIPPING_PROVIDER_CHOICES = [(TIPAX, "Tipax")]
+    COLLECT_ON_DELIVERY = "collect_on_delivery"
+    SHIPPING_PAYMENT_CHOICES = [(COLLECT_ON_DELIVERY, "Collect on delivery")]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
@@ -38,6 +42,12 @@ class Order(models.Model):
     city = models.CharField(max_length=60, default="")
     address = models.CharField(max_length=255, default="")
     postal_code = models.CharField(max_length=10, default="")
+    shipping_provider = models.CharField(
+        max_length=16, choices=SHIPPING_PROVIDER_CHOICES, default=TIPAX
+    )
+    shipping_payment = models.CharField(
+        max_length=24, choices=SHIPPING_PAYMENT_CHOICES, default=COLLECT_ON_DELIVERY
+    )
     total = models.DecimalField(max_digits=18, decimal_places=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
