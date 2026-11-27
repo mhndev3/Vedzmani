@@ -79,7 +79,14 @@ def create_order(user, delivery: Mapping[str, str]) -> Order:
         total += subtotal
         lines.append((item, vs, product, unit_price, subtotal))
 
-    order = Order.objects.create(user=user, customer_phone=user.phone, total=total, **delivery_snapshot)
+    order = Order.objects.create(
+        user=user,
+        customer_phone=user.phone,
+        total=total,
+        shipping_provider=Order.TIPAX,
+        shipping_payment=Order.COLLECT_ON_DELIVERY,
+        **delivery_snapshot,
+    )
     OrderItem.objects.bulk_create(
         [
             OrderItem(
