@@ -202,11 +202,12 @@ def _provider_identity_error(response, attempt):
 
 
 def _finish_reversal(attempt, client, provider_state):
-    """Reverse a not-yet-settled payment or cancel an already-settled one."""
+    """Cancel provider orders that have reached VERIFY/SETTLE; REVERT is already final."""
     try:
-        if provider_state == "VERIFY":
-            client.revert(attempt.payment_token)
-        elif provider_state == "SETTLE":
+        # TorobPay status=VERIFY maps to SETTLE_FOR_W, not VERIFY_FOR_W.
+        # The provider only permits /revert for VERIFY_FOR_W; /cancel is valid
+        # for SETTLE_FOR_W and ONGOING, so both VERIFY and SETTLE use cancel.
+        if provider_state in {"VERIFY", "SETTLE"}:
             client.cancel(attempt.payment_token)
         elif provider_state == "REVERT":
             attempt.status = TorobPayPaymentAttempt.CANCELED
