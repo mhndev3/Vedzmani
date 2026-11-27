@@ -429,7 +429,7 @@ def test_guest_merge_is_atomic_when_a_variant_size_no_longer_exists(http):
     assert GuestCartMerge.objects.count() == 0
 
 
-def test_guest_merge_rejects_stock_shortage_atomically(http):
+def test_guest_merge_retains_stock_short_and_unpublished_lines(http):
     import uuid
 
     short = make_vs("short", stock=1)
@@ -442,7 +442,43 @@ def test_guest_merge_rejects_stock_shortage_atomically(http):
             {"variant_size_id": hidden.id, "quantity": 1},
         ],
     })
-    assert r.status_code == 409
-    assert r.json()["error"]["code"] == "insufficient_stock"
-    assert CartItem.objects.count() == 0
-    assert GuestCartMerge.objects.count() == 0
+    assert r.status_code == 200
+    lines = {line["variant_size"]["id"]: line for line in r.json()["items"]}
+    assert lines[short.id]["quantity"] == 2
+    assert lines[short.id]["availability"] == "insufficient_stock"
+    assert lines[hidden.id]["quantity"] == 1
+    assert lines[hidden.id]["availability"] == "unavailable"
+    assert r.json()["has_issues"] is True
+    assert CartItem.objects.count() == 2
+    assert GuestCartMerge.objects.count() == 1
+
+
+def test_guest_merge_caps_duplicate_line_at_available_stock(http):
+    import uuid
+
+    vs = make_vs("duplicate", stock=1)
+    http.send("post", ITEMS, {"variant_size_id": vs.id, "quantity": 1})
+    r = http.send("post", "/api/cart/merge-guest/", {
+        "token": str(uuid.uuid4()),
+        "items": [{"variant_size_id": vs.id, "quantity": 1}],
+    })
+    assert r.status_code == 200
+    assert r.json()["items"][0]["quantity"] == 1
+    assert r.json()["items"][0]["availability"] == "available"
+    assert CartItem.objects.get().quantity == 1
+    assert GuestCartMerge.objects.count() == 1
+
+
+def test_guest_merge_preserves_existing_line_when_stock_already_dropped(http):
+    import uuid
+
+    vs = make_vs("existing-overstock", stock=5)
+    http.send("post", ITEMS, {"variant_size_id": vs.id, "quantity": 4})
+    VariantSize.objects.filter(pk=vs.pk).update(stock_quantity=2)
+    r = http.send("post", "/api/cart/merge-guest/", {
+        "token": str(uuid.uuid4()),
+        "items": [{"variant_size_id": vs.id, "quantity": 1}],
+    })
+    assert r.status_code == 200
+    assert r.json()["items"][0]["quantity"] == 4
+    assert r.json()["items"][0]["availability"] == "insufficient_stock"
