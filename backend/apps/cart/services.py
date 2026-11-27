@@ -122,15 +122,21 @@ def merge_guest_items(user, token, items) -> None:
     if cart.items.count() + new_lines > settings.CART_MAX_LINES:
         raise CartFull()
 
-    # Validate every line before writing any of them: no partial guest-cart transfer.
+    # A guest basket must still transfer when stock changed after it was added.
+    # Preserve a pre-existing line, but cap the increment to the currently available
+    # stock. New or already-overstocked lines are retained unchanged so build_cart()
+    # can mark them insufficient_stock for the customer to resolve.
     targets = []
     for guest_item in canonical:
         variant_id = guest_item["variant_size_id"]
         quantity = guest_item["quantity"]
         existing = current.get(variant_id)
-        target = quantity + (existing.quantity if existing else 0)
-        if target > variants[variant_id].stock_quantity:
-            raise InsufficientStock()
+        if existing is None:
+            target = quantity
+        else:
+            stock = variants[variant_id].stock_quantity
+            merged = existing.quantity + quantity
+            target = max(existing.quantity, min(merged, stock))
         targets.append((variant_id, target, existing))
 
     GuestCartMerge.objects.create(user=user, token=token, payload_hash=payload_hash)
