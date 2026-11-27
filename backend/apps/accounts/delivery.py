@@ -47,7 +47,7 @@ class MelipayamakDelivery(OTPDelivery):
 
         if not endpoint:
             raise OTPDeliveryError("Melipayamak shared API is not configured.")
-        if not re.fullmatch(r"\\d{6}", code):
+        if not re.fullmatch(r"\d{6}", code):
             raise OTPDeliveryError("OTP code must contain exactly six digits.")
         if purpose not in {"login", "signup", "password_reset"}:
             raise OTPDeliveryError("Unsupported OTP purpose.")
@@ -118,14 +118,14 @@ class MelipayamakDelivery(OTPDelivery):
 
     @staticmethod
     def _normalize_iranian_mobile(phone: str) -> str:
-        digits = re.sub(r"\\D", "", phone)
+        digits = re.sub(r"\D", "", phone)
         if digits.startswith("0098"):
             digits = "0" + digits[4:]
         elif digits.startswith("98") and len(digits) == 12:
             digits = "0" + digits[2:]
         elif digits.startswith("9") and len(digits) == 10:
             digits = "0" + digits
-        if not re.fullmatch(r"09\\d{9}", digits):
+        if not re.fullmatch(r"09\d{9}", digits):
             raise OTPDeliveryError("Recipient must be an Iranian mobile number.")
         return digits
 
