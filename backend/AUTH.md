@@ -41,12 +41,12 @@ stored as `+989XXXXXXXXX` (`apps/accounts/phone.py` is the only normalizer).
 - `remember_me=false` -> browser-session cookie; `true` -> `AUTH_REMEMBER_ME_SECONDS` (30 days).
 - Delivery: `OTP_DELIVERY_BACKEND` (`apps/accounts/delivery.py`). Default **refuses to send** (503);
   `ConsoleDelivery` (dev) / `InMemoryDelivery` (tests) are rejected by production settings.
-  `MelipayamakDelivery` sends the backend-generated six-digit code through the Console simple-send API
-  (`POST https://console.melipayamak.com/api/send/simple/{token}`) using JSON fields `from`, `to`, and `text`.
-  Configure `OTP_DELIVERY_BACKEND=apps.accounts.delivery.MelipayamakDelivery`, `MELIPAYAMAK_API_KEY`
-  (Console API token), and `MELIPAYAMAK_SENDER` (an enabled sending line) only in the server environment.
-  A non-empty `recId` is required to treat the provider response as accepted. The token is part of the HTTPS
-  request path and must never be committed, logged, or exposed to the browser.
+  `MelipayamakDelivery` sends the backend-generated six-digit code through the shared-service API
+  (`POST` to the private URL configured in `MELIPAYAMAK_SHARED_API_URL`) with JSON fields `bodyId`, `to`,
+  and `args`. The approved template uses `bodyId=524` and the single OTP variable `args=[code]`.
+  Configure `OTP_DELIVERY_BACKEND=apps.accounts.delivery.MelipayamakDelivery` and the private endpoint URL
+  only in the server environment. A valid non-empty `recId` is required for provider acceptance. The endpoint
+  URL contains a secret and must never be committed, logged, or exposed to the browser.
 
 ## OTP: development vs production (Agent 11 audit)
 - **Production login is not yet verified.** The Melipayamak adapter is implemented but is not configured by default.
@@ -165,5 +165,5 @@ container shows the Cloudflare ranges; (2) the Nginx access log shows real clien
 ## Customer password authentication and OTP purposes
 - `POST /password/login/` validates phone + password, invalidates any prior customer session, and sends a purpose=`login` OTP. It returns `202`; `/me/` remains `401` until the code is verified. The login OTP endpoint cannot be requested directly: verification also requires a server-side pending marker created only after successful password authentication.
 - `POST /otp/request/` accepts purpose `signup` or `password_reset`; `/otp/verify/` accepts `signup`, `password_reset`, or `login`. Signup codes create only previously absent accounts; reset codes apply only to existing accounts. Ineligible requests return the same `202` response and do not send a message, avoiding account enumeration.
-- Melipayamak sends distinct Persian messages for login, registration, and password recovery. Each includes the code, a warning not to share it, and the Vedzmani name.
+- Login, registration, and password recovery use the provider-approved shared template (bodyId 524) with the backend-generated OTP as its sole argument.
 - `POST /password/set/` accepts `{password}` only after signup or password-reset verification, not after ordinary login OTP. Passwords must be at least 10 characters and pass Django's configured password validators. Password login is rate-limited to 10 attempts per normalized phone and 30 per client IP in a 10-minute window.

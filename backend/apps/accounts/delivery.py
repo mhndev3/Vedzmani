@@ -8,7 +8,6 @@ import json
 import logging
 import re
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -39,32 +38,27 @@ class UnconfiguredDelivery(OTPDelivery):
 
 
 class MelipayamakDelivery(OTPDelivery):
-    """Send a backend-generated OTP through Melipayamak Console simple API."""
-
-    API_URL = "https://console.melipayamak.com/api/send/simple/"
+    """Send backend-generated OTPs through Melipayamak's shared service API."""
 
     def send(self, *, phone: str, code: str, purpose: str) -> None:
-        api_key = settings.MELIPAYAMAK_API_KEY
-        sender = settings.MELIPAYAMAK_SENDER
+        endpoint = settings.MELIPAYAMAK_SHARED_API_URL
+        body_id = settings.MELIPAYAMAK_BODY_ID
         timeout = settings.MELIPAYAMAK_TIMEOUT_SECONDS
 
-        if not api_key or not sender:
-            raise OTPDeliveryError("Melipayamak credentials or sender are not configured.")
+        if not endpoint:
+            raise OTPDeliveryError("Melipayamak shared API is not configured.")
         if not re.fullmatch(r"\d{6}", code):
             raise OTPDeliveryError("OTP code must contain exactly six digits.")
+        if purpose not in {"login", "signup", "password_reset"}:
+            raise OTPDeliveryError("Unsupported OTP purpose.")
 
         recipient = self._normalize_iranian_mobile(phone)
-        templates = {
-            "login": f"کاربر گرامی، کد ورود شما: {code}\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
-            "signup": f"کاربر گرامی، کد تأیید ثبت‌نام شما: {code}\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
-            "password_reset": f"کاربر گرامی، کد بازیابی رمز عبور شما: {code}\nاین کد را در اختیار هیچ‌کس قرار ندهید.\nVedzmani",
-        }
-        message = templates.get(purpose)
-        if message is None:
-            raise OTPDeliveryError("Unsupported OTP purpose.")
-        payload = json.dumps({"from": sender, "to": recipient, "text": message}, ensure_ascii=False).encode("utf-8")
+        payload = json.dumps(
+            {"bodyId": body_id, "to": recipient, "args": [code]},
+            ensure_ascii=False,
+        ).encode("utf-8")
         request = Request(
-            f"{self.API_URL}{quote(api_key, safe='')}",
+            endpoint,
             data=payload,
             headers={
                 "Accept": "application/json",
@@ -80,160 +74,47 @@ class MelipayamakDelivery(OTPDelivery):
                     result = json.loads(response.read().decode("utf-8"))
                 except (UnicodeDecodeError, json.JSONDecodeError):
                     logger.warning(
-                        "Melipayamak response invalid JSON (http_status=%s)",
+                        "Melipayamak shared API returned invalid JSON (http_status=%s)",
                         http_status,
                     )
                     raise OTPDeliveryError("Melipayamak returned an invalid response.") from None
         except HTTPError as exc:
-            # Provider error bodies may contain arbitrary data. Read a small bounded
-            # response and log only a coarse allowlisted category, never its text.
-            try:
-                error_body = exc.read(4096)
-                provider_error = json.loads(error_body.decode("utf-8"))
-            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-                provider_error = None
-            category = self._classify_provider_error(provider_error)
-            provider_code = self._safe_provider_error_code(provider_error)
-            response_shape = self._safe_provider_error_shape(provider_error)
-            logger.warning(
-                "Melipayamak HTTP error (http_status=%s provider_error_category=%s provider_error_code=%s provider_error_shape=%s)",
-                exc.code,
-                category,
-                provider_code if provider_code is not None else "unavailable",
-                response_shape,
-            )
+            logger.warning("Melipayamak shared API HTTP error (http_status=%s)", exc.code)
             raise OTPDeliveryError("Melipayamak request failed.") from None
         except URLError as exc:
-            # Log only the reason class; the reason text can contain sensitive URL data.
             logger.warning(
-                "Melipayamak network error (reason_type=%s)",
+                "Melipayamak shared API network error (reason_type=%s)",
                 type(exc.reason).__name__,
             )
             raise OTPDeliveryError("Melipayamak request failed.") from None
         except (TimeoutError, OSError) as exc:
-            logger.warning("Melipayamak transport error (error_type=%s)", type(exc).__name__)
+            logger.warning(
+                "Melipayamak shared API transport error (error_type=%s)",
+                type(exc).__name__,
+            )
             raise OTPDeliveryError("Melipayamak request failed.") from None
         except OTPDeliveryError:
             raise
-        except Exception as exc:  # noqa: BLE001 - never log provider exception text or request URL
-            logger.warning("Melipayamak unexpected error (error_type=%s)", type(exc).__name__)
+        except Exception as exc:  # noqa: BLE001 - never log provider URL or response text
+            logger.warning(
+                "Melipayamak shared API unexpected error (error_type=%s)",
+                type(exc).__name__,
+            )
             raise OTPDeliveryError("Melipayamak request failed.") from None
 
-        if not isinstance(result, dict) or not str(result.get("recId", "")).strip():
-            status = result.get("status") if isinstance(result, dict) else None
-            # Only expose numeric provider status codes; arbitrary text may contain PII/secrets.
-            safe_status = status if isinstance(status, int) or (
-                isinstance(status, str) and status.isdigit() and len(status) <= 6
-            ) else "non_numeric_or_missing"
+        rec_id = result.get("recId") if isinstance(result, dict) else None
+        valid_rec_id = (
+            isinstance(rec_id, int) and not isinstance(rec_id, bool) and rec_id > 0
+        ) or (
+            isinstance(rec_id, str) and rec_id.isdigit() and len(rec_id) <= 24
+        )
+        if not valid_rec_id:
             logger.warning(
-                "Melipayamak rejected message (http_status=%s provider_status=%s response_type=%s)",
+                "Melipayamak shared API rejected message (http_status=%s response_type=%s)",
                 http_status,
-                safe_status,
                 type(result).__name__,
             )
             raise OTPDeliveryError("Melipayamak rejected the OTP message.")
-
-    @staticmethod
-    def _provider_error_strings(response: object) -> list[str]:
-        """Collect bounded string values from nested JSON without exposing them."""
-        values: list[str] = []
-        pending = [(response, 0)]
-        while pending and len(values) < 32:
-            current, depth = pending.pop()
-            if depth > 4:
-                continue
-            if isinstance(current, dict):
-                pending.extend((value, depth + 1) for value in current.values())
-            elif isinstance(current, list):
-                pending.extend((value, depth + 1) for value in current[:32])
-            elif isinstance(current, str):
-                values.append(current[:512])
-        return values
-
-    @classmethod
-    def _classify_provider_error(cls, response: object) -> str:
-        """Map nested provider error text to a coarse category without logging it."""
-        if not isinstance(response, (dict, list)):
-            return "unparseable_response"
-
-        message = " ".join(cls._provider_error_strings(response)).casefold()
-        if not message:
-            return "missing_error_detail"
-
-        categories = {
-            "ip_restriction": ("ip", "whitelist", "آی پی", "آی‌پی", "مجاز"),
-            "credentials": ("token", "api key", "apikey", "auth", "credential", "احراز"),
-            "sender": ("sender", "from", "فرستنده", "خط ارسال", "شماره ارسال"),
-            "recipient": ("recipient", "mobile", "phone", " شماره", "گیرنده", "مقصد"),
-            "credit": ("credit", "balance", "اعتبار", "شارژ"),
-            "message_content": ("message", "text", "متن", "پیام"),
-            "request_format": ("invalid", "bad request", "required", "format", "پارامتر", "درخواست"),
-        }
-        for category, keywords in categories.items():
-            if any(keyword in message for keyword in keywords):
-                return category
-        return "provider_rejected_request"
-
-    @staticmethod
-    def _safe_provider_error_shape(response: object) -> str:
-        """Describe JSON structure using allowlisted field labels and value types only."""
-        if not isinstance(response, (dict, list)):
-            return f"root={type(response).__name__}"
-
-        known_fields = {
-            "data", "detail", "details", "error", "errors", "error_code",
-            "errorcode", "message", "meta", "msg", "parameter", "param",
-            "reason", "recid", "request_id", "status", "status_code",
-            "statuscode", "success", "trace_id", "validation",
-        }
-        entries: list[str] = []
-        pending = [(response, "$", 0)]
-        visited = 0
-        while pending and len(entries) < 12 and visited < 64:
-            current, path, depth = pending.pop(0)
-            visited += 1
-            if depth >= 4:
-                continue
-            if isinstance(current, dict):
-                for key, value in list(current.items())[:32]:
-                    safe_key = key.casefold() if isinstance(key, str) and key.casefold() in known_fields else "other"
-                    child_path = f"{path}.{safe_key}"
-                    entries.append(f"{child_path}:{type(value).__name__}")
-                    if isinstance(value, (dict, list)):
-                        pending.append((value, child_path, depth + 1))
-                    if len(entries) >= 12:
-                        break
-            elif isinstance(current, list):
-                for value in current[:8]:
-                    child_path = f"{path}[]"
-                    entries.append(f"{child_path}:{type(value).__name__}")
-                    if isinstance(value, (dict, list)):
-                        pending.append((value, child_path, depth + 1))
-                    if len(entries) >= 12:
-                        break
-
-        return f"root={type(response).__name__};fields={','.join(entries) or 'none'}"
-
-    @staticmethod
-    def _safe_provider_error_code(response: object) -> int | None:
-        """Return only short numeric values from known code fields; never log arbitrary text."""
-        if not isinstance(response, (dict, list)):
-            return None
-        pending = [response]
-        while pending:
-            current = pending.pop()
-            if isinstance(current, dict):
-                for key, value in current.items():
-                    if key in {"code", "error_code", "errorCode", "statusCode", "status_code"}:
-                        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 999999:
-                            return value
-                        if isinstance(value, str) and value.isdigit() and len(value) <= 6:
-                            return int(value)
-                    if isinstance(value, (dict, list)):
-                        pending.append(value)
-            elif isinstance(current, list):
-                pending.extend(current[:32])
-        return None
 
     @staticmethod
     def _normalize_iranian_mobile(phone: str) -> str:

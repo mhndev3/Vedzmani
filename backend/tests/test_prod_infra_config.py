@@ -407,8 +407,8 @@ def test_production_provider_environment_is_complete_and_payments_stay_disabled(
 
     for key in (
         "OTP_DELIVERY_BACKEND",
-        "MELIPAYAMAK_API_KEY",
-        "MELIPAYAMAK_SENDER",
+        "MELIPAYAMAK_SHARED_API_URL",
+        "MELIPAYAMAK_BODY_ID",
         "MELIPAYAMAK_TIMEOUT_SECONDS",
         "TOROBPAY_CLIENT_ID",
         "TOROBPAY_CLIENT_SECRET",
@@ -425,7 +425,7 @@ def test_production_provider_environment_is_complete_and_payments_stay_disabled(
     assert template["TOROBPAY_ENABLED"].lower() == "false"
 
     # No live provider credentials belong in the committed production template.
-    for key in ("MELIPAYAMAK_API_KEY", "TOROBPAY_CLIENT_ID", "TOROBPAY_CLIENT_SECRET",
+    for key in ("MELIPAYAMAK_SHARED_API_URL", "TOROBPAY_CLIENT_ID", "TOROBPAY_CLIENT_SECRET",
                 "TOROBPAY_USERNAME", "TOROBPAY_PASSWORD"):
         value = template[key]
         assert not value or (value.startswith("<") and value.endswith(">")), f"{key} must be blank or a placeholder"

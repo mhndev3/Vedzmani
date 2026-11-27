@@ -70,8 +70,7 @@ permissions to `600`.
 
 Required (Compose fails fast if unset): `RELEASE_TAG`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
 `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`,
-`NEXT_PUBLIC_API_URL`, `ORIGIN_CERT_DIR`, `OTP_DELIVERY_BACKEND`, `MELIPAYAMAK_API_KEY`,
-`MELIPAYAMAK_SENDER`. Optional provider settings and credentials are listed in the template. The production Compose
+`NEXT_PUBLIC_API_URL`, `ORIGIN_CERT_DIR`, `OTP_DELIVERY_BACKEND`, `MELIPAYAMAK_SHARED_API_URL`. Optional provider settings and credentials are listed in the template. The production Compose
 file hardcodes `ORDERS_ENABLED`, `SEP_PAYMENT_ENABLED` and `TOROBPAY_ENABLED` to `false`; TorobPay credentials
 can therefore be present for the OAuth-only connection check without enabling customer payments.
 
