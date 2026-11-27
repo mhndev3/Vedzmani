@@ -43,10 +43,16 @@ def make_order(make_variant_size, *, stock=2, quantity=1):
 
 
 class FakeTorobPayClient:
-    def __init__(self, *, eligible=True, provider_status="PENDING", transaction_id=None):
+    def __init__(
+        self, *, eligible=True, provider_status="PENDING", transaction_id=None,
+        status_transaction_id=None, verify_transaction_id=None, provider_amount=10000,
+    ):
         self.eligible = eligible
         self.provider_status = provider_status
         self.transaction_id = transaction_id
+        self.status_transaction_id = status_transaction_id
+        self.verify_transaction_id = verify_transaction_id
+        self.provider_amount = provider_amount
         self.payload = None
         self.calls = []
 
@@ -64,12 +70,18 @@ class FakeTorobPayClient:
 
     def status(self, payment_token):
         self.calls.append(("status", payment_token))
-        return {"status": self.provider_status}
+        return {
+            "status": self.provider_status,
+            "amount": self.provider_amount,
+            "transactionId": self.status_transaction_id or self.transaction_id,
+        }
 
     def verify(self, payment_token):
         self.calls.append(("verify", payment_token))
         self.provider_status = "VERIFY"
-        return {"transactionId": self.transaction_id}
+        return {
+            "transactionId": self.verify_transaction_id or self.transaction_id
+        }
 
     def settle(self, payment_token):
         self.calls.append(("settle", payment_token))
@@ -196,7 +208,7 @@ def test_verified_and_settled_callback_decrements_stock_once(make_variant_size):
 
 
 @override_settings(ORDERS_ENABLED=True, TOROBPAY_ENABLED=True, TOROBPAY_SHIPPING_AMOUNT_TOMAN=0)
-def test_verified_callback_with_insufficient_stock_is_reverted_without_decrement(make_variant_size):
+def test_verified_callback_with_insufficient_stock_is_canceled_without_decrement(make_variant_size):
     order, variant_size = make_order(make_variant_size, stock=0)
     transaction_id = str(uuid.uuid4())
     attempt = TorobPayPaymentAttempt.objects.create(
@@ -220,12 +232,12 @@ def test_verified_callback_with_insufficient_stock_is_reverted_without_decrement
     assert order.payment_status == Order.FAILED
     assert attempt.status == TorobPayPaymentAttempt.CANCELED
     assert variant_size.stock_quantity == 0
-    assert [call[0] for call in client.calls].count("revert") == 1
+    assert [call[0] for call in client.calls].count("cancel") == 1
     assert not any(call[0] == "settle" for call in client.calls)
 
 
 @override_settings(ORDERS_ENABLED=True, TOROBPAY_ENABLED=True, TOROBPAY_SHIPPING_AMOUNT_TOMAN=0)
-def test_callback_amount_mismatch_is_reverted_and_never_fulfills(make_variant_size):
+def test_callback_amount_is_untrusted_when_provider_status_matches(make_variant_size):
     order, variant_size = make_order(make_variant_size, stock=2)
     transaction_id = str(uuid.uuid4())
     attempt = TorobPayPaymentAttempt.objects.create(
@@ -245,11 +257,137 @@ def test_callback_amount_mismatch_is_reverted_and_never_fulfills(make_variant_si
     order.refresh_from_db()
     attempt.refresh_from_db()
     variant_size.refresh_from_db()
+    assert result == "paid"
+    assert order.payment_status == Order.PAID
+    assert attempt.status == TorobPayPaymentAttempt.ONGOING
+    assert variant_size.stock_quantity == 1
+    assert not any(call[0] in {"revert", "cancel"} for call in client.calls)
+
+
+
+def test_provider_status_transaction_id_mismatch_pending_never_verifies(make_variant_size):
+    order, variant_size = make_order(make_variant_size, stock=2)
+    transaction_id = str(uuid.uuid4())
+    attempt = TorobPayPaymentAttempt.objects.create(
+        order=order,
+        merchant_transaction_id=uuid.UUID(transaction_id),
+        payment_token="provider-token",
+        amount_toman=1000,
+        amount_rial=10000,
+        status=TorobPayPaymentAttempt.NEW,
+    )
+    client = FakeTorobPayClient(
+        transaction_id=transaction_id,
+        status_transaction_id=str(uuid.uuid4()),
+    )
+
+    result = process_torobpay_callback(
+        transaction_id=transaction_id, state="OK", amount="10000", client=client
+    )
+
+    order.refresh_from_db()
+    attempt.refresh_from_db()
+    variant_size.refresh_from_db()
+    assert result == "pending"
+    assert order.payment_status == Order.UNPAID
+    assert attempt.status == TorobPayPaymentAttempt.NEW
+    assert variant_size.stock_quantity == 2
+    assert not any(
+        call[0] in {"verify", "settle", "revert", "cancel"}
+        for call in client.calls
+    )
+
+
+def test_provider_status_transaction_id_mismatch_after_verify_is_canceled(make_variant_size):
+    order, variant_size = make_order(make_variant_size, stock=2)
+    transaction_id = str(uuid.uuid4())
+    attempt = TorobPayPaymentAttempt.objects.create(
+        order=order,
+        merchant_transaction_id=uuid.UUID(transaction_id),
+        payment_token="provider-token",
+        amount_toman=1000,
+        amount_rial=10000,
+        status=TorobPayPaymentAttempt.NEW,
+    )
+    client = FakeTorobPayClient(
+        transaction_id=transaction_id,
+        provider_status="VERIFY",
+        status_transaction_id=str(uuid.uuid4()),
+    )
+
+    result = process_torobpay_callback(
+        transaction_id=transaction_id, state="OK", amount="10000", client=client
+    )
+
+    order.refresh_from_db()
+    attempt.refresh_from_db()
+    variant_size.refresh_from_db()
+    assert result == "failed"
+    assert order.payment_status == Order.FAILED
+    assert attempt.status == TorobPayPaymentAttempt.CANCELED
+    assert attempt.provider_status == "REVERT"
+    assert variant_size.stock_quantity == 2
+    assert any(call[0] == "cancel" for call in client.calls)
+    assert not any(call[0] == "settle" for call in client.calls)
+
+def test_provider_status_amount_mismatch_pending_never_verifies_or_settles(make_variant_size):
+    order, variant_size = make_order(make_variant_size, stock=2)
+    transaction_id = str(uuid.uuid4())
+    attempt = TorobPayPaymentAttempt.objects.create(
+        order=order,
+        merchant_transaction_id=uuid.UUID(transaction_id),
+        payment_token="provider-token",
+        amount_toman=1000,
+        amount_rial=10000,
+        status=TorobPayPaymentAttempt.NEW,
+    )
+    client = FakeTorobPayClient(
+        transaction_id=transaction_id, provider_amount=9999
+    )
+
+    result = process_torobpay_callback(
+        transaction_id=transaction_id, state="OK", amount="10000", client=client
+    )
+
+    order.refresh_from_db()
+    attempt.refresh_from_db()
+    variant_size.refresh_from_db()
+    assert result == "pending"
+    assert order.payment_status == Order.UNPAID
+    assert attempt.status == TorobPayPaymentAttempt.NEW
+    assert variant_size.stock_quantity == 2
+    assert not any(call[0] in {"verify", "settle", "revert", "cancel"} for call in client.calls)
+
+
+def test_provider_status_amount_mismatch_after_verify_is_canceled(make_variant_size):
+    order, variant_size = make_order(make_variant_size, stock=2)
+    transaction_id = str(uuid.uuid4())
+    attempt = TorobPayPaymentAttempt.objects.create(
+        order=order,
+        merchant_transaction_id=uuid.UUID(transaction_id),
+        payment_token="provider-token",
+        amount_toman=1000,
+        amount_rial=10000,
+        status=TorobPayPaymentAttempt.NEW,
+    )
+    client = FakeTorobPayClient(
+        transaction_id=transaction_id,
+        provider_status="VERIFY",
+        provider_amount=9999,
+    )
+
+    result = process_torobpay_callback(
+        transaction_id=transaction_id, state="OK", amount="10000", client=client
+    )
+
+    order.refresh_from_db()
+    attempt.refresh_from_db()
+    variant_size.refresh_from_db()
     assert result == "failed"
     assert order.payment_status == Order.FAILED
     assert attempt.status == TorobPayPaymentAttempt.CANCELED
     assert variant_size.stock_quantity == 2
-    assert [call[0] for call in client.calls].count("revert") == 1
+    assert [call[0] for call in client.calls].count("cancel") == 1
     assert not any(call[0] == "settle" for call in client.calls)
 
 
@@ -336,15 +474,22 @@ def test_concurrent_torobpay_payments_cannot_consume_the_same_last_unit(make_var
         def __init__(self):
             self.settled = []
             self.reverted = []
+            self.states = {token: "PENDING" for token in transaction_ids}
 
         def status(self, token):
-            return {"status": "PENDING"}
+            return {
+                "status": self.states[token],
+                "amount": 10000,
+                "transactionId": transaction_ids[token],
+            }
 
         def verify(self, token):
+            self.states[token] = "VERIFY"
             return {"transactionId": transaction_ids[token]}
 
         def settle(self, token):
             self.settled.append(token)
+            self.states[token] = "SETTLE"
             return {"transactionId": transaction_ids[token]}
 
         def revert(self, token):
@@ -405,7 +550,7 @@ def test_torobpay_token_creation_fails_closed_until_item_amount_semantics_are_co
 
 
 @override_settings(ORDERS_ENABLED=True, TOROBPAY_ENABLED=True, TOROBPAY_SHIPPING_AMOUNT_TOMAN=0)
-def test_verified_transaction_id_mismatch_is_reverted(make_variant_size):
+def test_verified_transaction_id_mismatch_is_canceled(make_variant_size):
     order, variant_size = make_order(make_variant_size, stock=2)
     transaction_id = str(uuid.uuid4())
     attempt = TorobPayPaymentAttempt.objects.create(
@@ -416,7 +561,10 @@ def test_verified_transaction_id_mismatch_is_reverted(make_variant_size):
         amount_rial=10000,
         status=TorobPayPaymentAttempt.NEW,
     )
-    client = FakeTorobPayClient(transaction_id=str(uuid.uuid4()))
+    client = FakeTorobPayClient(
+        transaction_id=transaction_id,
+        verify_transaction_id=str(uuid.uuid4()),
+    )
 
     result = process_torobpay_callback(
         transaction_id=transaction_id, state="OK", amount="10000", client=client
@@ -429,7 +577,43 @@ def test_verified_transaction_id_mismatch_is_reverted(make_variant_size):
     assert order.payment_status == Order.FAILED
     assert attempt.status == TorobPayPaymentAttempt.CANCELED
     assert variant_size.stock_quantity == 2
-    assert [call[0] for call in client.calls].count("revert") == 1
+    assert [call[0] for call in client.calls].count("cancel") == 1
+    assert not any(call[0] == "settle" for call in client.calls)
+
+
+@override_settings(ORDERS_ENABLED=True, TOROBPAY_ENABLED=True, TOROBPAY_SHIPPING_AMOUNT_TOMAN=0)
+def test_verify_identity_mismatch_from_initial_verify_state_is_canceled(make_variant_size):
+    order, variant_size = make_order(make_variant_size, stock=2)
+    transaction_id = str(uuid.uuid4())
+    attempt = TorobPayPaymentAttempt.objects.create(
+        order=order,
+        merchant_transaction_id=uuid.UUID(transaction_id),
+        payment_token="provider-token",
+        amount_toman=1000,
+        amount_rial=10000,
+        status=TorobPayPaymentAttempt.NEW,
+    )
+    client = FakeTorobPayClient(
+        transaction_id=transaction_id,
+        provider_status="VERIFY",
+        verify_transaction_id=str(uuid.uuid4()),
+    )
+
+    result = process_torobpay_callback(
+        transaction_id=transaction_id, state="OK", amount="10000", client=client
+    )
+
+    order.refresh_from_db()
+    attempt.refresh_from_db()
+    variant_size.refresh_from_db()
+    assert result == "failed"
+    assert order.payment_status == Order.FAILED
+    assert attempt.status == TorobPayPaymentAttempt.CANCELED
+    assert attempt.provider_status == "REVERT"
+    assert variant_size.stock_quantity == 2
+    assert [call[0] for call in client.calls].count("status") == 2
+    assert [call[0] for call in client.calls].count("verify") == 1
+    assert [call[0] for call in client.calls].count("cancel") == 1
     assert not any(call[0] == "settle" for call in client.calls)
 
 
@@ -446,17 +630,17 @@ def test_out_of_stock_reversal_retry_preserves_out_of_stock_outcome(make_variant
         status=TorobPayPaymentAttempt.NEW,
     )
     client = FakeTorobPayClient(transaction_id=transaction_id)
-    original_revert = client.revert
-    revert_calls = 0
+    original_cancel = client.cancel
+    cancel_calls = 0
 
-    def flaky_revert(payment_token):
-        nonlocal revert_calls
-        revert_calls += 1
-        if revert_calls == 1:
+    def flaky_cancel(payment_token):
+        nonlocal cancel_calls
+        cancel_calls += 1
+        if cancel_calls == 1:
             raise TorobPayUnavailable("provider_unavailable")
-        return original_revert(payment_token)
+        return original_cancel(payment_token)
 
-    client.revert = flaky_revert
+    client.cancel = flaky_cancel
 
     first_result = process_torobpay_callback(
         transaction_id=transaction_id, state="OK", amount="10000", client=client
@@ -476,7 +660,7 @@ def test_out_of_stock_reversal_retry_preserves_out_of_stock_outcome(make_variant
     assert attempt.status == TorobPayPaymentAttempt.CANCELED
     assert order.payment_status == Order.FAILED
     assert variant_size.stock_quantity == 0
-    assert revert_calls == 2
+    assert cancel_calls == 2
     assert [call[0] for call in client.calls].count("verify") == 1
     assert not any(call[0] == "settle" for call in client.calls)
 

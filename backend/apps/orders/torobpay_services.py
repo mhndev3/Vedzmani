@@ -176,12 +176,38 @@ def _provider_state(response):
     return value if value in {"PENDING", "VERIFY", "SETTLE", "REVERT"} else ""
 
 
-def _finish_reversal(attempt, client, provider_state):
-    """Reverse a not-yet-settled payment or cancel an already-settled one."""
+def _provider_identity_error(response, attempt):
+    """Validate amount and merchant transaction identity from provider status."""
+    if not isinstance(response, dict):
+        return "invalid_provider_status"
+
+    transaction_id = response.get("transactionId")
+    if (
+        not isinstance(transaction_id, str)
+        or transaction_id != str(attempt.merchant_transaction_id)
+    ):
+        return "transaction_id_mismatch"
+
+    amount = response.get("amount")
+    if isinstance(amount, bool):
+        return "amount_mismatch"
     try:
-        if provider_state == "VERIFY":
-            client.revert(attempt.payment_token)
-        elif provider_state == "SETTLE":
+        amount = int(str(amount))
+    except (TypeError, ValueError):
+        return "amount_mismatch"
+
+    if amount != attempt.amount_rial:
+        return "amount_mismatch"
+    return ""
+
+
+def _finish_reversal(attempt, client, provider_state):
+    """Cancel provider orders that have reached VERIFY/SETTLE; REVERT is already final."""
+    try:
+        # TorobPay status=VERIFY maps to SETTLE_FOR_W, not VERIFY_FOR_W.
+        # The provider only permits /revert for VERIFY_FOR_W; /cancel is valid
+        # for SETTLE_FOR_W and ONGOING, so both VERIFY and SETTLE use cancel.
+        if provider_state in {"VERIFY", "SETTLE"}:
             client.cancel(attempt.payment_token)
         elif provider_state == "REVERT":
             attempt.status = TorobPayPaymentAttempt.CANCELED
@@ -218,10 +244,9 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
         return "unknown"
     try:
         transaction_uuid = uuid.UUID(transaction_id)
-        callback_amount = int(str(amount))
     except (ValueError, TypeError, AttributeError):
         return "unknown"
-    if callback_amount < 1 or state not in {"OK", "FAILED"}:
+    if state not in {"OK", "FAILED"}:
         return "unknown"
 
     client = client or TorobPayClient()
@@ -261,6 +286,22 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
             provider_state = _provider_state(status_response)
             if not provider_state:
                 return "pending"
+
+            identity_error = _provider_identity_error(status_response, attempt)
+            if identity_error:
+                was_out_of_stock = attempt.status == TorobPayPaymentAttempt.OUT_OF_STOCK
+                attempt.provider_status = provider_state
+                attempt.last_error_code = identity_error
+                if provider_state in {"VERIFY", "SETTLE"} and not was_out_of_stock:
+                    attempt.status = TorobPayPaymentAttempt.REVERSAL_PENDING
+                attempt.save(update_fields=[
+                    "provider_status", "last_error_code", "status", "updated_at"
+                ])
+                if provider_state in {"VERIFY", "SETTLE"}:
+                    if _finish_reversal(attempt, client, provider_state):
+                        return "out_of_stock" if was_out_of_stock else "failed"
+                return "pending"
+
             attempt.provider_status = provider_state
             attempt.save(update_fields=["provider_status", "updated_at"])
 
@@ -288,14 +329,19 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
                 if not isinstance(provider_transaction_id, str) or provider_transaction_id != str(transaction_uuid):
                     # Verify may have advanced the provider to VERIFY. Query state before any reversal.
                     try:
-                        provider_state = _provider_state(client.status(attempt.payment_token))
+                        mismatch_status = client.status(attempt.payment_token)
                     except TorobPayError:
                         return "pending"
+                    provider_state = _provider_state(mismatch_status)
+                    status_error = _provider_identity_error(mismatch_status, attempt)
                     if provider_state not in {"VERIFY", "SETTLE"}:
                         return "pending"
+                    if status_error:
+                        attempt.last_error_code = status_error
+                    else:
+                        attempt.last_error_code = "transaction_id_mismatch"
                     attempt.provider_status = provider_state
                     attempt.status = TorobPayPaymentAttempt.REVERSAL_PENDING
-                    attempt.last_error_code = "transaction_id_mismatch"
                     attempt.save(update_fields=[
                         "provider_status", "status", "last_error_code", "updated_at"
                     ])
@@ -320,9 +366,25 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
                     return "pending"
                 provider_transaction_id = verified.get("transactionId")
                 if not isinstance(provider_transaction_id, str) or provider_transaction_id != str(transaction_uuid):
+                    # Reconcile provider state before reversing a mismatched verification.
+                    try:
+                        mismatch_status = client.status(attempt.payment_token)
+                    except TorobPayError:
+                        return "pending"
+
+                    provider_state = _provider_state(mismatch_status)
+                    status_error = _provider_identity_error(mismatch_status, attempt)
+                    if provider_state not in {"VERIFY", "SETTLE"}:
+                        return "pending"
+
                     attempt.status = TorobPayPaymentAttempt.REVERSAL_PENDING
-                    attempt.last_error_code = "transaction_id_mismatch"
-                    attempt.save(update_fields=["status", "last_error_code", "updated_at"])
+                    attempt.provider_status = provider_state
+                    attempt.last_error_code = status_error or "transaction_id_mismatch"
+                    attempt.save(update_fields=[
+                        "status", "provider_status", "last_error_code", "updated_at"
+                    ])
+                    if _finish_reversal(attempt, client, provider_state):
+                        return "failed"
                     return "pending"
                 attempt.provider_transaction_id = provider_transaction_id
                 attempt.verified_at = timezone.now()
@@ -348,8 +410,7 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
                 for item in items
             )
             can_fulfill = (
-                callback_amount == attempt.amount_rial
-                and order.payment_status == Order.UNPAID
+                order.payment_status == Order.UNPAID
                 and has_stock
             )
 
@@ -380,14 +441,30 @@ def process_torobpay_callback(*, transaction_id, state, amount, client=None):
                 except TorobPayError as exc:
                     attempt.last_error_code = exc.code[:64]
                     attempt.save(update_fields=["last_error_code", "updated_at"])
-                    try:
-                        provider_state = _provider_state(client.status(attempt.payment_token))
-                    except TorobPayError:
-                        return "pending"
-                    if provider_state != "SETTLE":
-                        return "pending"
-                else:
-                    provider_state = "SETTLE"
+
+                # Always reconcile with provider status, even when settle() returned
+                # successfully. Never decrement stock based only on the settle response.
+                try:
+                    settled_status = client.status(attempt.payment_token)
+                except TorobPayError:
+                    return "pending"
+
+                provider_state = _provider_state(settled_status)
+                status_error = _provider_identity_error(settled_status, attempt)
+
+                if provider_state not in {"VERIFY", "SETTLE"}:
+                    return "pending"
+
+                if status_error:
+                    attempt.status = TorobPayPaymentAttempt.REVERSAL_PENDING
+                    attempt.provider_status = provider_state
+                    attempt.last_error_code = status_error
+                    attempt.save(update_fields=[
+                        "status", "provider_status", "last_error_code", "updated_at"
+                    ])
+                    if _finish_reversal(attempt, client, provider_state):
+                        return "failed"
+                    return "pending"
 
             if provider_state != "SETTLE":
                 return "pending"
