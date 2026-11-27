@@ -208,7 +208,7 @@ def test_verified_and_settled_callback_decrements_stock_once(make_variant_size):
 
 
 @override_settings(ORDERS_ENABLED=True, TOROBPAY_ENABLED=True, TOROBPAY_SHIPPING_AMOUNT_TOMAN=0)
-def test_verified_callback_with_insufficient_stock_is_reverted_without_decrement(make_variant_size):
+def test_verified_callback_with_insufficient_stock_is_canceled_without_decrement(make_variant_size):
     order, variant_size = make_order(make_variant_size, stock=0)
     transaction_id = str(uuid.uuid4())
     attempt = TorobPayPaymentAttempt.objects.create(
@@ -232,7 +232,7 @@ def test_verified_callback_with_insufficient_stock_is_reverted_without_decrement
     assert order.payment_status == Order.FAILED
     assert attempt.status == TorobPayPaymentAttempt.CANCELED
     assert variant_size.stock_quantity == 0
-    assert [call[0] for call in client.calls].count("revert") == 1
+    assert [call[0] for call in client.calls].count("cancel") == 1
     assert not any(call[0] == "settle" for call in client.calls)
 
 
@@ -298,7 +298,7 @@ def test_provider_status_transaction_id_mismatch_pending_never_verifies(make_var
     )
 
 
-def test_provider_status_transaction_id_mismatch_after_verify_is_reverted(make_variant_size):
+def test_provider_status_transaction_id_mismatch_after_verify_is_canceled(make_variant_size):
     order, variant_size = make_order(make_variant_size, stock=2)
     transaction_id = str(uuid.uuid4())
     attempt = TorobPayPaymentAttempt.objects.create(
@@ -327,7 +327,7 @@ def test_provider_status_transaction_id_mismatch_after_verify_is_reverted(make_v
     assert attempt.status == TorobPayPaymentAttempt.CANCELED
     assert attempt.provider_status == "REVERT"
     assert variant_size.stock_quantity == 2
-    assert any(call[0] == "revert" for call in client.calls)
+    assert any(call[0] == "cancel" for call in client.calls)
     assert not any(call[0] == "settle" for call in client.calls)
 
 def test_provider_status_amount_mismatch_pending_never_verifies_or_settles(make_variant_size):
@@ -359,7 +359,7 @@ def test_provider_status_amount_mismatch_pending_never_verifies_or_settles(make_
     assert not any(call[0] in {"verify", "settle", "revert", "cancel"} for call in client.calls)
 
 
-def test_provider_status_amount_mismatch_after_verify_is_reverted(make_variant_size):
+def test_provider_status_amount_mismatch_after_verify_is_canceled(make_variant_size):
     order, variant_size = make_order(make_variant_size, stock=2)
     transaction_id = str(uuid.uuid4())
     attempt = TorobPayPaymentAttempt.objects.create(
@@ -387,7 +387,7 @@ def test_provider_status_amount_mismatch_after_verify_is_reverted(make_variant_s
     assert order.payment_status == Order.FAILED
     assert attempt.status == TorobPayPaymentAttempt.CANCELED
     assert variant_size.stock_quantity == 2
-    assert [call[0] for call in client.calls].count("revert") == 1
+    assert [call[0] for call in client.calls].count("cancel") == 1
     assert not any(call[0] == "settle" for call in client.calls)
 
 
@@ -550,7 +550,7 @@ def test_torobpay_token_creation_fails_closed_until_item_amount_semantics_are_co
 
 
 @override_settings(ORDERS_ENABLED=True, TOROBPAY_ENABLED=True, TOROBPAY_SHIPPING_AMOUNT_TOMAN=0)
-def test_verified_transaction_id_mismatch_is_reverted(make_variant_size):
+def test_verified_transaction_id_mismatch_is_canceled(make_variant_size):
     order, variant_size = make_order(make_variant_size, stock=2)
     transaction_id = str(uuid.uuid4())
     attempt = TorobPayPaymentAttempt.objects.create(
@@ -577,12 +577,12 @@ def test_verified_transaction_id_mismatch_is_reverted(make_variant_size):
     assert order.payment_status == Order.FAILED
     assert attempt.status == TorobPayPaymentAttempt.CANCELED
     assert variant_size.stock_quantity == 2
-    assert [call[0] for call in client.calls].count("revert") == 1
+    assert [call[0] for call in client.calls].count("cancel") == 1
     assert not any(call[0] == "settle" for call in client.calls)
 
 
 @override_settings(ORDERS_ENABLED=True, TOROBPAY_ENABLED=True, TOROBPAY_SHIPPING_AMOUNT_TOMAN=0)
-def test_verify_identity_mismatch_from_initial_verify_state_is_reverted(make_variant_size):
+def test_verify_identity_mismatch_from_initial_verify_state_is_canceled(make_variant_size):
     order, variant_size = make_order(make_variant_size, stock=2)
     transaction_id = str(uuid.uuid4())
     attempt = TorobPayPaymentAttempt.objects.create(
@@ -613,7 +613,7 @@ def test_verify_identity_mismatch_from_initial_verify_state_is_reverted(make_var
     assert variant_size.stock_quantity == 2
     assert [call[0] for call in client.calls].count("status") == 2
     assert [call[0] for call in client.calls].count("verify") == 1
-    assert [call[0] for call in client.calls].count("revert") == 1
+    assert [call[0] for call in client.calls].count("cancel") == 1
     assert not any(call[0] == "settle" for call in client.calls)
 
 
@@ -630,17 +630,17 @@ def test_out_of_stock_reversal_retry_preserves_out_of_stock_outcome(make_variant
         status=TorobPayPaymentAttempt.NEW,
     )
     client = FakeTorobPayClient(transaction_id=transaction_id)
-    original_revert = client.revert
-    revert_calls = 0
+    original_cancel = client.cancel
+    cancel_calls = 0
 
-    def flaky_revert(payment_token):
-        nonlocal revert_calls
-        revert_calls += 1
-        if revert_calls == 1:
+    def flaky_cancel(payment_token):
+        nonlocal cancel_calls
+        cancel_calls += 1
+        if cancel_calls == 1:
             raise TorobPayUnavailable("provider_unavailable")
-        return original_revert(payment_token)
+        return original_cancel(payment_token)
 
-    client.revert = flaky_revert
+    client.cancel = flaky_cancel
 
     first_result = process_torobpay_callback(
         transaction_id=transaction_id, state="OK", amount="10000", client=client
@@ -660,7 +660,7 @@ def test_out_of_stock_reversal_retry_preserves_out_of_stock_outcome(make_variant
     assert attempt.status == TorobPayPaymentAttempt.CANCELED
     assert order.payment_status == Order.FAILED
     assert variant_size.stock_quantity == 0
-    assert revert_calls == 2
+    assert cancel_calls == 2
     assert [call[0] for call in client.calls].count("verify") == 1
     assert not any(call[0] == "settle" for call in client.calls)
 
