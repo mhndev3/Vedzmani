@@ -3,7 +3,7 @@
 App: `backend/apps/orders`. PostgreSQL is the source of truth. An authenticated user can **create** an order from
 their cart and **read** their own orders. SEP payment initiation, server-side verification, callback reconciliation
 and reversal are implemented separately behind feature flags; their contract is documented in `PAYMENT.md`.
-Shipping rules and carrier tariffs are not yet connected to checkout.
+V1 checkout uses Tipax only; freight is collected by Tipax from the recipient on delivery.
 
 ```
 User ─< Order ─< OrderItem >─ catalog.VariantSize        (OrderItem unique (order, variant_size); quantity > 0)
@@ -41,6 +41,7 @@ Success `201`:
 ```
 { id, status: "pending", payment_status: "unpaid", customer_phone,
   recipient_name, province, city, address, postal_code,
+  shipping_provider: "tipax", shipping_payment: "collect_on_delivery",
   total, created_at,
   items: [{ id, variant_size_id, product_name, color_name, size_label, sku, unit_price, quantity, subtotal }] }
 ```
