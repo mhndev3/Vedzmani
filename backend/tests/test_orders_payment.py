@@ -25,7 +25,7 @@ def make_order(make_variant_size, quantity=1, stock=2):
         unit_price=Decimal("1000"), quantity=quantity, subtotal=Decimal("1000") * quantity)
     return order, vs
 
-@override_settings(SEP_PAYMENT_ENABLED=True, SEP_TERMINAL_ID="12345", SEP_SHIPPING_AMOUNT_TOMAN=0)
+@override_settings(SEP_PAYMENT_ENABLED=True, SEP_TERMINAL_ID="12345", SEP_SHIPPING_AMOUNT_TOMAN=None)
 def test_token_uses_server_amount_converted_from_toman_to_rial(make_variant_size):
     order, vs = make_order(make_variant_size)
     with patch("apps.orders.payment_services.SepClient.request_token", return_value="sep-token") as token:
