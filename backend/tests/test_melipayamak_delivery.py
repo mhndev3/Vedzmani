@@ -30,7 +30,7 @@ class _FakeResponse:
 def melipayamak_settings():
     with override_settings(
         MELIPAYAMAK_SHARED_API_URL="https://console.melipayamak.com/api/send/shared/test-secret",
-        MELIPAYAMAK_BODY_ID=524,
+        MELIPAYAMAK_BODY_ID=591009,
         MELIPAYAMAK_TIMEOUT_SECONDS=7,
     ):
         yield
@@ -54,7 +54,7 @@ def test_sends_backend_generated_code_through_shared_api(monkeypatch, melipayama
     assert captured["timeout"] == 7
     assert captured["headers"]["Content-type"] == "application/json; charset=utf-8"
     assert captured["payload"] == {
-        "bodyId": 524,
+        "bodyId": 591009,
         "to": "09123456789",
         "args": ["123456"],
     }
@@ -73,7 +73,7 @@ def test_all_otp_purposes_use_the_approved_template_variable(
     monkeypatch.setattr("apps.accounts.delivery.urlopen", fake_urlopen)
     MelipayamakDelivery().send(phone="09123456789", code="654321", purpose=purpose)
 
-    assert payloads == [{"bodyId": 524, "to": "09123456789", "args": ["654321"]}]
+    assert payloads == [{"bodyId": 591009, "to": "09123456789", "args": ["654321"]}]
 
 
 def test_rejects_provider_error_without_leaking_response_or_endpoint(
@@ -123,7 +123,7 @@ def test_http_error_does_not_log_endpoint_or_response_body(
 def test_missing_configuration_fails_closed(monkeypatch):
     with override_settings(
         MELIPAYAMAK_SHARED_API_URL="",
-        MELIPAYAMAK_BODY_ID=524,
+        MELIPAYAMAK_BODY_ID=591009,
         MELIPAYAMAK_TIMEOUT_SECONDS=7,
     ):
         monkeypatch.setattr(

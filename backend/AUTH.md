@@ -43,7 +43,7 @@ stored as `+989XXXXXXXXX` (`apps/accounts/phone.py` is the only normalizer).
   `ConsoleDelivery` (dev) / `InMemoryDelivery` (tests) are rejected by production settings.
   `MelipayamakDelivery` sends the backend-generated six-digit code through the shared-service API
   (`POST` to the private URL configured in `MELIPAYAMAK_SHARED_API_URL`) with JSON fields `bodyId`, `to`,
-  and `args`. The approved template uses `bodyId=524` and the single OTP variable `args=[code]`.
+  and `args`. The approved template uses `bodyId=591009` and the single OTP variable `args=[code]`.
   Configure `OTP_DELIVERY_BACKEND=apps.accounts.delivery.MelipayamakDelivery` and the private endpoint URL
   only in the server environment. A valid non-empty `recId` is required for provider acceptance. The endpoint
   URL contains a secret and must never be committed, logged, or exposed to the browser.
@@ -165,5 +165,5 @@ container shows the Cloudflare ranges; (2) the Nginx access log shows real clien
 ## Customer password authentication and OTP purposes
 - `POST /password/login/` validates phone + password, invalidates any prior customer session, and sends a purpose=`login` OTP. It returns `202`; `/me/` remains `401` until the code is verified. The login OTP endpoint cannot be requested directly: verification also requires a server-side pending marker created only after successful password authentication.
 - `POST /otp/request/` accepts purpose `signup` or `password_reset`; `/otp/verify/` accepts `signup`, `password_reset`, or `login`. Signup codes create only previously absent accounts; reset codes apply only to existing accounts. Ineligible requests return the same `202` response and do not send a message, avoiding account enumeration.
-- Login, registration, and password recovery use the provider-approved shared template (bodyId 524) with the backend-generated OTP as its sole argument.
+- Login, registration, and password recovery use the provider-approved shared template (bodyId 591009) with the backend-generated OTP as its sole argument.
 - `POST /password/set/` accepts `{password}` only after signup or password-reset verification, not after ordinary login OTP. Passwords must be at least 10 characters and pass Django's configured password validators. Password login is rate-limited to 10 attempts per normalized phone and 30 per client IP in a 10-minute window.

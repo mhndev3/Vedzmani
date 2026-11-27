@@ -56,7 +56,7 @@ services:
       # OTP provider credentials are server-only and supplied through --env-file .env.production.
       OTP_DELIVERY_BACKEND: ${OTP_DELIVERY_BACKEND:?set OTP_DELIVERY_BACKEND}
       MELIPAYAMAK_SHARED_API_URL: ${MELIPAYAMAK_SHARED_API_URL:?set MELIPAYAMAK_SHARED_API_URL}
-      MELIPAYAMAK_BODY_ID: ${MELIPAYAMAK_BODY_ID:-524}
+      MELIPAYAMAK_BODY_ID: ${MELIPAYAMAK_BODY_ID:-591009}
       MELIPAYAMAK_TIMEOUT_SECONDS: ${MELIPAYAMAK_TIMEOUT_SECONDS:-10}
       # Hard fail-safe: payment/order flags are not configurable from the production env file.
       ORDERS_ENABLED: "false"
